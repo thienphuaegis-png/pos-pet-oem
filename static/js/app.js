@@ -126,6 +126,167 @@
                 });
             };
 
+            window.showPromptModal = function(options) {
+                return new Promise((resolve) => {
+                    if (typeof options === 'string') {
+                        options = { message: options, defaultValue: arguments[1] || '' };
+                    }
+                    const {
+                        title = 'Nhập thông tin',
+                        message = '',
+                        subMessage = '',
+                        defaultValue = '',
+                        placeholder = 'Nhập nội dung...',
+                        presets = [],
+                        multiline = false,
+                        confirmText = 'Xác nhận',
+                        cancelText = 'Hủy bỏ',
+                        type = 'success',
+                        icon: customIcon = null
+                    } = options || {};
+
+                    const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+                    const old = document.getElementById('global-prompt-modal');
+                    if (old) old.remove();
+
+                    let btnClass = 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200';
+                    let ringClass = 'focus:border-emerald-500 focus:ring-emerald-500/20';
+                    let iconBg = 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+                    let icon = customIcon || '<i class="ph ph-shield-check text-xl"></i>';
+
+                    if (type === 'primary' || type === 'info') {
+                        btnClass = 'bg-sky-600 hover:bg-sky-700 text-white shadow-sky-200';
+                        ringClass = 'focus:border-sky-500 focus:ring-sky-500/20';
+                        iconBg = 'bg-sky-100 text-sky-700 border border-sky-200';
+                        icon = customIcon || '<i class="ph ph-note-pencil text-xl"></i>';
+                    } else if (type === 'warning') {
+                        btnClass = 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-200';
+                        ringClass = 'focus:border-amber-500 focus:ring-amber-500/20';
+                        iconBg = 'bg-amber-100 text-amber-700 border border-amber-200';
+                        icon = customIcon || '<i class="ph ph-warning-circle text-xl"></i>';
+                    }
+
+                    const presetsHtml = Array.isArray(presets) && presets.length
+                        ? `<div class="space-y-1.5">
+                               <div class="text-xs font-semibold text-slate-500">Chọn nhanh lý do phổ biến:</div>
+                               <div class="flex flex-wrap gap-1.5" id="prompt-modal-presets">
+                                   ${presets.map((p, idx) => `<button type="button" data-preset-idx="${idx}" class="prompt-preset-chip px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 text-slate-700 text-xs font-semibold transition cursor-pointer">${esc(p)}</button>`).join('')}
+                               </div>
+                           </div>`
+                        : '';
+
+                    const fieldHtml = multiline
+                        ? `<textarea id="prompt-modal-input" rows="6" placeholder="${esc(placeholder)}" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 bg-white outline-none focus:ring-2 ${ringClass} transition">${esc(defaultValue)}</textarea>`
+                        : `<input type="text" id="prompt-modal-input" value="${esc(defaultValue)}" placeholder="${esc(placeholder)}" autocomplete="off" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 bg-white outline-none focus:ring-2 ${ringClass} transition">`;
+
+                    const modal = document.createElement('div');
+                    modal.id = 'global-prompt-modal';
+                    modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] z-[9999999] flex items-center justify-center p-4 transition-all duration-200 opacity-0';
+                    modal.innerHTML = `
+                        <div class="bg-white rounded-2xl p-6 w-[460px] max-w-full shadow-2xl border border-slate-100 transform scale-95 transition-all duration-200 space-y-4">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex items-start gap-3 min-w-0">
+                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg}">
+                                        ${icon}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <h3 class="text-base font-bold text-slate-900 leading-snug">${esc(title)}</h3>
+                                        ${message ? `<div class="text-xs font-medium text-slate-600 mt-1 leading-relaxed whitespace-pre-line">${esc(message)}</div>` : ''}
+                                    </div>
+                                </div>
+                                <button type="button" id="btn-prompt-close-x" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center shrink-0 cursor-pointer"><i class="ph ph-x text-xs"></i></button>
+                            </div>
+                            ${subMessage ? `<div class="text-xs text-slate-700 bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-200/80 leading-relaxed whitespace-pre-line font-medium">${esc(subMessage)}</div>` : ''}
+                            ${presetsHtml}
+                            <div>${fieldHtml}</div>
+                            <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+                                <button type="button" id="btn-prompt-cancel" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-200 transition cursor-pointer">
+                                    ${esc(cancelText)}
+                                </button>
+                                <button type="button" id="btn-prompt-confirm" class="px-4 py-2 rounded-xl text-xs font-bold ${btnClass} shadow-xs transition cursor-pointer">
+                                    ${esc(confirmText)}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(modal);
+
+                    const inputEl = document.getElementById('prompt-modal-input');
+                    const confirmBtn = document.getElementById('btn-prompt-confirm');
+                    const cancelBtn = document.getElementById('btn-prompt-cancel');
+                    const closeXBtn = document.getElementById('btn-prompt-close-x');
+
+                    const syncPresetActive = () => {
+                        if (!inputEl) return;
+                        const cur = inputEl.value.trim();
+                        modal.querySelectorAll('.prompt-preset-chip').forEach((chip) => {
+                            const idx = Number(chip.getAttribute('data-preset-idx'));
+                            const active = presets[idx] === cur;
+                            chip.className = active
+                                ? 'prompt-preset-chip px-2.5 py-1 rounded-lg border border-emerald-400 bg-emerald-50 text-emerald-800 text-xs font-bold transition cursor-pointer'
+                                : 'prompt-preset-chip px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 text-slate-700 text-xs font-semibold transition cursor-pointer';
+                        });
+                    };
+
+                    modal.querySelectorAll('.prompt-preset-chip').forEach((chip) => {
+                        chip.onclick = () => {
+                            const idx = Number(chip.getAttribute('data-preset-idx'));
+                            if (inputEl && presets[idx] != null) {
+                                inputEl.value = presets[idx];
+                                syncPresetActive();
+                                inputEl.focus();
+                            }
+                        };
+                    });
+                    if (inputEl) inputEl.addEventListener('input', syncPresetActive);
+                    syncPresetActive();
+
+                    requestAnimationFrame(() => {
+                        modal.classList.remove('opacity-0');
+                        modal.querySelector('div').classList.remove('scale-95');
+                        if (inputEl) {
+                            inputEl.focus();
+                            if (!multiline && typeof inputEl.select === 'function') inputEl.select();
+                        }
+                    });
+
+                    let settled = false;
+                    const cleanup = (val) => {
+                        if (settled) return;
+                        settled = true;
+                        window.removeEventListener('keydown', handleKey);
+                        modal.classList.add('opacity-0');
+                        modal.querySelector('div').classList.add('scale-95');
+                        setTimeout(() => modal.remove(), 150);
+                        resolve(val);
+                    };
+
+                    const handleKey = (e) => {
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            cleanup(null);
+                        } else if (e.key === 'Enter' && !multiline && document.activeElement === inputEl) {
+                            e.preventDefault();
+                            if (confirmBtn) confirmBtn.disabled = true;
+                            cleanup(inputEl ? inputEl.value : '');
+                        }
+                    };
+                    window.addEventListener('keydown', handleKey);
+
+                    if (confirmBtn) {
+                        confirmBtn.onclick = () => {
+                            confirmBtn.disabled = true;
+                            cleanup(inputEl ? inputEl.value : '');
+                        };
+                    }
+                    if (cancelBtn) cancelBtn.onclick = () => cleanup(null);
+                    if (closeXBtn) closeXBtn.onclick = () => cleanup(null);
+                    modal.onclick = (e) => { if (e.target === modal) cleanup(null); };
+                });
+            };
+
             window.showToast = function(message, type = 'info', duration = 3200) {
                 if (!document.body) {
                     window.addEventListener('DOMContentLoaded', () => window.showToast(message, type, duration));
@@ -6028,34 +6189,32 @@
             }
         };
 
-        window.syncServerTunnelFromSettings = function() {
-            const runSync = async () => {
-                const btn = document.getElementById('btn-sync-server-tunnel');
-                const oldHtml = btn ? btn.innerHTML : '';
-                if (btn) { btn.disabled = true; btn.textContent = 'Đang đồng bộ...'; }
-                try {
-                    const tok = localStorage.getItem('pos_token') || '';
-                    const res = await fetch('/api/system/sync-tunnel', {
-                        method: 'POST',
-                        headers: tok ? { 'Authorization': 'Bearer ' + tok } : {}
-                    });
-                    if (!res.ok) throw new Error('HTTP ' + res.status);
-                    await loadServerControlPanel(true);
-                    if (typeof showToast === 'function') showToast('Đã bật cổng 8997 & đồng bộ lại link Tailscale lên Vercel!', 'success');
-                } catch (e) {
-                    if (typeof showToast === 'function') showToast('Lỗi đồng bộ đường truyền: ' + e.message, 'error');
-                } finally {
-                    if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
-                }
-            };
+        window.syncServerTunnelFromSettings = async function() {
             if (typeof window.showConfirmModal === 'function') {
-                window.showConfirmModal(
-                    'Đồng bộ lại Máy Chủ & Đường Truyền?',
-                    'Hệ thống sẽ kiểm tra bật ngầm máy chủ cổng 8997 (PetNT) nếu đang tắt và gắn lại 2 đường link Tailscale cố định lên mcarepet.vercel.app & petnt.vercel.app.',
-                    runSync
-                );
-            } else {
-                runSync();
+                const ok = await window.showConfirmModal({
+                    title: 'Đồng bộ lại Máy Chủ & Đường Truyền?',
+                    message: 'Hệ thống sẽ kiểm tra bật ngầm máy chủ cổng 8997 (PetNT) nếu đang tắt và gắn lại 2 đường link Tailscale cố định lên mcarepet.vercel.app & petnt.vercel.app.',
+                    confirmText: 'Đồng bộ ngay',
+                    type: 'primary'
+                });
+                if (!ok) return;
+            }
+            const btn = document.getElementById('btn-sync-server-tunnel');
+            const oldHtml = btn ? btn.innerHTML : '';
+            if (btn) { btn.disabled = true; btn.textContent = 'Đang đồng bộ...'; }
+            try {
+                const tok = localStorage.getItem('pos_token') || '';
+                const res = await fetch('/api/system/sync-tunnel', {
+                    method: 'POST',
+                    headers: tok ? { 'Authorization': 'Bearer ' + tok } : {}
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                await loadServerControlPanel(true);
+                if (typeof showToast === 'function') showToast('Đã bật cổng 8997 & đồng bộ lại link Tailscale lên Vercel!', 'success');
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Lỗi đồng bộ đường truyền: ' + e.message, 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
             }
         };
 

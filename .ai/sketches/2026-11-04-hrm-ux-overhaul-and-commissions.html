@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Mockup Đồng Bộ Giao Diện HRM: Lưới Tháng, Cố Định Cột, Hoa Hồng Pancake & Gom Nhóm</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f1f5f9;
+    color: #0f172a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 12px;
+    line-height: 1.45;
+    padding: 12px;
+  }
+  .wrap { max-width: 980px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* Thanh chọn kỳ thời gian mới dùng chung */
+  .period-bar {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 11px;
+    padding: 8px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .pill-group { display: inline-flex; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 2px; gap: 2px; }
+  .pill-btn {
+    border: none; background: transparent; color: #475569; font-weight: 700; font-size: 11px;
+    padding: 4px 9px; border-radius: 6px; cursor: pointer;
+  }
+  .pill-btn.active { background: #0284c7; color: #ffffff; }
+  .date-range-box {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 7px; padding: 3px 8px;
+    font-size: 11px; font-weight: 600; color: #334155;
+  }
+
+  /* Điều hướng 3 màn mẫu */
+  .nav-tabs { display: flex; gap: 6px; }
+  .nav-tab {
+    flex: 1; border: 1px solid #cbd5e1; background: #ffffff; color: #334155;
+    padding: 7px 10px; border-radius: 9px; font-weight: 700; font-size: 11.5px; cursor: pointer; text-align: center;
+  }
+  .nav-tab.active { background: #ecfdf5; border-color: #10b981; color: #065f46; }
+
+  .card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .card-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .card-title { font-size: 13px; font-weight: 800; color: #0f172a; }
+  .badge-fix { background: #dcfce7; color: #166534; border: 1px solid #86efac; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+  .badge-info { background: #e0f2fe; color: #0369a1; border: 1px solid #7dd3fc; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+  .badge-warn { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+
+  /* Bảng mẫu có sticky column & cột Chủ Nhật */
+  .scroll-box { overflow-x: auto; border: 1px solid #cbd5e1; border-radius: 9px; max-width: 100%; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+  thead th { background: #f8fafc; color: #334155; font-weight: 700; }
+
+  .sticky-col-1 { position: sticky; left: 0; z-index: 3; background: #ffffff; width: 54px; min-width: 54px; }
+  .sticky-col-2 { position: sticky; left: 54px; z-index: 3; background: #ffffff; border-right: 2px solid #cbd5e1; box-shadow: 3px 0 5px -2px rgba(15,23,42,0.08); }
+  thead .sticky-col-1, thead .sticky-col-2 { background: #f8fafc; z-index: 4; }
+  tfoot .sticky-col-1, tfoot .sticky-col-2 { background: #f1f5f9; z-index: 4; font-weight: 800; }
+
+  /* Lưới chấm công: Cột Chủ nhật & gạch đỏ */
+  .sun-hdr { background: #ffe4e6 !important; color: #be123c !important; font-weight: 800; }
+  .sun-cell { background: #fff1f2 !important; color: #be123c; font-weight: 700; }
+  .cell-x { color: #059669; font-weight: 700; text-align: center; }
+  .cell-half { color: #0284c7; font-weight: 700; text-align: center; }
+  .cell-pen { border-bottom: 2px solid #ef4444 !important; }
+  .readonly-cell { cursor: default; user-select: none; }
+
+  /* Tiến độ KPI / Pancake */
+  .prog-track { width: 130px; height: 6px; background: #e2e8f0; border-radius: 99px; overflow: hidden; margin-top: 3px; }
+  .prog-fill-warn { height: 100%; background: #f59e0b; border-radius: 99px; }
+  .prog-fill-ok { height: 100%; background: #10b981; border-radius: 99px; }
+
+  /* Gom nhóm theo nhân viên */
+  .grp-row td { background: #f0f9ff; color: #0c4a6e; font-weight: 800; border-top: 1px solid #bae6fd; border-bottom: 1px solid #bae6fd; }
+  .mono { font-family: Consolas, "Liberation Mono", monospace; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- THANH CHỌN KỲ THỜI GIAN ĐỒNG BỘ MỚI -->
+  <div class="period-bar">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-weight:800;color:#0f172a;">Kỳ xem dữ liệu:</span>
+      <div class="pill-group">
+        <button class="pill-btn" onclick="setPeriod(this,'Tháng 11/2026 (01/11 - 30/11/2026)')">Tháng này</button>
+        <button class="pill-btn active" onclick="setPeriod(this,'Tháng 10/2026 (01/10 - 31/10/2026)')">Tháng trước (10/2026)</button>
+        <button class="pill-btn" onclick="setPeriod(this,'01/09/2026 -> 31/10/2026 (2 tháng)')">Khoảng thời gian</button>
+      </div>
+      <div class="date-range-box" id="period-label">01/10/2026 &rarr; 31/10/2026</div>
+    </div>
+    <span class="badge-info">Áp dụng đồng bộ cho cả HRM &amp; Sàn TMĐT Pancake</span>
+  </div>
+
+  <!-- TAB CHUYỂN XEM 3 NHÓM THAY ĐỔI -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPane('p1', this)">1. Lưới Chấm Công (2 hàng Thứ + Tô màu CN) &amp; Ghim Cột Tên</button>
+    <button class="nav-tab" onclick="showPane('p2', this)">2. Hoa Hồng &amp; Pancake (Luôn hiện Đủ / Thiếu mốc KPI)</button>
+    <button class="nav-tab" onclick="showPane('p3', this)">3. Tạm Ứng / Tăng Ca / Xin Off (Hiện Tên + Nhóm Tổng NV + Ngày VN)</button>
+  </div>
+
+  <!-- PANE 1: LƯỚI CHẤM CÔNG + GHIM CỘT BẢNG LƯƠNG + CHỌN CỘT NHÂN SỰ -->
+  <div id="p1" class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-title">A. Lưới Chấm Công Tháng 10/2026 — Khóa click sửa tay, thêm hàng Thứ, tô màu cột Chủ Nhật</div>
+        <div style="font-size:11px;color:#475569;margin-top:2px;">
+          <b>Giải đáp gạch chân đỏ trong Ảnh 1:</b> Ô có <u>gạch đỏ dưới chân</u> là ngày đang bị tính <b>Tiền phạt &gt; 0đ</b> (đi trễ chưa miễn, quên quẹt 1 chiều -50k, hoặc vắng -500k). Rê chuột vào ô sẽ hiện tooltip chi tiết giờ vào/ra &amp; mức phạt, <b>không mở popup sửa khi click</b>.
+        </div>
+      </div>
+      <span class="badge-fix">Chỉ đọc (Read-only)</span>
+    </div>
+
+    <div class="scroll-box">
+      <table>
+        <thead>
+          <tr>
+            <th rowspan="2" class="sticky-col-1">Mã NV</th>
+            <th rowspan="2" class="sticky-col-2">Họ và Tên (Ghim cố định)</th>
+            <th style="text-align:center;">01</th>
+            <th style="text-align:center;">02</th>
+            <th style="text-align:center;">03</th>
+            <th class="sun-hdr" style="text-align:center;">04</th>
+            <th style="text-align:center;">05</th>
+            <th style="text-align:center;">06</th>
+            <th style="text-align:center;">07</th>
+            <th style="text-align:center;">08</th>
+            <th style="text-align:center;">09</th>
+            <th style="text-align:center;">10</th>
+            <th class="sun-hdr" style="text-align:center;">11</th>
+            <th rowspan="2" style="text-align:center;border-left:1px solid #cbd5e1;">Tổng công</th>
+            <th rowspan="2" style="text-align:right;">Phạt</th>
+          </tr>
+          <tr>
+            <th style="text-align:center;font-size:10px;color:#64748b;">T5</th>
+            <th style="text-align:center;font-size:10px;color:#64748b;">T6</th>
+            <th style="text-align:center;font-size:10px;color:#64748b;">T7</th>
+            <th class="sun-hdr" style="text-align:center;font-size:10px;">CN</th>
+            <th style="text-align:center;font-size:10px;color:#64748b;">T2</th>
+            <th style="text-align:center;font-size:10px;color:#64748b;">T3</th>
+            <th style="text-align:center;font-size:10px;color:#64748b;">T4</th>
+            <th style="text-align:center;font-size:10px;color:#64748b;">T5</th>
+            <th style="text-align:center;font-size:10px;color:#64748b;">T6</th>
+            <th style="text-align:center;font-size:10px;color:#64748b;">T7</th>
+            <th class="sun-hdr" style="text-align:center;font-size:10px;">CN</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="sticky-col-1 mono" style="font-weight:700;color:#0369a1;">NV01</td>
+            <td class="sticky-col-2"><b>Bùi Thiên Phú</b> <span style="color:#64748b;font-size:10.5px;">(Văn Phòng)</span></td>
+            <td class="cell-x readonly-cell">X</td>
+            <td class="cell-x readonly-cell">X</td>
+            <td class="cell-x readonly-cell">X</td>
+            <td class="sun-cell readonly-cell" style="text-align:center;">CN</td>
+            <td class="cell-x readonly-cell">X</td>
+            <td class="cell-x readonly-cell">X</td>
+            <td class="cell-x readonly-cell">X</td>
+            <td class="cell-x readonly-cell">X</td>
+            <td class="cell-x readonly-cell">X</td>
+            <td class="cell-x readonly-cell">X</td>
+            <td class="sun-cell readonly-cell" style="text-align:center;">CN</td>
+            <td style="text-align:center;font-weight:800;color:#047857;border-left:1px solid #cbd5e1;">27</td>
+            <td class="mono" style="text-align:right;color:#64748b;">0</td>
+          </tr>
+          <tr>
+            <td class="sticky-col-1 mono" style="font-weight:700;color:#0369a1;">NV04</td>
+            <td class="sticky-col-2"><b>Trần Võ Xuân Trường</b> <span style="color:#64748b;font-size:10.5px;">(Kho)</span></td>
+            <td class="cell-x cell-pen readonly-cell" title="01/10 (T5): Quên quẹt vào (-50.000đ)">X</td>
+            <td class="cell-x readonly-cell">X</td>
+            <td class="cell-x cell-pen readonly-cell">X</td>
+            <td class="sun-cell cell-x readonly-cell" style="text-align:center;">X</td>
+            <td class="cell-x cell-pen readonly-cell" title="05/10 (T2): Trễ 16p (-80.000đ)">X</td>
+            <td class="cell-x cell-pen readonly-cell">X</td>
+            <td class="cell-x readonly-cell">X</td>
+            <td class="cell-x readonly-cell">X</td>
+            <td class="readonly-cell" style="text-align:center;background:#f1f5f9;color:#64748b;">OFF</td>
+            <td class="cell-x cell-pen readonly-cell">X</td>
+            <td class="sun-cell cell-x cell-pen readonly-cell" style="text-align:center;">X</td>
+            <td style="text-align:center;font-weight:800;color:#047857;border-left:1px solid #cbd5e1;">29</td>
+            <td class="mono" style="text-align:right;color:#dc2626;font-weight:700;">660.000</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card-head" style="padding-top:4px;">
+      <div>
+        <div class="card-title">B. Bảng Lương &amp; Bảng Hồ Sơ Nhân Sự — Kéo ngang thử bên dưới (Cột Mã NV + Họ Tên đứng yên!)</div>
+        <div style="font-size:11px;color:#475569;">Tab <b>Nhân Sự</b> mở đủ 24 cột hồ sơ (Mã máy vân tay, SĐT, Ngân hàng, STK, Ngày vào làm, Ngày chính thức, CCCD...) kèm nút <b>[Cột hiển thị 14/24]</b> ẩn/hiện tùy ý.</div>
+      </div>
+      <span class="badge-info">Sticky Left + Chọn cột Nhân Sự</span>
+    </div>
+
+    <div class="scroll-box">
+      <table style="min-width:1180px;">
+        <thead>
+          <tr>
+            <th class="sticky-col-1">Mã NV</th>
+            <th class="sticky-col-2">Họ và Tên (Cố định khi cuộn &rarr;)</th>
+            <th>Khối</th>
+            <th>Mã máy CC</th>
+            <th>Ngày vào làm</th>
+            <th>Ngày chính thức</th>
+            <th style="text-align:right;">Lương CB</th>
+            <th style="text-align:right;">Hoa hồng bán</th>
+            <th style="text-align:right;">Phạt</th>
+            <th style="text-align:right;">Tạm ứng</th>
+            <th style="text-align:right;color:#047857;">Thực Lãnh</th>
+            <th>Ngân hàng &amp; STK</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="sticky-col-1 mono" style="font-weight:700;color:#0369a1;">NV04</td>
+            <td class="sticky-col-2"><b>Trần Võ Xuân Trường</b></td>
+            <td>Kho</td>
+            <td class="mono">4</td>
+            <td class="mono">15/03/2025</td>
+            <td class="mono">15/05/2025</td>
+            <td class="mono" style="text-align:right;">8.200.000</td>
+            <td class="mono" style="text-align:right;color:#0284c7;">0</td>
+            <td class="mono" style="text-align:right;color:#dc2626;">-660.000</td>
+            <td class="mono" style="text-align:right;color:#dc2626;">-1.000.000</td>
+            <td class="mono" style="text-align:right;font-weight:800;color:#047857;">7.340.000</td>
+            <td class="mono">Vietcombank · 1029384756</td>
+          </tr>
+          <tr>
+            <td class="sticky-col-1 mono" style="font-weight:700;color:#0369a1;">NV17</td>
+            <td class="sticky-col-2"><b>Lê Thụy Thùy Dương</b></td>
+            <td>Sales Chiều</td>
+            <td class="mono">17</td>
+            <td class="mono">01/06/2025</td>
+            <td class="mono">01/08/2025</td>
+            <td class="mono" style="text-align:right;">5.525.000</td>
+            <td class="mono" style="text-align:right;color:#0284c7;">0 (Chưa đủ mốc)</td>
+            <td class="mono" style="text-align:right;color:#64748b;">0</td>
+            <td class="mono" style="text-align:right;color:#64748b;">0</td>
+            <td class="mono" style="text-align:right;font-weight:800;color:#047857;">5.525.000</td>
+            <td class="mono">MB Bank · 0938112233</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PANE 2: HOA HỒNG & TIP + PANCAKE (LUÔN HIỆN ĐỦ / THIẾU) -->
+  <div id="p2" class="card hidden">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Tab Hoa Hồng &amp; Tip — Hiển thị đầy đủ tiến độ Đủ / Thiếu ngay cả khi Hoa hồng = 0 đ</div>
+        <div style="font-size:11px;color:#475569;margin-top:2px;">
+          <b>Vì sao Ảnh 3 &amp; 4 chưa hiện:</b> (1) Ở tab Pancake đang để ngày <code>01/11 &rarr; 04/11/2026</code> (0 đơn) trong khi HRM xem <code>Tháng 10/2026</code>; (2) Code cũ thấy <code>hoa hồng = 0đ</code> (chưa vượt mốc 120tr) liền ẩn sạch thành dấu <code>&mdash;</code> và bật sẵn ô <i>"Ẩn NV không có hoa hồng"</i>!
+        </div>
+      </div>
+      <span class="badge-fix">Luôn hiện Doanh số &amp; Mốc Đủ/Thiếu</span>
+    </div>
+
+    <div class="scroll-box">
+      <table>
+        <thead>
+          <tr>
+            <th>Nhân viên</th>
+            <th>Bộ phận &amp; Kênh gán</th>
+            <th style="text-align:right;">Bán lẻ POS</th>
+            <th>Tiến độ Sàn / Pancake / KOC (Đủ hay Thiếu đều hiện)</th>
+            <th style="text-align:right;">Spa + Tip</th>
+            <th style="text-align:right;color:#047857;">Hoa Hồng Đạt</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <b>Lê Thụy Thùy Dương</b>
+              <div class="mono" style="color:#0369a1;font-size:10.5px;font-weight:700;">NV17</div>
+            </td>
+            <td>
+              <div>Sales Online &amp; TMĐT</div>
+              <span class="badge-info">Pancake: Thùy Dương (Riêng)</span>
+            </td>
+            <td class="mono" style="text-align:right;color:#64748b;">0 ₫<div style="font-size:10px;">0 đơn · Mức 2%</div></td>
+            <td>
+              <div style="display:flex;justify-content:space-between;gap:8px;">
+                <span><b>78.500.000</b> / 120.000.000 ₫ (64 đơn)</span>
+                <span class="badge-warn">Chưa đủ mốc · Thiếu 41.500.000 ₫</span>
+              </div>
+              <div class="prog-track"><div class="prog-fill-warn" style="width:65%;"></div></div>
+            </td>
+            <td class="mono" style="text-align:right;color:#94a3b8;">0 ₫</td>
+            <td class="mono" style="text-align:right;font-weight:800;color:#475569;">0 ₫</td>
+          </tr>
+          <tr>
+            <td>
+              <b>Lê Thụy Thùy Dương (Ví dụ tháng Đạt mốc)</b>
+              <div class="mono" style="color:#0369a1;font-size:10.5px;font-weight:700;">NV17</div>
+            </td>
+            <td>
+              <div>Sales Online &amp; TMĐT</div>
+              <span class="badge-info">Pancake: Thùy Dương (Riêng)</span>
+            </td>
+            <td class="mono" style="text-align:right;color:#64748b;">0 ₫</td>
+            <td>
+              <div style="display:flex;justify-content:space-between;gap:8px;">
+                <span><b>150.000.000</b> / 120.000.000 ₫ (118 đơn)</span>
+                <span class="badge-fix">Đạt mốc 125% · Vượt +30.000.000 ₫ (x 2.5%)</span>
+              </div>
+              <div class="prog-track"><div class="prog-fill-ok" style="width:100%;"></div></div>
+            </td>
+            <td class="mono" style="text-align:right;color:#94a3b8;">0 ₫</td>
+            <td class="mono" style="text-align:right;font-weight:800;color:#047857;">+2.050.000 ₫</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PANE 3: GOM NHÓM THEO NHÂN VIÊN & ĐỊNH DẠNG NGÀY VN CHO TẠM ỨNG / TĂNG CA / XIN OFF / ĐC LƯƠNG -->
+  <div id="p3" class="card hidden">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Tab Tạm Ứng · Tăng Ca · Xin Off · Điều Chỉnh Lương — Sửa mất tên NV, Ngày VN &amp; Gom nhóm có Tổng theo NV</div>
+        <div style="font-size:11px;color:#475569;margin-top:2px;">
+          <b>Vì sao Tạm Ứng &amp; Tăng Ca bị mất tên NV:</b> API trả trường <code>name</code> nhưng JS đọc <code>staff_name</code>! Bản mới trả đủ <code>Mã NV + Họ Tên + Khối/Bộ phận</code>, định dạng <code>DD/MM/YYYY (Thứ)</code> và gom nhóm cộng tổng từng người.
+        </div>
+      </div>
+      <span class="badge-fix">Nhóm theo NV + Dòng Tổng</span>
+    </div>
+
+    <div class="scroll-box">
+      <table>
+        <thead>
+          <tr>
+            <th>Ngày Ứng (Chuẩn VN)</th>
+            <th>Mã &amp; Họ Tên Nhân Viên</th>
+            <th>Khối / Bộ Phận</th>
+            <th style="text-align:right;">Số Tiền Ứng</th>
+            <th>Phiếu Chi &amp; Quỹ</th>
+            <th>Ghi Chú</th>
+            <th>Người Tạo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="grp-row">
+            <td colspan="3">[NV04] Trần Võ Xuân Trường &middot; Kho (Nhân viên kho)</td>
+            <td class="mono" style="text-align:right;color:#b91c1c;">Tổng NV04 (2 lần): -2.500.000 đ</td>
+            <td colspan="3" style="text-align:right;font-weight:600;color:#0369a1;">Lương CB: 8.200.000 đ &middot; Còn lại tạm tính: 5.700.000 đ</td>
+          </tr>
+          <tr>
+            <td class="mono">05/10/2026 (T2)</td>
+            <td><b>Trần Võ Xuân Trường</b> <span class="mono" style="color:#0369a1;">(NV04)</span></td>
+            <td>Kho</td>
+            <td class="mono" style="text-align:right;font-weight:700;color:#dc2626;">-1.000.000 đ</td>
+            <td><span class="badge-info">PC-UL0012 · Vietcombank</span></td>
+            <td>Ứng tiền sửa xe</td>
+            <td>admin</td>
+          </tr>
+          <tr>
+            <td class="mono">18/10/2026 (CN)</td>
+            <td><b>Trần Võ Xuân Trường</b> <span class="mono" style="color:#0369a1;">(NV04)</span></td>
+            <td>Kho</td>
+            <td class="mono" style="text-align:right;font-weight:700;color:#dc2626;">-1.500.000 đ</td>
+            <td><span class="badge-info">PC-UL0019 · Tiền mặt</span></td>
+            <td>Ứng giữa tháng 10</td>
+            <td>admin</td>
+          </tr>
+          <tr class="grp-row">
+            <td colspan="3">[NV07] Phạm Thị Quỳnh Châu &middot; Kho (Nhân viên kho)</td>
+            <td class="mono" style="text-align:right;color:#b91c1c;">Tổng NV07 (1 lần): -1.000.000 đ</td>
+            <td colspan="3" style="text-align:right;font-weight:600;color:#0369a1;">Lương CB: 7.700.000 đ &middot; Còn lại tạm tính: 6.700.000 đ</td>
+          </tr>
+          <tr>
+            <td class="mono">20/10/2026 (T3)</td>
+            <td><b>Phạm Thị Quỳnh Châu</b> <span class="mono" style="color:#0369a1;">(NV07)</span></td>
+            <td>Kho</td>
+            <td class="mono" style="text-align:right;font-weight:700;color:#dc2626;">-1.000.000 đ</td>
+            <td><span class="badge-info">PC-UL0021 · Vietcombank</span></td>
+            <td>Ứng lương đợt 1</td>
+            <td>admin</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr style="background:#f1f5f9;font-weight:800;">
+            <td colspan="3">TỔNG CỘNG KỲ ĐANG XEM (2 nhân viên &middot; 3 khoản ứng):</td>
+            <td class="mono" style="text-align:right;color:#b91c1c;">-3.500.000 đ</td>
+            <td colspan="3"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+</div>
+<script>
+function showPane(id, btn) {
+  ['p1','p2','p3'].forEach(k => document.getElementById(k).classList.toggle('hidden', k !== id));
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function setPeriod(btn, txt) {
+  document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('period-label').textContent = txt;
+}
+</script>
+</body>
+</html>

@@ -174,21 +174,32 @@ def build_days(cur, staff, block: Block, rules: Rules, first: date, last: date, 
                 (staff["id"], first.isoformat(), last.isoformat()))
     leaves = {r["work_date"]: dict(r) for r in cur.fetchall()}
     exempt = bool(dict(staff).get("is_attendance_exempt"))  # staff có thể là sqlite3.Row (không có .get)
+    parsed_punches = {
+        wd: sorted(to_min(p) for p in json.loads(a["punches"] or "[]") if to_min(p) is not None)
+        for wd, a in att.items()
+    }
+    has_any_punch = any(bool(plist) for plist in parsed_punches.values())
+    has_manual_absent = any(
+        a.get("source") == "manual" and not parsed_punches.get(wd) and not a.get("leave_type") and not a.get("waive")
+        for wd, a in att.items()
+    )
+    period_no_att = not has_any_punch and not has_manual_absent
     out = []
     for n in range(1, last.day + 1):
         d = date(first.year, first.month, n)
         if d > today:
             break
-        a = att.get(d.isoformat())
-        l = leaves.get(d.isoformat())
-        punches = sorted(to_min(p) for p in json.loads(a["punches"] or "[]") if to_min(p) is not None) if a else []
+        iso = d.isoformat()
+        a = att.get(iso)
+        l = leaves.get(iso)
+        punches = parsed_punches.get(iso, [])
         leave_val = (a["leave_type"] if a and a.get("leave_type") else (l["leave_type"] if l else None))
         waive_val = bool(a["waive"]) if a else (bool(l) if l else False)
         out.append(classify_day(DayInput(
             work_date=d, punches=punches, leave=leave_val,
-            is_holiday=d.isoformat() in holidays, waive=waive_val,
+            is_holiday=iso in holidays, waive=waive_val,
             employed=is_employed(staff, d), probation=is_probation(staff, d),
-            exempt=exempt), block, rules))
+            exempt=exempt, no_attendance_data=period_no_att), block, rules))
     return out
 
 

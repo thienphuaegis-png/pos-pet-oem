@@ -1792,14 +1792,99 @@
     const pcMoney = v => (typeof formatMoney === 'function') ? formatMoney(Math.round(v || 0)) : `${Math.round(v || 0).toLocaleString('vi-VN')} đ`;
     const pcToast = (msg, type) => window.showToast ? window.showToast(msg, type) : alert(msg);
 
+    function _pcMonthBounds(offsetMonths = 0) {
+        const now = new Date();
+        const d = new Date(now.getFullYear(), now.getMonth() + offsetMonths, 1);
+        const y = d.getFullYear();
+        const m = d.getMonth() + 1;
+        const lastDay = new Date(y, m, 0).getDate();
+        const mm = String(m).padStart(2, '0');
+        return {
+            month: `${y}-${mm}`,
+            from: `${y}-${mm}-01`,
+            to: `${y}-${mm}-${String(lastDay).padStart(2, '0')}`
+        };
+    }
+
+    function syncPancakePeriodPills() {
+        const fromVal = document.getElementById('pc-date-from')?.value || '';
+        const toVal = document.getElementById('pc-date-to')?.value || '';
+        const curM = _pcMonthBounds(0);
+        const prevM = _pcMonthBounds(-1);
+        let activeMode = 'range';
+        if (fromVal === curM.from && (toVal === curM.to || toVal === new Intl.DateTimeFormat('en-CA').format(new Date()))) {
+            activeMode = 'this_month';
+        } else if (fromVal === prevM.from && toVal === prevM.to) {
+            activeMode = 'prev_month';
+        }
+        const onCls = 'px-2.5 py-1 rounded-md bg-sky-600 text-white cursor-pointer transition';
+        const offCls = 'px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition';
+        const bThis = document.getElementById('pc-period-this-month');
+        const bPrev = document.getElementById('pc-period-prev-month');
+        const bCust = document.getElementById('pc-period-custom');
+        if (bThis) bThis.className = activeMode === 'this_month' ? onCls : offCls;
+        if (bPrev) bPrev.className = activeMode === 'prev_month' ? onCls : offCls;
+        if (bCust) bCust.className = activeMode === 'range' ? onCls : offCls;
+    }
+
+    window.setPancakePeriodPreset = function(mode) {
+        const fromEl = document.getElementById('pc-date-from');
+        const toEl = document.getElementById('pc-date-to');
+        if (!fromEl || !toEl) return;
+        if (mode === 'this_month') {
+            const b = _pcMonthBounds(0);
+            fromEl.value = b.from;
+            toEl.value = b.to;
+        } else if (mode === 'prev_month') {
+            const b = _pcMonthBounds(-1);
+            fromEl.value = b.from;
+            toEl.value = b.to;
+        } else {
+            fromEl.focus();
+        }
+        syncPancakePeriodPills();
+        if (typeof window.syncHrmPeriodFromPancake === 'function') {
+            window.syncHrmPeriodFromPancake(fromEl.value, toEl.value, mode);
+        }
+        loadPancakeTab();
+    };
+
+    window.onPancakeDateInputChanged = function() {
+        const fromEl = document.getElementById('pc-date-from');
+        const toEl = document.getElementById('pc-date-to');
+        syncPancakePeriodPills();
+        if (fromEl?.value && toEl?.value && typeof window.syncHrmPeriodFromPancake === 'function') {
+            window.syncHrmPeriodFromPancake(fromEl.value, toEl.value, 'range');
+        }
+        loadPancakeTab();
+    };
+
+    window.syncPancakeFromHrmPeriod = function(fromStr, toStr) {
+        const fromEl = document.getElementById('pc-date-from');
+        const toEl = document.getElementById('pc-date-to');
+        if (fromEl && fromStr) fromEl.value = fromStr;
+        if (toEl && toStr) toEl.value = toStr;
+        syncPancakePeriodPills();
+    };
+
     function pcRange() {
         const fromEl = document.getElementById('pc-date-from');
         const toEl = document.getElementById('pc-date-to');
         if (fromEl && !fromEl.value) {
-            const today = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
-            fromEl.value = today.slice(0, 8) + '01';
-            toEl.value = today;
+            if (typeof window.getSharedHrmPeriodRange === 'function') {
+                const shared = window.getSharedHrmPeriodRange();
+                if (shared && shared.from && shared.to) {
+                    fromEl.value = shared.from;
+                    toEl.value = shared.to;
+                }
+            }
+            if (!fromEl.value) {
+                const curM = _pcMonthBounds(0);
+                fromEl.value = curM.from;
+                toEl.value = curM.to;
+            }
         }
+        syncPancakePeriodPills();
         return { from: fromEl?.value || '', to: toEl?.value || '' };
     }
 
@@ -1813,7 +1898,11 @@
         pcRange();
         renderPancakeShops();
         if (!pcStaff.length) {
-            try { const r = await fetch('/api/staff'); if (r.ok) pcStaff = (await r.json()).filter(s => s.is_active); } catch (e) { }
+            try {
+                let r = await fetch('/api/hrm/employees');
+                if (!r.ok) r = await fetch('/api/staff');
+                if (r.ok) pcStaff = (await r.json()).filter(s => s.is_active !== 0 && s.is_payroll_staff !== 0);
+            } catch (e) { }
         }
         await Promise.all([loadPancakeSellers(), loadPancakeOrders(1)]);
     }
@@ -1878,18 +1967,25 @@
             }
             const opts = sel => '<option value="">-- Chưa gán --</option>' + pcStaff.map(s =>
                 `<option value="${s.id}" ${String(s.id) === String(sel) ? 'selected' : ''}>${escapeHtml(s.name)}${s.employee_code ? ' (' + escapeHtml(s.employee_code) + ')' : ''}</option>`).join('');
-            tbody.innerHTML = pcSellers.map((s, i) => `
+            tbody.innerHTML = pcSellers.map((s, i) => {
+                const kpiSub = s.threshold > 0
+                    ? (s.achieved
+                        ? `<div class="text-xs font-semibold text-emerald-700">Đạt mốc ${s.progress_pct}% (+${pcMoney(s.over_amount)})</div>`
+                        : `<div class="text-xs font-semibold text-amber-700">Thiếu ${pcMoney(s.shortfall)} / ${pcMoney(s.threshold)}</div>`)
+                    : '';
+                return `
                 <tr class="hover:bg-slate-50">
                     <td class="p-2.5 font-bold text-slate-800">${escapeHtml(s.seller_name)}</td>
                     <td class="p-2.5"><select onchange="assignPancakeSeller(${i}, this.value)" class="border ${s.staff_id ? 'border-slate-300' : 'border-amber-400 bg-amber-50'} rounded-lg px-2 py-1 text-xs font-semibold">${opts(s.staff_id)}</select></td>
                     <td class="p-2.5 text-center font-mono">${s.orders}</td>
-                    <td class="p-2.5 text-right font-mono font-bold">${pcMoney(s.revenue)}</td>
+                    <td class="p-2.5 text-right font-mono"><div class="font-bold">${pcMoney(s.revenue)}</div>${kpiSub}</td>
                     <td class="p-2.5 text-right font-mono text-sky-700">${pcMoney(s.collected)}</td>
                     <td class="p-2.5 text-center font-mono">${s.rate ? s.rate + '%' : '-'}</td>
                     <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${pcMoney(s.commission)}</td>
                     <td class="p-2.5 text-right font-mono text-emerald-700">${pcMoney(s.bonus)}</td>
                     <td class="p-2.5 text-center"><button type="button" onclick="openPancakeRulesModal(${i})" class="px-2 py-1 rounded text-xs font-bold cursor-pointer ${s.custom_rules ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">${s.custom_rules ? 'Riêng ✎' : 'Chung ✎'}</button></td>
-                </tr>`).join('');
+                </tr>`;
+            }).join('');
             const tot = pcSellers.reduce((a, s) => ({ n: a.n + s.orders, r: a.r + s.revenue, c: a.c + s.collected }), { n: 0, r: 0, c: 0 });
             document.getElementById('kpi-pancake-revenue').textContent = pcMoney(tot.r);
             document.getElementById('kpi-pancake-collected').textContent = pcMoney(tot.c);

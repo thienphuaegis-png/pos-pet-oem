@@ -672,10 +672,12 @@
   </div>
 
 <script>
-    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-23)
-    const ROADMAP_VERSION = 'v7.4-2026-11-01-loyalty-tier-fix-944-tests';
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-11-05)
+    const ROADMAP_VERSION = 'v7.5-2026-11-05-hrm-ux-sync-grouping-and-commissions';
     const DEFAULT_TASKS = [
-      // 0. CẬP NHẬT MỚI NHẤT (2026-10-31)
+      // 0. CẬP NHẬT MỚI NHẤT (2026-11-05)
+      { id: 'hrm-ux-sync-grouping-and-commissions', cat: 'HRM', title: 'Đồng Bộ Kỳ Thời Gian HRM & Pancake, Ghim Cột Bảng Lương/Nhân Sự 29 Cột, Gom Nhóm Tổng NV & Tiến Độ Đủ/Thiếu Hoa Hồng KPI', done: true, note: 'Chặn phạt Vắng -500k cho NV 0 lượt quẹt cả kỳ; Lưới Chấm Công chỉ đọc 2 hàng Thứ + tô cột CN + sticky Mã NV/Tên; Bảng Lương & Nhân Sự sticky left + Popover 29 cột (GET/PUT /api/hrm/staff-columns); Xin Off/Tăng Ca/Tạm Ứng/ĐC Lương sửa mất tên + ngày DD/MM/YYYY (Thứ) + gom nhóm tổng theo NV; Hoa hồng POS tự áp % Bộ phận (tách đơn Admin) & Pancake thưởng mốc 120tr +975k (5.525k -> 6.500k) luôn hiện Đủ/Thiếu.' },
+      // CẬP NHẬT (2026-10-31 → 2026-11-01)
       { id: 'dual-server-vercel-bridge', cat: 'SYS', title: 'Dual-Server 8998/8997 + Bridge 2 Domain Vercel (mcarepet & petnt) qua Cloudflare Tunnel', done: true, note: 'CHAY_2_MAY_CHU.bat chạy 2 server (pos.db / pos_instance2.db); tunnel URL ghi settings.live_tunnel_url trên D1; Vercel GET / ping tunnel (cache 15s) rồi 307 về local, ?cloud=1 ép bản cloud; deploy_2_vercel.py deploy cả 2 project.' },
       { id: 'pos-negative-stock-doc-codes-spa-wallet', cat: 'POS', title: 'Chặn Tồn Âm, Quy Tắc Mã Chứng Từ, Ví Spa Theo Danh Mục & Xuất Excel Sổ Quỹ', done: true, note: 'Commit 1ef3331; allow_spa_wallet chỉ combo VIP; test_pos_spa_10_requirements_2026_10_31 pass.' },
       { id: 'cloud-d1-perf-and-requires-bom', cat: 'SYS', title: 'Tối Ưu Cloud D1: Fix requires_bom 500, Batch Query, Keep-Alive, Fallback Hết Quota', done: true, note: 'Commits 90353f2, cf9bde5, 7aa6e8c; plan 2026-10-30-fix-pos-search-and-cloud-load-speed.md; test_query_performance_guard pass.' },

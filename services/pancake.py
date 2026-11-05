@@ -14,11 +14,11 @@ from services.marketplace_stock import PANCAKE_STATUS, PANCAKE_NO_REVENUE, PANCA
 
 BASE_URL = "https://pos.pages.fm/api/v1"
 
-# Công thức tool poscake-staff-commission cũ: DT <= 120tr -> 0; vượt 120tr -> (DT-120tr) x tỷ lệ theo bậc
-# tổng DT; lương 5,2tr -> 6,5tr khi đạt mốc => thưởng đạt mốc 1,3tr (lương cứng giữ ở hồ sơ HRM).
+# Công thức KPI Sales Pancake (đã chốt 2026-11-04): DT < 120tr -> 0; đạt mốc >= 120tr -> thưởng bù KPI +975.000 đ
+# (bù từ lương nền 85% = 5.525.000 đ lên đúng chuẩn 100% = 6.500.000 đ) + (DT - 120tr) x tỷ lệ theo bậc.
 DEFAULT_RULES = {
     "threshold": 120_000_000,
-    "bonus_at_threshold": 1_300_000,
+    "bonus_at_threshold": 975_000,
     "tiers": [[300_000_000, 2.5], [500_000_000, 3.0], [None, 3.5]],
 }
 
@@ -36,7 +36,42 @@ def calc_commission(revenue: float, rules: dict) -> dict:
             "bonus": round(float(rules.get("bonus_at_threshold") or 0))}
 
 
+def calc_commission_progress(revenue: float, rules: dict) -> dict:
+    """Trả tiến độ Đủ/Thiếu so với mốc KPI ngay cả khi hoa hồng = 0 đ."""
+    rev = max(0.0, float(revenue or 0))
+    threshold = max(0.0, float((rules or {}).get("threshold") or 0))
+    c = calc_commission(rev, rules or DEFAULT_RULES)
+    achieved = bool(rev >= threshold and rev > 0) if threshold > 0 else bool(rev > 0)
+    shortfall = round(max(0.0, threshold - rev)) if threshold > 0 else 0
+    over_amount = round(max(0.0, rev - threshold)) if (threshold > 0 and rev > threshold) else 0
+    progress_pct = round((rev / threshold) * 100.0, 1) if threshold > 0 else (100.0 if rev > 0 else 0.0)
+    return {
+        **c,
+        "threshold": round(threshold),
+        "bonus_at_threshold": round(float((rules or {}).get("bonus_at_threshold") or 0)),
+        "achieved": achieved,
+        "shortfall": shortfall,
+        "over_amount": over_amount,
+        "progress_pct": progress_pct,
+    }
+
+
 def load_default_rules(cur) -> dict:
+    try:
+        cur.execute("SELECT value FROM settings WHERE key = 'pancake_bonus_975k_migrated_v1'")
+        mig = cur.fetchone()
+        if not mig:
+            cur.execute("SELECT value FROM settings WHERE key = 'pancake_commission_rules'")
+            old_r = cur.fetchone()
+            if old_r and old_r[0]:
+                parsed = json.loads(old_r[0])
+                if float(parsed.get("threshold") or 0) == 120_000_000 and float(parsed.get("bonus_at_threshold") or 0) == 1_300_000:
+                    parsed["bonus_at_threshold"] = 975_000
+                    val = json.dumps(parsed, ensure_ascii=False)
+                    cur.execute("INSERT INTO settings (key, value) VALUES ('pancake_commission_rules', ?) ON CONFLICT(key) DO UPDATE SET value = ?", (val, val))
+            cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('pancake_bonus_975k_migrated_v1', '1')")
+    except Exception:
+        pass
     cur.execute("SELECT value FROM settings WHERE key = 'pancake_commission_rules'")
     r = cur.fetchone()
     try:
@@ -228,7 +263,7 @@ def seller_summary(cur, date_from: str, date_to: str) -> list:
     default = load_default_rules(cur)
     ph = ",".join("?" for _ in PANCAKE_NO_REVENUE)
     cur.execute(f"""
-        SELECT s.seller_name, s.staff_id, s.rules_json, st.name AS staff_name,
+        SELECT s.seller_name, s.staff_id, s.rules_json, st.name AS staff_name, st.base_salary AS staff_base_salary,
                COUNT(o.id) AS orders, COALESCE(SUM(o.total_amount), 0) AS revenue,
                COALESCE(SUM(o.net_payout), 0) AS collected
         FROM pancake_sellers s
@@ -244,25 +279,59 @@ def seller_summary(cur, date_from: str, date_to: str) -> list:
             custom = json.loads(d["rules_json"]) if d["rules_json"] else None
         except ValueError:
             custom = None
-        d["rules"] = custom or default
+        rules = dict(custom or default)
+        # Chống cộng dư phần bù KPI khi hồ sơ lưu lương nền 85% (vd 5.525.000 = 85% * 6.500.000 -> bù đúng 975.000)
+        base_sal = float(d.get("staff_base_salary") or 0)
+        if not custom and base_sal > 0 and round(base_sal / 0.85, -3) == 6_500_000:
+            rules["bonus_at_threshold"] = int(round(6_500_000 - base_sal))
+        d["rules"] = rules
         d["custom_rules"] = bool(custom)
-        d.update(calc_commission(float(d["revenue"]), d["rules"]))
+        d.update(calc_commission_progress(float(d["revenue"]), d["rules"]))
         out.append(d)
     return out
 
 
 def commission_by_staff(cur, date_from: str, date_to: str) -> dict:
-    """{staff_id: {revenue, commission}} — gộp các tên NV Pancake gán cùng 1 nhân viên rồi mới xét bậc."""
+    """{staff_id: {revenue, collected, orders, seller_names, threshold, shortfall, achieved, commission, ...}}
+    Gộp các tên NV Pancake gán cùng 1 nhân viên rồi mới xét bậc."""
     by_staff = {}
     for s in seller_summary(cur, date_from, date_to):
         if not s["staff_id"]:
             continue
-        g = by_staff.setdefault(s["staff_id"], {"revenue": 0.0, "rules": s["rules"]})
-        g["revenue"] += float(s["revenue"])
+        g = by_staff.setdefault(s["staff_id"], {
+            "revenue": 0.0,
+            "collected": 0.0,
+            "orders": 0,
+            "seller_names": [],
+            "custom_rules": False,
+            "rules": s["rules"],
+        })
+        g["revenue"] += float(s["revenue"] or 0)
+        g["collected"] += float(s["collected"] or 0)
+        g["orders"] += int(s["orders"] or 0)
+        if s["seller_name"] and s["seller_name"] not in g["seller_names"]:
+            g["seller_names"].append(s["seller_name"])
         if s["custom_rules"]:
             g["rules"] = s["rules"]
+            g["custom_rules"] = True
     out = {}
     for sid, g in by_staff.items():
-        c = calc_commission(g["revenue"], g["rules"])
-        out[sid] = {"revenue": g["revenue"], "commission": c["commission"] + c["bonus"]}
+        prog = calc_commission_progress(g["revenue"], g["rules"])
+        out[sid] = {
+            "revenue": round(g["revenue"]),
+            "collected": round(g["collected"]),
+            "orders": g["orders"],
+            "seller_names": g["seller_names"],
+            "custom_rules": g["custom_rules"],
+            "threshold": prog["threshold"],
+            "bonus_at_threshold": prog["bonus_at_threshold"],
+            "rate": prog["rate"],
+            "tier_commission": prog["commission"],
+            "bonus": prog["bonus"],
+            "commission": prog["commission"] + prog["bonus"],
+            "achieved": prog["achieved"],
+            "shortfall": prog["shortfall"],
+            "over_amount": prog["over_amount"],
+            "progress_pct": prog["progress_pct"],
+        }
     return out

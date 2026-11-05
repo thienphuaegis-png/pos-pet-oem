@@ -2329,11 +2329,16 @@
                             <span class="text-slate-400 text-xs">Đang tải shop...</span>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
+                            <div class="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-300 text-xs font-bold">
+                                <button type="button" id="pc-period-this-month" onclick="setPancakePeriodPreset('this_month')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition">Tháng này</button>
+                                <button type="button" id="pc-period-prev-month" onclick="setPancakePeriodPreset('prev_month')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition">Tháng trước</button>
+                                <button type="button" id="pc-period-custom" onclick="setPancakePeriodPreset('range')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition">Khoảng ngày</button>
+                            </div>
                             <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1">
                                 <span class="text-xs text-slate-400 font-bold">Từ:</span>
-                                <input type="date" id="pc-date-from" onchange="loadPancakeTab()" class="text-xs font-semibold text-slate-700 focus:outline-none">
+                                <input type="date" id="pc-date-from" onchange="onPancakeDateInputChanged()" class="text-xs font-semibold text-slate-700 focus:outline-none">
                                 <span class="text-xs text-slate-400 font-bold">Đến:</span>
-                                <input type="date" id="pc-date-to" onchange="loadPancakeTab()" class="text-xs font-semibold text-slate-700 focus:outline-none">
+                                <input type="date" id="pc-date-to" onchange="onPancakeDateInputChanged()" class="text-xs font-semibold text-slate-700 focus:outline-none">
                             </div>
                             <button type="button" id="btn-pc-sync" onclick="syncPancakeNow()" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-xs transition cursor-pointer"><i class="ph ph-arrows-clockwise"></i> Đồng Bộ Đơn</button>
                             <button type="button" onclick="openPancakeShopModal()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer">+ Thêm Shop</button>
@@ -7256,9 +7261,14 @@
                             <p class="text-xs text-slate-500">Khối làm việc, log vân tay, tính lương 4 tầng và xuất phiếu lương</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <!-- Bộ Chọn Tháng Nhanh Variant B: Stepper [◀] [Tháng MM/YYYY ▾] [▶] [Hôm Nay] -->
-                        <div class="relative flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-300 shadow-2xs">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Bộ Chọn Kỳ Thời Gian Đồng Bộ HRM & Pancake: [Tháng này | Tháng trước | Khoảng ngày] + Stepper -->
+                        <div class="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-300 text-xs font-bold shadow-2xs">
+                            <button type="button" id="btn-hrm-period-this" onclick="setHrmPeriodPreset('this_month')" class="px-2.5 py-1 rounded-md bg-sky-600 text-white cursor-pointer transition-all">Tháng này</button>
+                            <button type="button" id="btn-hrm-period-prev" onclick="setHrmPeriodPreset('prev_month')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition-all">Tháng trước</button>
+                            <button type="button" id="btn-hrm-period-range" onclick="setHrmPeriodPreset('range')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition-all">Khoảng ngày</button>
+                        </div>
+                        <div id="hrm-month-stepper-wrap" class="relative flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-300 shadow-2xs">
                             <button type="button" onclick="changeHrmMonth(-1)" class="px-2 py-1 hover:bg-white hover:text-emerald-700 text-slate-700 rounded-md text-xs font-bold cursor-pointer transition-all" title="Tháng trước">◀</button>
                             <div class="relative">
                                 <button type="button" id="hrm-month-dropdown-btn" onclick="toggleHrmMonthDropdown()" class="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-800 hover:text-emerald-700 hover:bg-white rounded-md cursor-pointer transition-all">
@@ -7277,7 +7287,13 @@
                             <input type="hidden" id="hrm-month-picker" onchange="loadHrmCurrentSubTab()">
                             <button type="button" onclick="changeHrmMonth(1)" class="px-2 py-1 hover:bg-white hover:text-emerald-700 text-slate-700 rounded-md text-xs font-bold cursor-pointer transition-all" title="Tháng sau">▶</button>
                         </div>
-                        <button type="button" onclick="setHrmCurrentMonth()" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-2xs">Hôm Nay</button>
+                        <div id="hrm-date-range-wrap" class="hidden items-center gap-1 bg-white border border-sky-300 rounded-lg px-2 py-1 text-xs shadow-2xs">
+                            <span class="text-slate-400 font-bold">Từ:</span>
+                            <input type="date" id="hrm-date-from" onchange="onHrmDateRangeChange()" class="text-xs font-semibold text-slate-700 focus:outline-none">
+                            <span class="text-slate-400 font-bold">Đến:</span>
+                            <input type="date" id="hrm-date-to" onchange="onHrmDateRangeChange()" class="text-xs font-semibold text-slate-700 focus:outline-none">
+                        </div>
+                        <span id="hrm-period-range-badge" class="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-semibold text-slate-600"></span>
                         <div class="flex flex-wrap bg-slate-100 p-1 rounded-lg gap-1 text-xs font-semibold">
                             <button id="btn-hrm-tab-payroll" onclick="switchHrmSubTab('payroll')" class="px-3 py-1 rounded-md bg-white text-emerald-700 shadow-xs cursor-pointer">Bảng Lương</button>
                             <button id="btn-hrm-tab-commissions" onclick="switchHrmSubTab('commissions')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer flex items-center gap-1"><span><i class="ph ph-sketch-logo"></i></span><span>Hoa Hồng & Tip</span></button>
@@ -7428,7 +7444,7 @@
                                 <input type="text" id="hrm-comm-search" oninput="renderCommTable()" placeholder="Tìm tên / mã NV..." class="border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white w-48">
                                 <select id="hrm-comm-filter-dept" onchange="renderCommTable()" class="border border-slate-300 rounded-lg px-2 py-1.5 bg-white font-semibold text-slate-700 cursor-pointer"></select>
                                 <label class="inline-flex items-center gap-1 cursor-pointer text-slate-600 font-semibold">
-                                    <input type="checkbox" id="hrm-comm-hide-zero" onchange="renderCommTable()" checked> Ẩn NV không có hoa hồng
+                                    <input type="checkbox" id="hrm-comm-hide-zero" onchange="renderCommTable()"> Ẩn NV không có hoa hồng
                                 </label>
                                 <label class="inline-flex items-center gap-1 cursor-pointer text-slate-600 font-semibold">
                                     <input type="checkbox" id="hrm-comm-only-custom" onchange="renderCommTable()"> Chỉ NV mức riêng
@@ -7439,11 +7455,11 @@
                                 <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 text-xs">
                                     <tr>
                                         <th class="p-2.5">Nhân viên</th>
-                                        <th class="p-2.5">Bộ phận</th>
-                                        <th class="p-2.5 text-right">Bán POS</th>
+                                        <th class="p-2.5">Bộ phận & Kênh gán</th>
+                                        <th class="p-2.5 text-right">Bán lẻ POS</th>
+                                        <th class="p-2.5">Tiến độ Sàn / Pancake / KOC (Đủ / Thiếu mốc)</th>
                                         <th class="p-2.5 text-right">Spa + Tip</th>
-                                        <th class="p-2.5 text-right">Sàn / KOC</th>
-                                        <th class="p-2.5 text-right text-emerald-700">Tổng</th>
+                                        <th class="p-2.5 text-right text-emerald-700">Tổng Hoa Hồng</th>
                                         <th class="p-2.5 w-8"></th>
                                     </tr>
                                 </thead>
@@ -7675,11 +7691,15 @@
                 <!-- SUBTAB: XIN OFF -->
                 <div id="hrm-subtab-leaves" class="hidden space-y-3">
                     <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap justify-between items-center gap-2">
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
                             <span class="text-xs text-slate-600">Quản lý đơn xin nghỉ (Off cả ngày, Off sáng, Off chiều) & tự động đồng bộ chấm công</span>
                             <select id="hrm-leaves-staff-filter" onchange="renderHrmLeavesTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs bg-white">
                                 <option value="">-- Tất cả nhân viên --</option>
                             </select>
+                            <div class="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-bold">
+                                <button type="button" data-hrm-group-btn="grouped" onclick="setHrmSubTableGroupMode('grouped')" class="px-2.5 py-1 rounded-md bg-sky-600 text-white cursor-pointer">Nhóm theo NV</button>
+                                <button type="button" data-hrm-group-btn="flat" onclick="setHrmSubTableGroupMode('flat')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Danh sách phẳng</button>
+                            </div>
                         </div>
                         <div class="flex items-center gap-2">
                             <button onclick="syncHrmLeavesFromSheets()" class="border border-emerald-300 hover:bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs"><i class="ph ph-download-simple"></i> Đồng Bộ Google Sheet</button>
@@ -7690,10 +7710,10 @@
                         <table class="w-full text-left text-xs">
                             <thead class="bg-slate-50 font-bold border-b">
                                 <tr>
-                                    <th class="p-2.5">Ngày Off</th>
+                                    <th class="p-2.5">Ngày Off (Chuẩn VN)</th>
                                     <th class="p-2.5">Mã NV</th>
-                                    <th class="p-2.5">Nhân Viên</th>
-                                    <th class="p-2.5">Bộ Phận / Vị Trí</th>
+                                    <th class="p-2.5">Họ và Tên Nhân Viên</th>
+                                    <th class="p-2.5">Khối / Bộ Phận</th>
                                     <th class="p-2.5 text-center">Hình Thức Off</th>
                                     <th class="p-2.5">Lý Do</th>
                                     <th class="p-2.5">Người Duyệt</th>
@@ -7701,53 +7721,71 @@
                                 </tr>
                             </thead>
                             <tbody id="table-hrm-leaves" class="divide-y divide-slate-100"></tbody>
+                            <tfoot id="table-hrm-leaves-foot" class="bg-slate-100 font-bold border-t border-slate-300"></tfoot>
                         </table>
                     </div>
                 </div>
 
                 <!-- SUBTAB 3: TĂNG CA -->
                 <div id="hrm-subtab-overtime" class="hidden space-y-3">
-                    <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex justify-between items-center">
-                        <span class="text-xs text-slate-600">Duyệt giờ tăng ca ngoài giờ (hệ số 150%)</span>
+                    <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap justify-between items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-xs text-slate-600">Duyệt giờ tăng ca ngoài giờ (hệ số 150%)</span>
+                            <div class="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-bold">
+                                <button type="button" data-hrm-group-btn="grouped" onclick="setHrmSubTableGroupMode('grouped')" class="px-2.5 py-1 rounded-md bg-sky-600 text-white cursor-pointer">Nhóm theo NV</button>
+                                <button type="button" data-hrm-group-btn="flat" onclick="setHrmSubTableGroupMode('flat')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Danh sách phẳng</button>
+                            </div>
+                        </div>
                         <button onclick="openHrmOvertimeModal()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer"><i class="ph ph-plus"></i> Thêm Giờ Tăng Ca</button>
                     </div>
                     <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto">
                         <table class="w-full text-left text-xs">
                             <thead class="bg-slate-50 font-bold border-b">
                                 <tr>
-                                    <th class="p-2.5">Ngày</th>
-                                    <th class="p-2.5">Nhân Viên</th>
+                                    <th class="p-2.5">Ngày Tăng Ca (Chuẩn VN)</th>
+                                    <th class="p-2.5">Mã & Họ Tên Nhân Viên</th>
+                                    <th class="p-2.5">Khối / Bộ Phận</th>
                                     <th class="p-2.5 text-center">Số Giờ OT</th>
+                                    <th class="p-2.5 text-right">Tiền OT Tạm Tính</th>
                                     <th class="p-2.5">Ghi Chú</th>
                                     <th class="p-2.5">Người Duyệt</th>
                                     <th class="p-2.5 text-center">Xóa</th>
                                 </tr>
                             </thead>
                             <tbody id="table-hrm-overtime" class="divide-y divide-slate-100"></tbody>
+                            <tfoot id="table-hrm-overtime-foot" class="bg-slate-100 font-bold border-t border-slate-300"></tfoot>
                         </table>
                     </div>
                 </div>
 
                 <!-- SUBTAB 4: TẠM ỨNG -->
                 <div id="hrm-subtab-advances" class="hidden space-y-3">
-                    <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex justify-between items-center">
-                        <span class="text-xs text-slate-600">Quản lý tạm ứng lương (tự trừ vào bảng lương của tháng ứng)</span>
+                    <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap justify-between items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-xs text-slate-600">Quản lý tạm ứng lương (tự trừ vào bảng lương của tháng ứng)</span>
+                            <div class="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-bold">
+                                <button type="button" data-hrm-group-btn="grouped" onclick="setHrmSubTableGroupMode('grouped')" class="px-2.5 py-1 rounded-md bg-sky-600 text-white cursor-pointer">Nhóm theo NV</button>
+                                <button type="button" data-hrm-group-btn="flat" onclick="setHrmSubTableGroupMode('flat')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Danh sách phẳng</button>
+                            </div>
+                        </div>
                         <button onclick="openHrmAdvanceModal()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer"><i class="ph ph-plus"></i> Thêm Khoản Tạm Ứng</button>
                     </div>
                     <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto">
                         <table class="w-full text-left text-xs">
                             <thead class="bg-slate-50 font-bold border-b">
                                 <tr>
-                                    <th class="p-2.5">Ngày Ứng</th>
-                                    <th class="p-2.5">Nhân Viên</th>
-                                    <th class="p-2.5 text-right">Số Tiền</th>
-                                    <th class="p-2.5">Phiếu Chi Sổ Quỹ</th>
+                                    <th class="p-2.5">Ngày Ứng (Chuẩn VN)</th>
+                                    <th class="p-2.5">Mã & Họ Tên Nhân Viên</th>
+                                    <th class="p-2.5">Khối / Bộ Phận</th>
+                                    <th class="p-2.5 text-right">Số Tiền Ứng</th>
+                                    <th class="p-2.5">Phiếu Chi & Quỹ</th>
                                     <th class="p-2.5">Ghi Chú</th>
                                     <th class="p-2.5">Người Tạo</th>
                                     <th class="p-2.5 text-center">Xóa</th>
                                 </tr>
                             </thead>
                             <tbody id="table-hrm-advances" class="divide-y divide-slate-100"></tbody>
+                            <tfoot id="table-hrm-advances-foot" class="bg-slate-100 font-bold border-t border-slate-300"></tfoot>
                         </table>
                     </div>
                 </div>
@@ -7755,11 +7793,18 @@
                 <!-- SUBTAB: ĐIỀU CHỈNH LƯƠNG & PHỤ CẤP -->
                 <div id="hrm-subtab-adjustments" class="hidden space-y-3">
                     <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
-                        <div class="flex items-center gap-2">
-                            <input type="text" id="hrm-adj-search" oninput="filterHrmAdjustmentsTable()" placeholder="Tìm theo tên, mã NV, lý do..." class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs w-60 focus:ring-1 focus:ring-emerald-500">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <input type="text" id="hrm-adj-search" oninput="filterHrmAdjustmentsTable()" placeholder="Tìm theo tên, mã NV, lý do..." class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs w-56 focus:ring-1 focus:ring-emerald-500">
                             <select id="hrm-adj-filter-staff" onchange="onHrmAdjStaffFilterChange(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-700">
                                 <option value="">-- Tất cả nhân viên --</option>
                             </select>
+                            <label class="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 cursor-pointer">
+                                <input type="checkbox" id="hrm-adj-only-period" onchange="loadHrmSalaryAdjustments()"> Chỉ kỳ đang chọn
+                            </label>
+                            <div class="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-bold">
+                                <button type="button" data-hrm-group-btn="grouped" onclick="setHrmSubTableGroupMode('grouped')" class="px-2.5 py-1 rounded-md bg-sky-600 text-white cursor-pointer">Nhóm theo NV</button>
+                                <button type="button" data-hrm-group-btn="flat" onclick="setHrmSubTableGroupMode('flat')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Danh sách phẳng</button>
+                            </div>
                         </div>
                         <div class="flex items-center gap-2">
                             <button onclick="openHrmAdjustmentModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs">
@@ -7785,6 +7830,7 @@
                                 </tr>
                             </thead>
                             <tbody id="table-hrm-adjustments" class="divide-y divide-slate-100"></tbody>
+                            <tfoot id="table-hrm-adjustments-foot" class="bg-slate-100 font-bold border-t border-slate-300"></tfoot>
                         </table>
                     </div>
                 </div>
@@ -7805,6 +7851,26 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2 flex-wrap">
+                            <!-- Popover Cài đặt cột hiển thị Hồ Sơ Nhân Sự -->
+                            <div class="relative" id="hrm-staff-cols-picker-wrap">
+                                <button type="button" onclick="toggleStaffColumnsPopover(event)" class="border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs" title="Ẩn/hiện cột trên bảng hồ sơ nhân sự">
+                                    <i class="ph ph-columns"></i> <span>Cột hiển thị</span> <span id="hrm-staff-cols-badge" class="bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded text-xs font-mono"></span>
+                                </button>
+                                <div id="hrm-staff-cols-popover" onclick="event.stopPropagation()" class="hidden absolute left-0 sm:left-auto sm:right-0 mt-1.5 w-[480px] max-w-[92vw] bg-white border border-slate-200 rounded-xl shadow-xl z-40 p-3.5 space-y-2.5 text-xs">
+                                    <div class="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
+                                        <span class="font-bold text-slate-800 whitespace-nowrap">Chọn cột hồ sơ Nhân Sự</span>
+                                        <div class="flex items-center gap-2 whitespace-nowrap">
+                                            <button type="button" onclick="applyStaffColsPreset('default')" class="text-xs font-bold text-sky-700 hover:underline cursor-pointer">Mặc định gọn</button>
+                                            <span class="text-slate-300">|</span>
+                                            <button type="button" onclick="applyStaffColsPreset('all')" class="text-xs font-bold text-emerald-700 hover:underline cursor-pointer">Hiện tất cả</button>
+                                        </div>
+                                    </div>
+                                    <div id="hrm-staff-cols-list" class="grid grid-cols-3 gap-x-2 gap-y-1.5 max-h-72 overflow-y-auto"></div>
+                                    <div class="text-xs text-slate-400 border-t border-slate-100 pt-1.5">
+                                        Cột <b>Mã NV</b> & <b>Họ và Tên</b> luôn ghim cố định bên trái khi cuộn ngang.
+                                    </div>
+                                </div>
+                            </div>
                             <button onclick="openHrmImportSheetModal()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs" title="Import hồ sơ nhân sự & điều chỉnh lương từ Google Sheet">
                                 <span><i class="ph ph-download-simple"></i></span> Import Google Sheet
                             </button>
@@ -7817,11 +7883,13 @@
                             <button onclick="loadHrmStaff()" class="border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold px-2.5 py-1.5 rounded-lg cursor-pointer"><i class="ph ph-arrows-clockwise"></i> Tải lại</button>
                         </div>
                     </div>
-                    <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto">
-                        <table class="w-full text-xs text-left">
-                            <thead class="bg-slate-50 text-slate-600 font-bold uppercase text-xs border-b border-slate-200">
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto max-h-[580px]">
+                        <table class="w-full text-xs text-left border-collapse">
+                            <thead id="table-hrm-staff-head" class="bg-slate-50 text-slate-600 font-bold uppercase text-xs sticky top-0 z-10 border-b border-slate-200">
                                 <tr>
-                                    <th class="p-2.5">Mã NV & Họ Tên</th>
+                                    <th class="p-2.5">Mã NV</th>
+                                    <th class="p-2.5">Họ và Tên</th>
+                                    <th class="p-2.5">Mã Máy CC</th>
                                     <th class="p-2.5">Bộ Phận & Vị Trí</th>
                                     <th class="p-2.5">Khối Ca</th>
                                     <th class="p-2.5 text-right">Lương Gốc</th>

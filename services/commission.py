@@ -131,18 +131,86 @@ def order_commission_base(total_amount, discount) -> float:
     return max(0.0, float(total_amount or 0) - float(discount or 0))
 
 
+DEFAULT_DEPT_COMM_POLICIES = [
+    {"dept": "Bán Lẻ POS", "pos_rate": 3.0, "spa_on": 0, "tmdt_on": 0},
+    {"dept": "Spa & Grooming", "pos_rate": 1.5, "spa_on": 1, "tmdt_on": 0},
+    {"dept": "Sales Online & TMĐT", "pos_rate": 2.0, "spa_on": 0, "tmdt_on": 1},
+    {"dept": "Kho & Khách Sạn", "pos_rate": 1.0, "spa_on": 0, "tmdt_on": 0},
+]
+
+
+def load_dept_comm_policies(cur) -> list:
+    try:
+        cur.execute("SELECT value FROM settings WHERE key = 'hrm_dept_commission_policies'")
+        row = cur.fetchone()
+        if row and row[0]:
+            data = json.loads(row[0])
+            if isinstance(data, list) and data:
+                return data
+    except Exception:
+        pass
+    return copy.deepcopy(DEFAULT_DEPT_COMM_POLICIES)
+
+
+def resolve_dept_comm_policy(dept: str, is_spa_worker: bool = False, dept_policies: list = None) -> dict:
+    """Ánh xạ tên Bộ phận thực tế từ hồ sơ/Sheet (Kinh doanh, Marketing, Kho, Văn Phòng...) về chính sách chuẩn."""
+    pols = dept_policies or DEFAULT_DEPT_COMM_POLICIES
+    d_clean = (dept or "").strip()
+    d_low = d_clean.lower()
+    for p in pols:
+        if (p.get("dept") or "").strip().lower() == d_low and d_low:
+            return p
+    by_name = {(p.get("dept") or "").strip(): p for p in pols}
+    if is_spa_worker or "spa" in d_low or "groom" in d_low:
+        return by_name.get("Spa & Grooming") or pols[0]
+    if any(k in d_low for k in ("kinh doanh", "marketing", "sales", "online", "tmđt", "tmdt", "sàn", "pancake", "digital")):
+        return by_name.get("Sales Online & TMĐT") or pols[0]
+    if any(k in d_low for k in ("kho", "khách sạn", "hotel")):
+        return by_name.get("Kho & Khách Sạn") or pols[0]
+    return by_name.get("Bán Lẻ POS") or pols[0]
+
+
+def effective_pos_commission_rate(staff_row: dict, dept_policies: list = None) -> float:
+    """Tính % hoa hồng POS hiệu lực: chế độ 'dept' mà commission_rate = 0 sẽ tự kế thừa % của Bộ phận."""
+    if not staff_row:
+        return 0.0
+    raw_rate = float(staff_row.get("commission_rate") or 0.0)
+    mode = (staff_row.get("commission_policy_mode") or "dept").strip()
+    if mode == "custom":
+        return raw_rate
+    if raw_rate > 0:
+        return raw_rate
+    pol = resolve_dept_comm_policy(
+        staff_row.get("department") or "",
+        bool(staff_row.get("is_spa_worker")),
+        dept_policies,
+    )
+    return float(pol.get("pos_rate") or 0.0)
+
+
 def calc_order_commission(cur, staff_id, total_amount, discount) -> float:
-    cur.execute("SELECT commission_rate FROM staff WHERE id = ?", (staff_id,))
+    cur.execute("PRAGMA table_info(staff)")
+    cols = {r[1] for r in cur.fetchall()}
+    sel_cols = ["id", "commission_rate"]
+    for opt in ("department", "is_spa_worker", "commission_policy_mode"):
+        if opt in cols:
+            sel_cols.append(opt)
+    cur.execute(f"SELECT {', '.join(sel_cols)} FROM staff WHERE id = ?", (staff_id,))
     row = cur.fetchone()
-    rate = float(row["commission_rate"] or 0) if row else 0.0
+    if not row:
+        return 0.0
+    st = dict(row)
+    rate = effective_pos_commission_rate(st, load_dept_comm_policies(cur))
     return round(order_commission_base(total_amount, discount) * rate / 100.0)
 
 
 def sales_commission_by_staff(cur, from_dt: str, to_dt: str) -> dict:
-    """from_dt/to_dt: 'YYYY-MM-DD HH:MM:SS' giờ VN. Trả {staff_id: {revenue, returns, net, rate, commission}}."""
+    """from_dt/to_dt: 'YYYY-MM-DD HH:MM:SS' giờ VN. Trả {staff_id: {revenue, returns, net, rate, commission, orders}}."""
     ph = ",".join("?" for _ in EXCLUDED_ORDER_STATUSES)
     cur.execute(f"""
-        SELECT o.staff_id, COALESCE(SUM(MAX(0, COALESCE(o.total_amount,0) - COALESCE(o.discount,0))), 0) AS revenue
+        SELECT o.staff_id,
+               COUNT(*) AS orders,
+               COALESCE(SUM(MAX(0, COALESCE(o.total_amount,0) - COALESCE(o.discount,0))), 0) AS revenue
         FROM orders o
         WHERE o.staff_id IS NOT NULL
           AND COALESCE(o.status, '') NOT IN ({ph})
@@ -151,7 +219,7 @@ def sales_commission_by_staff(cur, from_dt: str, to_dt: str) -> dict:
     """, (*EXCLUDED_ORDER_STATUSES, from_dt, to_dt))
     out = {}
     for r in cur.fetchall():
-        out[r["staff_id"]] = {"revenue": float(r["revenue"] or 0), "returns": 0.0}
+        out[r["staff_id"]] = {"revenue": float(r["revenue"] or 0), "returns": 0.0, "orders": int(r["orders"] or 0)}
     cur.execute("""
         SELECT o.staff_id, COALESCE(SUM(ret.return_total), 0) AS returns
         FROM order_returns ret JOIN orders o ON o.id = ret.original_order_id
@@ -160,16 +228,56 @@ def sales_commission_by_staff(cur, from_dt: str, to_dt: str) -> dict:
         GROUP BY o.staff_id
     """, (from_dt, to_dt))
     for r in cur.fetchall():
-        out.setdefault(r["staff_id"], {"revenue": 0.0, "returns": 0.0})["returns"] = float(r["returns"] or 0)
+        out.setdefault(r["staff_id"], {"revenue": 0.0, "returns": 0.0, "orders": 0})["returns"] = float(r["returns"] or 0)
     if out:
+        cur.execute("PRAGMA table_info(staff)")
+        cols = {r[1] for r in cur.fetchall()}
+        sel_cols = ["id", "commission_rate"]
+        for opt in ("department", "is_spa_worker", "commission_policy_mode"):
+            if opt in cols:
+                sel_cols.append(opt)
         ids = list(out)
-        cur.execute(f"SELECT id, commission_rate FROM staff WHERE id IN ({','.join('?' for _ in ids)})", ids)
-        rates = {r["id"]: float(r["commission_rate"] or 0) for r in cur.fetchall()}
+        dept_pols = load_dept_comm_policies(cur)
+        cur.execute(f"SELECT {', '.join(sel_cols)} FROM staff WHERE id IN ({','.join('?' for _ in ids)})", ids)
+        rates = {r["id"]: effective_pos_commission_rate(dict(r), dept_pols) for r in cur.fetchall()}
         for sid, v in out.items():
             v["net"] = max(0.0, v["revenue"] - v["returns"])
             v["rate"] = rates.get(sid, 0.0)
             v["commission"] = round(v["net"] * v["rate"] / 100.0)
     return out
+
+
+def admin_pos_sales_summary(cur, from_dt: str, to_dt: str) -> dict:
+    """Tách riêng doanh số đơn POS đứng tên tài khoản hệ thống/Admin (is_payroll_staff = 0 hoặc chưa gán NV)."""
+    ph = ",".join("?" for _ in EXCLUDED_ORDER_STATUSES)
+    cur.execute(f"""
+        SELECT COUNT(*) AS cnt,
+               COALESCE(SUM(MAX(0, COALESCE(o.total_amount,0) - COALESCE(o.discount,0))), 0) AS revenue
+        FROM orders o
+        LEFT JOIN staff s ON s.id = o.staff_id
+        WHERE COALESCE(o.status, '') NOT IN ({ph})
+          AND datetime(o.created_at, '+7 hours') BETWEEN ? AND ?
+          AND (o.staff_id IS NULL OR COALESCE(s.is_payroll_staff, 1) = 0)
+    """, (*EXCLUDED_ORDER_STATUSES, from_dt, to_dt))
+    row = cur.fetchone()
+    orders_cnt = int(row["cnt"] or 0) if row else 0
+    rev = float(row["revenue"] or 0) if row else 0.0
+    cur.execute("""
+        SELECT COALESCE(SUM(ret.return_total), 0) AS returns
+        FROM order_returns ret
+        JOIN orders o ON o.id = ret.original_order_id
+        LEFT JOIN staff s ON s.id = o.staff_id
+        WHERE datetime(ret.created_at, '+7 hours') BETWEEN ? AND ?
+          AND (o.staff_id IS NULL OR COALESCE(s.is_payroll_staff, 1) = 0)
+    """, (from_dt, to_dt))
+    r2 = cur.fetchone()
+    ret = float(r2["returns"] or 0) if r2 else 0.0
+    return {
+        "orders": orders_cnt,
+        "revenue": round(rev),
+        "returns": round(ret),
+        "net": round(max(0.0, rev - ret)),
+    }
 
 
 def _service_lines(ticket) -> list:

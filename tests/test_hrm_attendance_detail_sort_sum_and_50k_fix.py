@@ -71,4 +71,8 @@ def test_attendance_api_returns_rules_and_ui_has_vn_date_sort_and_dynamic_footer
     assert 'function syncHrmAttStaffFilterOptions(' in hrm_js
     assert 'data-hrm-staff-picker="hrm-att-filter-staff"' in html
     assert 'id="hrm-att-filter-staff-search"' in html
+    assert 'Duyệt Miễn Phạt Chấm Công' in hrm_js
+    app_js = (root / "static/js/app.js").read_text(encoding="utf-8")
+    assert 'window.showPromptModal = function(' in app_js
+
 

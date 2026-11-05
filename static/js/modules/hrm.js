@@ -6,6 +6,203 @@
     let payrollData = null;
     let attendanceData = null;
     let leavesData = [];
+    let overtimeData = [];
+    let advancesData = [];
+
+    // ── Trạng thái Kỳ Xem Dữ Liệu Dùng Chung (HRM <-> Pancake) & Gom Nhóm ──
+    let hrmPeriodMode = 'this_month'; // 'this_month' | 'prev_month' | 'month' | 'range'
+    let hrmDateFrom = '';
+    let hrmDateTo = '';
+    const HRM_GROUP_MODE_STORAGE_KEY = 'hrm_subtable_group_mode_v1';
+    let hrmSubTableGroupMode = (() => {
+        try {
+            const v = localStorage.getItem(HRM_GROUP_MODE_STORAGE_KEY);
+            if (v === 'flat' || v === 'grouped') return v;
+        } catch (_) {}
+        return 'grouped';
+    })();
+
+    function _monthBoundsFromYm(ym) {
+        const parts = String(ym || '').split('-');
+        const y = parseInt(parts[0], 10) || new Date().getFullYear();
+        const m = parseInt(parts[1], 10) || (new Date().getMonth() + 1);
+        const lastDay = new Date(y, m, 0).getDate();
+        const mm = String(m).padStart(2, '0');
+        return {
+            month: `${y}-${mm}`,
+            from: `${y}-${mm}-01`,
+            to: `${y}-${mm}-${String(lastDay).padStart(2, '0')}`
+        };
+    }
+
+    function _offsetMonthYm(deltaMonths = 0) {
+        const now = new Date();
+        const d = new Date(now.getFullYear(), now.getMonth() + deltaMonths, 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function _fmtShortVnRange(d1, d2) {
+        const f = s => {
+            const p = String(s || '').slice(0, 10).split('-');
+            return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : s;
+        };
+        if (!d1 || !d2) return '';
+        return `${f(d1)} → ${f(d2)}`;
+    }
+
+    function syncHrmPeriodUI(skipPancakeSync = false) {
+        const curYm = _offsetMonthYm(0);
+        const prevYm = _offsetMonthYm(-1);
+        const picker = document.getElementById('hrm-month-picker');
+        const ym = picker?.value || curYm;
+        if (!hrmDateFrom || !hrmDateTo || hrmPeriodMode !== 'range') {
+            const b = _monthBoundsFromYm(ym);
+            hrmDateFrom = b.from;
+            hrmDateTo = b.to;
+            if (ym === curYm) hrmPeriodMode = 'this_month';
+            else if (ym === prevYm) hrmPeriodMode = 'prev_month';
+            else hrmPeriodMode = 'month';
+        }
+        const fromInp = document.getElementById('hrm-date-from');
+        const toInp = document.getElementById('hrm-date-to');
+        if (fromInp) fromInp.value = hrmDateFrom;
+        if (toInp) toInp.value = hrmDateTo;
+
+        const rangeWrap = document.getElementById('hrm-date-range-wrap');
+        if (rangeWrap) {
+            rangeWrap.classList.toggle('hidden', hrmPeriodMode !== 'range');
+            rangeWrap.classList.toggle('flex', hrmPeriodMode === 'range');
+        }
+        const badge = document.getElementById('hrm-period-range-badge');
+        if (badge) {
+            badge.textContent = _fmtShortVnRange(hrmDateFrom, hrmDateTo);
+            badge.classList.toggle('hidden', hrmPeriodMode === 'range');
+        }
+
+        const onCls = 'px-2.5 py-1 rounded-md bg-sky-600 text-white cursor-pointer transition-all';
+        const offCls = 'px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition-all';
+        const bThis = document.getElementById('btn-hrm-period-this');
+        const bPrev = document.getElementById('btn-hrm-period-prev');
+        const bRange = document.getElementById('btn-hrm-period-range');
+        if (bThis) bThis.className = hrmPeriodMode === 'this_month' ? onCls : offCls;
+        if (bPrev) bPrev.className = hrmPeriodMode === 'prev_month' ? onCls : offCls;
+        if (bRange) bRange.className = hrmPeriodMode === 'range' ? onCls : offCls;
+
+        if (!skipPancakeSync && typeof window.syncPancakeFromHrmPeriod === 'function') {
+            window.syncPancakeFromHrmPeriod(hrmDateFrom, hrmDateTo);
+        }
+    }
+
+    function getHrmQueryPeriodParams() {
+        const month = getSelectedMonth();
+        if (hrmPeriodMode === 'range' && hrmDateFrom && hrmDateTo) {
+            return { month: hrmDateFrom.slice(0, 7), dateFrom: hrmDateFrom, dateTo: hrmDateTo, qs: `date_from=${encodeURIComponent(hrmDateFrom)}&date_to=${encodeURIComponent(hrmDateTo)}` };
+        }
+        const b = _monthBoundsFromYm(month);
+        return { month, dateFrom: b.from, dateTo: b.to, qs: `month=${encodeURIComponent(month)}` };
+    }
+
+    window.getSharedHrmPeriodRange = function() {
+        const p = getHrmQueryPeriodParams();
+        return { month: p.month, from: p.dateFrom, to: p.dateTo, mode: hrmPeriodMode };
+    };
+
+    window.syncHrmPeriodFromPancake = function(fromStr, toStr, modeHint) {
+        if (!fromStr || !toStr) return;
+        const curB = _monthBoundsFromYm(_offsetMonthYm(0));
+        const prevB = _monthBoundsFromYm(_offsetMonthYm(-1));
+        const picker = document.getElementById('hrm-month-picker');
+        if (modeHint === 'this_month' || (fromStr === curB.from && toStr === curB.to)) {
+            hrmPeriodMode = 'this_month';
+            if (picker) picker.value = curB.month;
+            updateMonthDisplay(curB.month);
+            hrmDateFrom = curB.from;
+            hrmDateTo = curB.to;
+        } else if (modeHint === 'prev_month' || (fromStr === prevB.from && toStr === prevB.to)) {
+            hrmPeriodMode = 'prev_month';
+            if (picker) picker.value = prevB.month;
+            updateMonthDisplay(prevB.month);
+            hrmDateFrom = prevB.from;
+            hrmDateTo = prevB.to;
+        } else {
+            // Kiểm tra có khớp trọn 1 tháng bất kỳ không
+            const ym = fromStr.slice(0, 7);
+            const mb = _monthBoundsFromYm(ym);
+            if (fromStr === mb.from && toStr === mb.to) {
+                hrmPeriodMode = 'month';
+                if (picker) picker.value = ym;
+                updateMonthDisplay(ym);
+                hrmDateFrom = mb.from;
+                hrmDateTo = mb.to;
+            } else {
+                hrmPeriodMode = 'range';
+                hrmDateFrom = fromStr;
+                hrmDateTo = toStr;
+                if (picker) picker.value = ym;
+                updateMonthDisplay(ym);
+            }
+        }
+        syncHrmPeriodUI(true);
+    };
+
+    window.setHrmPeriodPreset = function(mode) {
+        const picker = document.getElementById('hrm-month-picker');
+        if (mode === 'this_month') {
+            const ym = _offsetMonthYm(0);
+            if (picker) picker.value = ym;
+            hrmPeriodMode = 'this_month';
+            updateMonthDisplay(ym);
+        } else if (mode === 'prev_month') {
+            const ym = _offsetMonthYm(-1);
+            if (picker) picker.value = ym;
+            hrmPeriodMode = 'prev_month';
+            updateMonthDisplay(ym);
+        } else {
+            hrmPeriodMode = 'range';
+            if (!hrmDateFrom || !hrmDateTo) {
+                const b = _monthBoundsFromYm(getSelectedMonth());
+                hrmDateFrom = b.from;
+                hrmDateTo = b.to;
+            }
+        }
+        syncHrmPeriodUI();
+        loadHrmCurrentSubTab();
+    };
+
+    window.onHrmDateRangeChange = function() {
+        const d1 = document.getElementById('hrm-date-from')?.value || '';
+        const d2 = document.getElementById('hrm-date-to')?.value || '';
+        if (!d1 || !d2) return;
+        hrmPeriodMode = 'range';
+        hrmDateFrom = d1 <= d2 ? d1 : d2;
+        hrmDateTo = d1 <= d2 ? d2 : d1;
+        const picker = document.getElementById('hrm-month-picker');
+        if (picker) {
+            picker.value = hrmDateFrom.slice(0, 7);
+            updateMonthDisplay(picker.value);
+        }
+        syncHrmPeriodUI();
+        loadHrmCurrentSubTab();
+    };
+
+    function syncGroupModeButtonsUI() {
+        const onCls = 'px-2.5 py-1 rounded-md bg-sky-600 text-white cursor-pointer';
+        const offCls = 'px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer';
+        document.querySelectorAll('[data-hrm-group-btn]').forEach(btn => {
+            const m = btn.getAttribute('data-hrm-group-btn');
+            btn.className = (m === hrmSubTableGroupMode) ? onCls : offCls;
+        });
+    }
+
+    window.setHrmSubTableGroupMode = function(mode) {
+        hrmSubTableGroupMode = mode === 'flat' ? 'flat' : 'grouped';
+        try { localStorage.setItem(HRM_GROUP_MODE_STORAGE_KEY, hrmSubTableGroupMode); } catch (_) {}
+        syncGroupModeButtonsUI();
+        if (currentSubTab === 'leaves') renderHrmLeavesTable();
+        else if (currentSubTab === 'overtime') renderHrmOvertimeTable();
+        else if (currentSubTab === 'advances') renderHrmAdvancesTable();
+        else if (currentSubTab === 'adjustments') filterHrmAdjustmentsTable();
+    };
 
     function updateMonthDisplay(val) {
         const display = document.getElementById('hrm-month-display');
@@ -43,7 +240,9 @@
     window.selectHrmMonth = function(monthStr) {
         const picker = document.getElementById('hrm-month-picker');
         if (picker) picker.value = monthStr;
+        hrmPeriodMode = 'month';
         updateMonthDisplay(monthStr);
+        syncHrmPeriodUI();
         const menu = document.getElementById('hrm-month-dropdown-menu');
         if (menu) menu.classList.add('hidden');
         loadHrmCurrentSubTab();
@@ -112,17 +311,14 @@
         if (m < 1) { m = 12; y -= 1; }
         else if (m > 12) { m = 1; y += 1; }
         picker.value = `${y}-${String(m).padStart(2, '0')}`;
+        hrmPeriodMode = 'month';
         updateMonthDisplay(picker.value);
+        syncHrmPeriodUI();
         loadHrmCurrentSubTab();
     };
 
     window.setHrmCurrentMonth = function() {
-        const picker = document.getElementById('hrm-month-picker');
-        if (!picker) return;
-        const now = new Date();
-        picker.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        updateMonthDisplay(picker.value);
-        loadHrmCurrentSubTab();
+        window.setHrmPeriodPreset('this_month');
     };
 
     window.switchHrmSubTab = function(sub) {
@@ -139,11 +335,14 @@
                 }
             }
         });
+        syncGroupModeButtonsUI();
         loadHrmCurrentSubTab();
     };
 
     window.loadHrmCurrentSubTab = function() {
         const month = getSelectedMonth();
+        syncHrmPeriodUI();
+        syncGroupModeButtonsUI();
         if (currentSubTab === 'payroll') loadHrmPayroll(month);
         else if (currentSubTab === 'commissions') loadHrmCommissions(month);
         else if (currentSubTab === 'attendance') loadHrmAttendance(month);
@@ -157,15 +356,17 @@
 
     window.initHrmTab = function() {
         getSelectedMonth();
+        syncHrmPeriodUI();
+        syncGroupModeButtonsUI();
         switchHrmSubTab(currentSubTab);
     };
 
-    // ── Bảng Lương & Cài Đặt Cột Hiển Thị ──
+    // ── Bảng Lương & Cài Đặt Cột Hiển Thị (Ghim Cố Định ⚠ + Mã NV + Họ và Tên) ──
     const PAYROLL_COL_STORAGE_KEY = 'hrm_payroll_visible_cols_v1';
     const PAYROLL_COLUMNS = [
-        { key: 'alert', label: '⚠', fixed: true, group: 'lead', thCls: 'p-2.5 text-center', title: 'Cảnh báo cần kiểm tra trước khi chốt' },
-        { key: 'employee_code', label: 'Mã NV', fixed: true, group: 'lead', thCls: 'p-2.5 whitespace-nowrap' },
-        { key: 'name', label: 'Họ và Tên', fixed: true, group: 'lead', thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'alert', label: '⚠', fixed: true, group: 'lead', thCls: 'p-2.5 text-center w-[38px] min-w-[38px] sticky left-0 z-30 bg-slate-50', title: 'Cảnh báo cần kiểm tra trước khi chốt' },
+        { key: 'employee_code', label: 'Mã NV', fixed: true, group: 'lead', thCls: 'p-2.5 whitespace-nowrap w-[72px] min-w-[72px] sticky left-[38px] z-30 bg-slate-50' },
+        { key: 'name', label: 'Họ và Tên', fixed: true, group: 'lead', thCls: 'p-2.5 whitespace-nowrap min-w-[175px] sticky left-[110px] z-30 bg-slate-50 border-r-2 border-slate-200 shadow-[3px_0_5px_-2px_rgba(15,23,42,0.08)]' },
         { key: 'block', label: 'Khối', defaultOn: true, group: 'lead', thCls: 'p-2.5 whitespace-nowrap' },
         { key: 'position', label: 'Chức vụ', defaultOn: true, group: 'lead', thCls: 'p-2.5 whitespace-nowrap' },
         { key: 'contractual_status', label: 'Tình trạng', defaultOn: false, group: 'lead', thCls: 'p-2.5 text-center whitespace-nowrap' },
@@ -366,15 +567,15 @@
         const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
         const fmtN = v => Number(v || 0).toLocaleString('vi-VN');
 
-        const renderCell = (col, l, issCell) => {
+        const renderCell = (col, l, issCell, stickyBgCls) => {
             const totalDays = Number((Number(l.days_official || 0) + Number(l.days_probation || 0)).toFixed(2));
             switch (col.key) {
                 case 'alert':
-                    return `<td class="p-2.5 text-center">${issCell}</td>`;
+                    return `<td class="p-2.5 text-center w-[38px] min-w-[38px] sticky left-0 z-10 ${stickyBgCls}">${issCell}</td>`;
                 case 'employee_code':
-                    return `<td class="p-2.5 font-mono font-bold text-slate-700 whitespace-nowrap">${esc(l.employee_code || '')}</td>`;
+                    return `<td class="p-2.5 font-mono font-bold text-sky-700 whitespace-nowrap w-[72px] min-w-[72px] sticky left-[38px] z-10 ${stickyBgCls}">${esc(l.employee_code || '')}</td>`;
                 case 'name':
-                    return `<td onclick="openHrmPayslipModal(${l.staff_id})" class="p-2.5 font-bold text-slate-900 hover:text-sky-700 hover:underline cursor-pointer whitespace-nowrap" title="Bấm xem phiếu lương chi tiết">${esc(l.name || '')}</td>`;
+                    return `<td onclick="openHrmPayslipModal(${l.staff_id})" class="p-2.5 font-bold text-slate-900 hover:text-sky-700 hover:underline cursor-pointer whitespace-nowrap min-w-[175px] sticky left-[110px] z-10 border-r-2 border-slate-200 shadow-[3px_0_5px_-2px_rgba(15,23,42,0.08)] ${stickyBgCls}" title="Bấm xem phiếu lương chi tiết">${esc(l.name || '')}</td>`;
                 case 'block':
                     return `<td class="p-2.5 text-slate-600 whitespace-nowrap">${esc(l.block || '')}</td>`;
                 case 'position':
@@ -443,13 +644,16 @@
             const issCell = iss.length
                 ? `<span class="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-amber-100 text-amber-800 font-bold cursor-help" title="${esc(iss.join('\n'))}">${iss.length}</span>`
                 : '';
-            return `<tr class="hover:bg-slate-50 ${iss.length ? 'bg-amber-50/40' : ''}">${visCols.map(c => renderCell(c, l, issCell)).join('')}</tr>`;
+            const stickyBgCls = iss.length ? 'bg-amber-50 group-hover:bg-slate-50' : 'bg-white group-hover:bg-slate-50';
+            return `<tr class="group hover:bg-slate-50 ${iss.length ? 'bg-amber-50/40' : ''}">${visCols.map(c => renderCell(c, l, issCell, stickyBgCls)).join('')}</tr>`;
         }).join('');
 
         const tot = data.totals || {};
         const firstSumIdx = visCols.findIndex(c => c.sumKey);
         const leadSpan = firstSumIdx > 0 ? firstSumIdx : 1;
-        let footHtml = `<tr><td colspan="${leadSpan}" class="p-2.5 text-right uppercase">Tổng cộng:</td>`;
+        const pinnedCount = Math.min(3, leadSpan);
+        const restLead = leadSpan - pinnedCount;
+        let footHtml = `<tr><td colspan="${pinnedCount}" class="p-2.5 text-right uppercase sticky left-0 z-20 bg-slate-100 border-r-2 border-slate-300 shadow-[3px_0_5px_-2px_rgba(15,23,42,0.08)]">Tổng cộng (${lines.length} NV):</td>${restLead > 0 ? `<td colspan="${restLead}" class="p-2.5 bg-slate-100"></td>` : ''}`;
         for (let i = leadSpan; i < visCols.length; i++) {
             const c = visCols[i];
             if (!c.sumKey) {
@@ -592,6 +796,39 @@
             dayOfWeek: HRM_DOW_NAMES[dowIdx] || '',
             isSun: dowIdx === 0
         };
+    }
+
+    function fmtVnDate(isoStr, withDow = false) {
+        if (!isoStr) return '—';
+        const info = parseVnIsoDate(isoStr);
+        if (!info.dayOfWeek) return info.formatted || '—';
+        return withDow ? `${info.formatted} (${info.dayOfWeek})` : info.formatted;
+    }
+
+    function groupRowsByStaff(list) {
+        const map = new Map();
+        (list || []).forEach(r => {
+            const sid = String(r.staff_id || r.employee_code || r.staff_code || r.staff_name || r.name || 'unknown');
+            if (!map.has(sid)) {
+                map.set(sid, {
+                    key: sid,
+                    staff_id: r.staff_id,
+                    employee_code: (r.employee_code || r.staff_code || '').trim(),
+                    staff_name: r.staff_name || r.name || 'Nhân viên',
+                    meta: [r.block_name, r.department, r.position].filter(Boolean).join(' · ') || '—',
+                    rows: []
+                });
+            }
+            map.get(sid).rows.push(r);
+        });
+        return Array.from(map.values()).sort((a, b) => {
+            if (a.employee_code && !b.employee_code) return -1;
+            if (!a.employee_code && b.employee_code) return 1;
+            if (a.employee_code && b.employee_code && a.employee_code !== b.employee_code) {
+                return hrmViCollator.compare(a.employee_code, b.employee_code);
+            }
+            return hrmViCollator.compare(a.staff_name || '', b.staff_name || '');
+        });
     }
 
     let hrmAttSortState = (() => {
@@ -895,14 +1132,62 @@
     };
 
     window.toggleHrmWaive = async function(staffId, workDate, currentWaive) {
+        const empObj = (attendanceData?.employees || []).find(e => Number(e.staff_id) === Number(staffId));
+        const dayObj = (empObj?.days || []).find(d => d.date === workDate);
+        const dInfo = parseVnIsoDate(workDate);
+        const staffLabel = empObj ? `${empObj.employee_code || ('NV' + empObj.staff_id)} - ${empObj.name}${empObj.block ? ' (' + empObj.block + ')' : ''}` : `NV #${staffId}`;
+
+        const violLabels = [];
+        (dayObj?.violations || []).forEach(v => {
+            if (v === 'late') violLabels.push(`Trễ ${dayObj.late_min || 0}p`);
+            else if (v === 'early') violLabels.push(`Về sớm ${dayObj.early_min || 0}p`);
+            else if (v === 'missing_in') violLabels.push('Quên quẹt vào');
+            else if (v === 'missing_out') violLabels.push('Quên quẹt ra');
+            else if (v === 'absent') violLabels.push('Vắng không phép');
+        });
+        const penStr = dayObj?.penalty ? ` • Mức phạt: -${Number(dayObj.penalty).toLocaleString('vi-VN')}đ` : '';
+        const summaryInfo = `Nhân viên: ${staffLabel}\nNgày: ${dInfo.formatted} (${dInfo.dayOfWeek})${violLabels.length ? ' • Vi phạm: ' + violLabels.join(', ') : ''}${penStr}`;
+
         let note = "";
         if (!currentWaive) {
-            const reason = prompt("Nhập lý do miễn phạt (ví dụ: Quên quẹt thẻ / Sự cố máy / Sếp duyệt):", "Sếp duyệt miễn phạt");
+            const reason = typeof window.showPromptModal === 'function'
+                ? await window.showPromptModal({
+                    title: 'Duyệt Miễn Phạt Chấm Công',
+                    message: 'Chọn nhanh hoặc nhập lý do miễn phạt cho ca làm việc này:',
+                    subMessage: summaryInfo,
+                    defaultValue: dayObj?.note || 'Sếp duyệt miễn phạt',
+                    placeholder: 'Ví dụ: Quên quẹt thẻ / Sự cố máy / Sếp duyệt...',
+                    presets: [
+                        'Sếp duyệt miễn phạt',
+                        'Quên quẹt thẻ',
+                        'Sự cố máy chấm công',
+                        'Đi công tác / Làm ngoài',
+                        'Có xin phép trước'
+                    ],
+                    confirmText: 'Duyệt Miễn Phạt',
+                    cancelText: 'Hủy bỏ',
+                    type: 'success'
+                })
+                : prompt("Nhập lý do miễn phạt:", "Sếp duyệt miễn phạt");
+
             if (reason === null) {
                 renderAttendanceDetailTable();
                 return;
             }
-            note = reason.trim();
+            note = reason.trim() || "Sếp duyệt miễn phạt";
+        } else if (typeof window.showConfirmModal === 'function') {
+            const okUnwaive = await window.showConfirmModal({
+                title: 'Hủy Miễn Phạt Chấm Công?',
+                message: 'Ca làm việc này sẽ áp dụng lại tiền phạt vi phạm theo quy định.',
+                subMessage: summaryInfo + (dayObj?.note ? `\nLý do miễn trước đó: ${dayObj.note}` : ''),
+                confirmText: 'Hủy miễn phạt',
+                cancelText: 'Giữ nguyên',
+                type: 'warning'
+            });
+            if (!okUnwaive) {
+                renderAttendanceDetailTable();
+                return;
+            }
         }
         try {
             const res = await fetch('/api/hrm/attendance/toggle-waive', {
@@ -917,7 +1202,7 @@
             });
             const data = await res.json();
             if (!res.ok) {
-                alert(data.detail || "Lỗi cập nhật miễn phạt");
+                if (window.showToast) window.showToast(data.detail || "Lỗi cập nhật miễn phạt", "error");
                 renderAttendanceDetailTable();
                 return;
             }
@@ -936,44 +1221,76 @@
         const thead = document.getElementById('table-hrm-att-head');
         const tbody = document.getElementById('table-hrm-att-body');
         const numDays = data.days_in_month;
+        const ym = String(data.month || getSelectedMonth());
+        const [yNum, mNum] = ym.split('-').map(x => parseInt(x, 10));
 
-        let th = `<tr><th class="p-2 sticky left-0 bg-slate-50 z-10 border-r">Nhân Viên</th>`;
+        const dayMeta = [];
         for (let d = 1; d <= numDays; d++) {
-            th += `<th class="p-1 text-center w-8 text-xs">${d}</th>`;
+            const iso = `${yNum}-${String(mNum).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const info = parseVnIsoDate(iso);
+            dayMeta.push({ d, dd: String(d).padStart(2, '0'), iso, dow: info.dayOfWeek, isSun: info.isSun, formatted: info.formatted });
         }
-        th += `<th class="p-2 text-center border-l">Tổng công</th><th class="p-2 text-right">Phạt</th></tr>`;
-        thead.innerHTML = th;
+
+        let tr1 = `<tr>
+            <th rowspan="2" class="p-2 sticky left-0 z-30 bg-slate-50 font-mono whitespace-nowrap w-[66px] min-w-[66px] border-b border-slate-200">Mã NV</th>
+            <th rowspan="2" class="p-2 sticky left-[66px] z-30 bg-slate-50 border-r-2 border-slate-300 border-b border-slate-200 whitespace-nowrap min-w-[175px] shadow-[3px_0_5px_-2px_rgba(15,23,42,0.08)]">Họ và Tên</th>`;
+        let tr2 = `<tr>`;
+        dayMeta.forEach(dm => {
+            const sunHdrCls = dm.isSun ? 'bg-rose-100 text-rose-800 font-bold' : 'bg-slate-50 text-slate-700';
+            const sunSubCls = dm.isSun ? 'bg-rose-100 text-rose-700 font-bold' : 'bg-slate-50 text-slate-500';
+            tr1 += `<th class="px-1 py-1 text-center w-8 min-w-[30px] text-xs font-mono ${sunHdrCls}">${dm.dd}</th>`;
+            tr2 += `<th class="px-1 pb-1.5 text-center w-8 min-w-[30px] text-[10px] border-b border-slate-200 ${sunSubCls}">${dm.dow}</th>`;
+        });
+        tr1 += `<th rowspan="2" class="p-2 text-center border-l border-b border-slate-200 bg-slate-50 whitespace-nowrap">Tổng công</th>
+                <th rowspan="2" class="p-2 text-right border-b border-slate-200 bg-slate-50 whitespace-nowrap">Phạt</th></tr>`;
+        tr2 += `</tr>`;
+        thead.innerHTML = tr1 + tr2;
 
         if (!data.employees || data.employees.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${numDays + 3}" class="p-6 text-center text-slate-400">Không có nhân sự nào được cấu hình chấm công.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${numDays + 4}" class="p-6 text-center text-slate-400">Không có nhân sự nào được cấu hình chấm công.</td></tr>`;
             return;
         }
 
         tbody.innerHTML = data.employees.map(e => {
-            let row = `<tr><td class="p-2 font-bold text-slate-800 sticky left-0 bg-white z-10 border-r whitespace-nowrap">${e.name} <span class="text-xs text-slate-400 font-normal">(${e.block})</span></td>`;
+            const codeTxt = escHrmHtml(e.employee_code || '—');
+            const nameTxt = escHrmHtml(e.name || '');
+            const blkTxt = escHrmHtml(e.block || '');
+            let row = `<tr class="group hover:bg-slate-50">
+                <td class="p-2 font-mono font-bold text-sky-700 sticky left-0 z-10 bg-white group-hover:bg-slate-50 whitespace-nowrap w-[66px] min-w-[66px]">${codeTxt}</td>
+                <td class="p-2 font-bold text-slate-800 sticky left-[66px] z-10 bg-white group-hover:bg-slate-50 border-r-2 border-slate-200 whitespace-nowrap min-w-[175px] shadow-[3px_0_5px_-2px_rgba(15,23,42,0.06)]">${nameTxt} <span class="text-xs text-slate-400 font-normal">(${blkTxt})</span></td>`;
             const dayMap = {};
             (e.days || []).forEach(d => {
-                const dayNum = parseInt(d.date.split('-')[2]);
+                const dayNum = parseInt(d.date.split('-')[2], 10);
                 dayMap[dayNum] = d;
             });
-            for (let d = 1; d <= numDays; d++) {
-                const dayRes = dayMap[d];
+            dayMeta.forEach(dm => {
+                const dayRes = dayMap[dm.d];
                 if (!dayRes) {
-                    row += `<td class="p-1 text-center text-slate-300">-</td>`;
+                    const emptyCls = dm.isSun ? 'bg-rose-50/80 text-rose-400 font-semibold' : 'text-slate-300';
+                    row += `<td class="p-1 text-center cursor-default select-none ${emptyCls}">${dm.isSun ? 'CN' : '-'}</td>`;
                 } else {
-                    let cls = "text-slate-600";
-                    if (dayRes.code === 'X') cls = "font-bold text-emerald-600 bg-emerald-50/50";
-                    else if (dayRes.code === 'X/2') cls = "font-bold text-sky-600 bg-sky-50/50";
-                    else if (dayRes.code === 'TV') cls = "font-bold text-amber-600 bg-amber-50/50";
+                    const codeVal = dayRes.code || (dm.isSun ? 'CN' : '-');
+                    let cls = dm.isSun ? "bg-rose-50/90 text-rose-700 font-semibold" : "text-slate-600";
+                    if (dayRes.code === 'X') cls = dm.isSun ? "font-bold text-emerald-700 bg-rose-50" : "font-bold text-emerald-600 bg-emerald-50/50";
+                    else if (dayRes.code === 'X/2') cls = dm.isSun ? "font-bold text-sky-700 bg-rose-50" : "font-bold text-sky-600 bg-sky-50/50";
+                    else if (dayRes.code === 'TV') cls = dm.isSun ? "font-bold text-amber-700 bg-rose-50" : "font-bold text-amber-600 bg-amber-50/50";
                     else if (dayRes.code === 'TV/2') cls = "font-bold text-amber-900 bg-amber-100/80 border border-amber-300";
-                    else if (dayRes.code === 'OFF') cls = "text-slate-400 bg-slate-100";
+                    else if (dayRes.code === 'OFF') cls = "text-slate-500 bg-slate-100 font-semibold";
+                    else if (dayRes.code === 'CN') cls = "bg-rose-50/90 text-rose-700 font-bold";
                     else if (dayRes.code === 'L') cls = "font-bold text-sky-700 bg-sky-50";
 
                     if (dayRes.penalty > 0) cls += " border-b-2 border-rose-500";
-                    row += `<td onclick="openHrmEditDayModal(${e.staff_id}, '${dayRes.date}', '${dayRes.code}')" class="p-1 text-center text-xs cursor-pointer hover:ring-1 hover:ring-sky-500 ${cls}" title="${dayRes.punches?.join(', ') || ''}">${dayRes.code || '-'}</td>`;
+                    const tipParts = [`${dm.formatted} (${dm.dow})`];
+                    if (dayRes.punches && dayRes.punches.length) tipParts.push(`Quẹt: ${dayRes.punches.join(' - ')}`);
+                    if (dayRes.late_min > 0) tipParts.push(`Trễ ${dayRes.late_min}p`);
+                    if (dayRes.penalty > 0) tipParts.push(`Phạt -${Number(dayRes.penalty).toLocaleString('vi-VN')}đ`);
+                    else if (dayRes.waive) tipParts.push('Đã miễn phạt');
+                    if (dayRes.note) tipParts.push(dayRes.note);
+                    row += `<td class="p-1 text-center text-xs cursor-default select-none ${cls}" title="${escHrmHtml(tipParts.join(' · '))}">${escHrmHtml(codeVal)}</td>`;
                 }
-            }
-            row += `<td class="p-2 text-center font-bold text-emerald-700 border-l">${e.credit || 0}</td><td class="p-2 text-right font-mono text-rose-600">${(e.penalty || 0).toLocaleString('vi-VN')}</td></tr>`;
+            });
+            row += `<td class="p-2 text-center font-bold text-emerald-700 border-l border-slate-200">${e.credit || 0}</td>
+                    <td class="p-2 text-right font-mono ${e.penalty > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'}">${(e.penalty || 0).toLocaleString('vi-VN')}</td></tr>`;
             return row;
         }).join('');
     }
@@ -1008,10 +1325,11 @@
 
     // ── Xin Off ──
     async function loadHrmLeaves(month) {
-        month = month || getSelectedMonth();
+        const p = getHrmQueryPeriodParams();
+        const qs = (month && hrmPeriodMode !== 'range') ? `month=${encodeURIComponent(month)}` : p.qs;
         try {
-        const [res, resEmp] = await Promise.all([
-                fetch(`/api/hrm/leaves?month=${month}`),
+            const [res, resEmp] = await Promise.all([
+                fetch(`/api/hrm/leaves?${qs}`),
                 fetch('/api/hrm/employees')
             ]);
             if (!res.ok) throw new Error("Lỗi tải danh sách xin off");
@@ -1046,39 +1364,74 @@
 
     window.renderHrmLeavesTable = function() {
         const tbody = document.getElementById('table-hrm-leaves');
+        const tfoot = document.getElementById('table-hrm-leaves-foot');
         if (!tbody) return;
         const filterSid = document.getElementById('hrm-leaves-staff-filter')?.value;
         const list = filterSid ? leavesData.filter(l => String(l.staff_id) === filterSid) : leavesData;
 
         if (!list || list.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Chưa có đơn xin nghỉ nào trong tháng.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Chưa có đơn xin nghỉ nào trong kỳ đang xem.</td></tr>`;
+            if (tfoot) tfoot.innerHTML = '';
             return;
         }
 
-        tbody.innerHTML = list.map(l => {
-            let badge = '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800">Off cả ngày</span>';
+        const leaveDaysOf = l => (l.leave_type === 'off_morning' || l.leave_type === 'off_afternoon') ? 0.5 : 1.0;
+        const renderRow = l => {
+            let badge = '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 whitespace-nowrap">Off cả ngày (1.0)</span>';
             if (l.leave_type === 'off_morning') {
-                badge = '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800">Off Buổi Sáng (0.5 công)</span>';
+                badge = '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 whitespace-nowrap">Off Buổi Sáng (0.5)</span>';
             } else if (l.leave_type === 'off_afternoon') {
-                badge = '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Off Buổi Chiều (0.5 công)</span>';
+                badge = '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 whitespace-nowrap">Off Buổi Chiều (0.5)</span>';
             }
-
+            const code = escHrmHtml(l.employee_code || l.staff_code || '—');
+            const meta = escHrmHtml([l.block_name, l.department, l.position].filter(Boolean).join(' · ') || '-');
             return `
                 <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="p-2.5 font-bold text-slate-700">${l.work_date}</td>
-                    <td class="p-2.5 font-medium text-slate-500">${l.staff_code || 'NV' + l.staff_id}</td>
-                    <td class="p-2.5 font-bold text-slate-800">${l.staff_name}</td>
-                    <td class="p-2.5 text-slate-500">${l.department || l.position || '-'}</td>
+                    <td class="p-2.5 font-mono font-bold text-slate-700 whitespace-nowrap">${fmtVnDate(l.work_date, true)}</td>
+                    <td class="p-2.5 font-mono font-bold text-sky-700 whitespace-nowrap">${code}</td>
+                    <td class="p-2.5 font-bold text-slate-800 whitespace-nowrap">${escHrmHtml(l.staff_name || '')}</td>
+                    <td class="p-2.5 text-slate-600">${meta}</td>
                     <td class="p-2.5 text-center">${badge}</td>
-                    <td class="p-2.5 text-slate-600 max-w-xs truncate" title="${l.reason || ''}">${l.reason || '-'}</td>
-                    <td class="p-2.5 text-slate-500">${l.approved_by || '-'}</td>
+                    <td class="p-2.5 text-slate-600 max-w-xs truncate" title="${escHrmHtml(l.reason || '')}">${escHrmHtml(l.reason || '-')}</td>
+                    <td class="p-2.5 text-slate-500">${escHrmHtml(l.approved_by || '-')}</td>
                     <td class="p-2.5 text-center whitespace-nowrap">
-                        <button onclick="openHrmLeaveModal(${l.id})" class="text-blue-600 hover:text-blue-800 font-bold px-1.5 py-0.5 rounded hover:bg-blue-50 cursor-pointer">✏️ Sửa</button>
-                        <button onclick="deleteHrmLeave(${l.id})" class="text-rose-600 hover:text-rose-800 font-bold px-1.5 py-0.5 rounded hover:bg-rose-50 cursor-pointer ml-1">🗑️ Xóa</button>
+                        <button onclick="openHrmLeaveModal(${l.id})" class="text-sky-700 hover:text-sky-900 font-bold px-1.5 py-0.5 rounded hover:bg-sky-50 cursor-pointer">Sửa</button>
+                        <button onclick="deleteHrmLeave(${l.id})" class="text-rose-600 hover:text-rose-800 font-bold px-1.5 py-0.5 rounded hover:bg-rose-50 cursor-pointer ml-1">Xóa</button>
                     </td>
                 </tr>
             `;
-        }).join('');
+        };
+
+        const groups = groupRowsByStaff(list);
+        if (hrmSubTableGroupMode === 'grouped') {
+            tbody.innerHTML = groups.map(g => {
+                const sumDays = g.rows.reduce((s, r) => s + leaveDaysOf(r), 0);
+                const fullCnt = g.rows.filter(r => leaveDaysOf(r) === 1).length;
+                const halfCnt = g.rows.length - fullCnt;
+                const codePrefix = g.employee_code ? `[${escHrmHtml(g.employee_code)}] ` : '';
+                return `
+                    <tr class="bg-sky-50/90 border-y border-sky-200 font-bold text-sky-950">
+                        <td colspan="4" class="p-2">${codePrefix}${escHrmHtml(g.staff_name)} <span class="text-slate-500 font-semibold">· ${escHrmHtml(g.meta)}</span></td>
+                        <td class="p-2 text-center font-mono text-sky-800">Tổng: ${sumDays} ngày nghỉ (${g.rows.length} đơn)</td>
+                        <td colspan="3" class="p-2 text-right text-xs text-slate-600">Cả ngày: ${fullCnt} · Nửa ngày: ${halfCnt}</td>
+                    </tr>
+                    ${g.rows.map(renderRow).join('')}
+                `;
+            }).join('');
+        } else {
+            tbody.innerHTML = list.map(renderRow).join('');
+        }
+
+        const totalDaysAll = list.reduce((s, r) => s + leaveDaysOf(r), 0);
+        if (tfoot) {
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="4" class="p-2.5 uppercase text-slate-700">Tổng cộng kỳ đang xem (${groups.length} nhân viên · ${list.length} đơn):</td>
+                    <td class="p-2.5 text-center font-mono text-sky-800">${totalDaysAll} ngày nghỉ</td>
+                    <td colspan="3"></td>
+                </tr>
+            `;
+        }
     };
 
     // ── Shared Searchable HRM Employee Picker (4 Modals: Leave, OT, Advance, Adjustment) ──
@@ -1364,63 +1717,118 @@
     };
 
     window.deleteHrmLeave = async function(id) {
-        if (!confirm("Xác nhận xóa đơn xin nghỉ này và khôi phục chấm công?")) return;
+        const ok = typeof window.showConfirmModal === 'function'
+            ? await window.showConfirmModal({ title: 'Xóa đơn xin nghỉ?', message: 'Xác nhận xóa đơn xin nghỉ này và khôi phục lại trạng thái chấm công?', confirmText: 'Xóa đơn', type: 'danger' })
+            : confirm("Xác nhận xóa đơn xin nghỉ này và khôi phục chấm công?");
+        if (!ok) return;
         try {
             const res = await fetch(`/api/hrm/leaves/${id}`, { method: 'DELETE' });
             if (!res.ok) {
                 const data = await res.json();
-                alert(data.detail || "Lỗi xóa đơn xin off");
+                if (window.showToast) window.showToast(data.detail || "Lỗi xóa đơn xin off", "error");
                 return;
             }
             loadHrmLeaves();
             if (window.showToast) window.showToast("Đã xóa đơn xin off thành công", "success");
         } catch (e) {
             console.error("Lỗi deleteHrmLeave:", e);
-            alert("Lỗi kết nối máy chủ");
+            if (window.showToast) window.showToast("Lỗi kết nối máy chủ", "error");
         }
     };
 
     window.syncHrmLeavesFromSheets = async function() {
-        if (!confirm("Bắt đầu đồng bộ danh sách Xin Off từ Google Sheets (GID: 1879481422)?")) return;
+        const ok = typeof window.showConfirmModal === 'function'
+            ? await window.showConfirmModal({ title: 'Đồng bộ Xin Off từ Google Sheets', message: 'Bắt đầu đồng bộ danh sách Xin Off từ Google Sheets (GID: 1879481422)?', confirmText: 'Đồng bộ ngay', type: 'primary' })
+            : confirm("Bắt đầu đồng bộ danh sách Xin Off từ Google Sheets (GID: 1879481422)?");
+        if (!ok) return;
         try {
             const res = await fetch('/api/hrm/leaves/sync-sheets', { method: 'POST' });
             const data = await res.json();
             if (!res.ok) {
-                alert(data.detail || "Lỗi đồng bộ từ Google Sheets");
+                if (window.showToast) window.showToast(data.detail || "Lỗi đồng bộ từ Google Sheets", "error");
                 return;
             }
-            alert(data.message || `Đồng bộ thành công ${data.synced_count} bản ghi`);
+            if (window.showToast) window.showToast(data.message || `Đồng bộ thành công ${data.synced_count} bản ghi`, "success");
             loadHrmLeaves();
         } catch (e) {
             console.error("Lỗi syncHrmLeavesFromSheets:", e);
-            alert("Lỗi kết nối khi đồng bộ Google Sheets");
+            if (window.showToast) window.showToast("Lỗi kết nối khi đồng bộ Google Sheets", "error");
         }
     };
 
     // ── Tăng Ca (Overtime) ──
-    async function loadHrmOvertime(month) {
-        try {
-            const res = await fetch(`/api/hrm/overtime?month=${month}`);
-            if (!res.ok) return;
-            const data = await res.json();
-            const tbody = document.getElementById('table-hrm-overtime');
-            if (!tbody) return;
-            if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Chưa có bản ghi tăng ca nào trong tháng ${month}.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = data.map(r => `
+    function renderHrmOvertimeTable() {
+        const tbody = document.getElementById('table-hrm-overtime');
+        const tfoot = document.getElementById('table-hrm-overtime-foot');
+        if (!tbody) return;
+        const list = overtimeData || [];
+        if (!list.length) {
+            tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Chưa có bản ghi tăng ca nào trong kỳ đang xem.</td></tr>`;
+            if (tfoot) tfoot.innerHTML = '';
+            return;
+        }
+        const renderRow = r => {
+            const sName = escHrmHtml(r.staff_name || r.name || '');
+            const sCode = r.employee_code ? `<span class="font-mono font-bold text-sky-700">(${escHrmHtml(r.employee_code)})</span>` : '';
+            const meta = escHrmHtml([r.block_name, r.department, r.position].filter(Boolean).join(' · ') || '—');
+            const estPay = Number(r.est_ot_pay || 0);
+            return `
                 <tr class="hover:bg-slate-50">
-                    <td class="p-2.5 font-mono">${r.work_date}</td>
-                    <td class="p-2.5 font-bold text-slate-800">${r.staff_name || ''}</td>
-                    <td class="p-2.5 font-bold text-sky-700 font-mono">${r.hours}h</td>
-                    <td class="p-2.5 text-slate-600">${r.note || '-'}</td>
-                    <td class="p-2.5 text-slate-500">${r.approved_by || '-'}</td>
+                    <td class="p-2.5 font-mono font-bold text-slate-700 whitespace-nowrap">${fmtVnDate(r.work_date, true)}</td>
+                    <td class="p-2.5 whitespace-nowrap"><span class="font-bold text-slate-800">${sName}</span> ${sCode}</td>
+                    <td class="p-2.5 text-slate-600">${meta}</td>
+                    <td class="p-2.5 text-center font-bold text-sky-700 font-mono">${Number(r.hours || 0)}h</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${estPay > 0 ? '+' + estPay.toLocaleString('vi-VN') + ' đ' : '—'}</td>
+                    <td class="p-2.5 text-slate-600">${escHrmHtml(r.note || '-')}</td>
+                    <td class="p-2.5 text-slate-500">${escHrmHtml(r.approved_by || '-')}</td>
                     <td class="p-2.5 text-center">
                         <button onclick="deleteHrmOvertime(${r.id})" class="text-rose-600 hover:text-rose-800 font-bold p-1 cursor-pointer" title="Xóa">✕</button>
                     </td>
                 </tr>
-            `).join('');
+            `;
+        };
+        const groups = groupRowsByStaff(list);
+        if (hrmSubTableGroupMode === 'grouped') {
+            tbody.innerHTML = groups.map(g => {
+                const sumH = Number(g.rows.reduce((s, r) => s + Number(r.hours || 0), 0).toFixed(2));
+                const sumPay = g.rows.reduce((s, r) => s + Number(r.est_ot_pay || 0), 0);
+                const codePrefix = g.employee_code ? `[${escHrmHtml(g.employee_code)}] ` : '';
+                return `
+                    <tr class="bg-sky-50/90 border-y border-sky-200 font-bold text-sky-950">
+                        <td colspan="3" class="p-2">${codePrefix}${escHrmHtml(g.staff_name)} <span class="text-slate-500 font-semibold">· ${escHrmHtml(g.meta)}</span></td>
+                        <td class="p-2 text-center font-mono text-sky-800">${sumH}h (${g.rows.length} buổi)</td>
+                        <td class="p-2 text-right font-mono text-emerald-700">+${sumPay.toLocaleString('vi-VN')} đ</td>
+                        <td colspan="3" class="p-2 text-right text-xs text-slate-500">Hệ số 150% lương giờ chuẩn</td>
+                    </tr>
+                    ${g.rows.map(renderRow).join('')}
+                `;
+            }).join('');
+        } else {
+            tbody.innerHTML = list.map(renderRow).join('');
+        }
+        const totH = Number(list.reduce((s, r) => s + Number(r.hours || 0), 0).toFixed(2));
+        const totPay = list.reduce((s, r) => s + Number(r.est_ot_pay || 0), 0);
+        if (tfoot) {
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="3" class="p-2.5 uppercase text-slate-700">Tổng cộng kỳ đang xem (${groups.length} nhân viên · ${list.length} buổi):</td>
+                    <td class="p-2.5 text-center font-mono text-sky-800">${totH}h</td>
+                    <td class="p-2.5 text-right font-mono text-emerald-800">+${totPay.toLocaleString('vi-VN')} đ</td>
+                    <td colspan="3"></td>
+                </tr>
+            `;
+        }
+    }
+    window.renderHrmOvertimeTable = renderHrmOvertimeTable;
+
+    async function loadHrmOvertime(month) {
+        const p = getHrmQueryPeriodParams();
+        const qs = (month && hrmPeriodMode !== 'range') ? `month=${encodeURIComponent(month)}` : p.qs;
+        try {
+            const res = await fetch(`/api/hrm/overtime?${qs}`);
+            if (!res.ok) return;
+            overtimeData = await res.json();
+            renderHrmOvertimeTable();
         } catch (e) {
             console.error("Lỗi tải tăng ca:", e);
         }
@@ -1481,7 +1889,10 @@
     };
 
     window.deleteHrmOvertime = async function(id) {
-        if (!confirm("Bạn có chắc muốn xóa bản ghi tăng ca này?")) return;
+        const ok = typeof window.showConfirmModal === 'function'
+            ? await window.showConfirmModal({ title: 'Xóa bản ghi tăng ca?', message: 'Bạn có chắc muốn xóa bản ghi tăng ca này?', confirmText: 'Xóa', type: 'danger' })
+            : confirm("Bạn có chắc muốn xóa bản ghi tăng ca này?");
+        if (!ok) return;
         try {
             const res = await fetch(`/api/hrm/overtime/${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -1489,7 +1900,7 @@
                 loadHrmOvertime(getSelectedMonth());
             } else {
                 const data = await res.json();
-                alert(data.detail || "Lỗi xóa bản ghi tăng ca");
+                if (window.showToast) window.showToast(data.detail || "Lỗi xóa bản ghi tăng ca", "error");
             }
         } catch (e) {
             console.error(e);
@@ -1497,30 +1908,81 @@
     };
 
     // ── Tạm Ứng (Advances) ──
-    async function loadHrmAdvances(month) {
-        try {
-            const res = await fetch(`/api/hrm/advances?month=${month}`);
-            if (!res.ok) return;
-            const data = await res.json();
-            const tbody = document.getElementById('table-hrm-advances');
-            if (!tbody) return;
-            if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Chưa có khoản tạm ứng nào trong tháng ${month}.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = data.map(r => `
+    function renderHrmAdvancesTable() {
+        const tbody = document.getElementById('table-hrm-advances');
+        const tfoot = document.getElementById('table-hrm-advances-foot');
+        if (!tbody) return;
+        const list = advancesData || [];
+        if (!list.length) {
+            tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Chưa có khoản tạm ứng nào trong kỳ đang xem.</td></tr>`;
+            if (tfoot) tfoot.innerHTML = '';
+            return;
+        }
+        const renderRow = r => {
+            const sName = escHrmHtml(r.staff_name || r.name || '');
+            const sCode = r.employee_code ? `<span class="font-mono font-bold text-sky-700">(${escHrmHtml(r.employee_code)})</span>` : '';
+            const meta = escHrmHtml([r.block_name, r.department, r.position].filter(Boolean).join(' · ') || '—');
+            const cbTxt = r.cashbook_code
+                ? `<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800 whitespace-nowrap">${escHrmHtml(r.cashbook_code)}${r.account_name ? ' · ' + escHrmHtml(r.account_name) : ''}</span>`
+                : `<span class="text-slate-400">--</span>`;
+            return `
                 <tr class="hover:bg-slate-50">
-                    <td class="p-2.5 font-mono">${r.advance_date}</td>
-                    <td class="p-2.5 font-bold text-slate-800">${r.staff_name || ''}</td>
-                    <td class="p-2.5 text-right font-mono font-bold text-rose-600">${(r.amount || 0).toLocaleString('vi-VN')} đ</td>
-                    <td class="p-2.5">${r.cashbook_code ? `<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800">${r.cashbook_code}</span>` : `<span class="text-slate-400">--</span>`}</td>
-                    <td class="p-2.5 text-slate-600">${r.note || '-'}</td>
-                    <td class="p-2.5 text-slate-500">${r.created_by || '-'}</td>
+                    <td class="p-2.5 font-mono font-bold text-slate-700 whitespace-nowrap">${fmtVnDate(r.advance_date, true)}</td>
+                    <td class="p-2.5 whitespace-nowrap"><span class="font-bold text-slate-800">${sName}</span> ${sCode}</td>
+                    <td class="p-2.5 text-slate-600">${meta}</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-rose-600">-${Number(r.amount || 0).toLocaleString('vi-VN')} đ</td>
+                    <td class="p-2.5">${cbTxt}</td>
+                    <td class="p-2.5 text-slate-600">${escHrmHtml(r.note || '-')}</td>
+                    <td class="p-2.5 text-slate-500">${escHrmHtml(r.created_by || '-')}</td>
                     <td class="p-2.5 text-center">
                         <button onclick="deleteHrmAdvance(${r.id})" class="text-rose-600 hover:text-rose-800 font-bold p-1 cursor-pointer" title="Xóa">✕</button>
                     </td>
                 </tr>
-            `).join('');
+            `;
+        };
+        const groups = groupRowsByStaff(list);
+        if (hrmSubTableGroupMode === 'grouped') {
+            tbody.innerHTML = groups.map(g => {
+                const sumAmt = g.rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+                const baseSal = Number(g.rows[0]?.base_salary_effective ?? g.rows[0]?.base_salary ?? 0);
+                const remain = baseSal - sumAmt;
+                const codePrefix = g.employee_code ? `[${escHrmHtml(g.employee_code)}] ` : '';
+                const rightInfo = baseSal > 0
+                    ? `Lương CB: ${baseSal.toLocaleString('vi-VN')} đ · Còn lại tạm tính: <span class="${remain < 0 ? 'text-rose-700 font-bold' : 'text-emerald-700 font-bold'}">${remain.toLocaleString('vi-VN')} đ</span>`
+                    : '';
+                return `
+                    <tr class="bg-sky-50/90 border-y border-sky-200 font-bold text-sky-950">
+                        <td colspan="3" class="p-2">${codePrefix}${escHrmHtml(g.staff_name)} <span class="text-slate-500 font-semibold">· ${escHrmHtml(g.meta)}</span></td>
+                        <td class="p-2 text-right font-mono text-rose-700">Tổng (${g.rows.length} lần): -${sumAmt.toLocaleString('vi-VN')} đ</td>
+                        <td colspan="4" class="p-2 text-right text-xs text-sky-800">${rightInfo}</td>
+                    </tr>
+                    ${g.rows.map(renderRow).join('')}
+                `;
+            }).join('');
+        } else {
+            tbody.innerHTML = list.map(renderRow).join('');
+        }
+        const grandAmt = list.reduce((s, r) => s + Number(r.amount || 0), 0);
+        if (tfoot) {
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="3" class="p-2.5 uppercase text-slate-700">Tổng cộng kỳ đang xem (${groups.length} nhân viên · ${list.length} khoản ứng):</td>
+                    <td class="p-2.5 text-right font-mono text-rose-700">-${grandAmt.toLocaleString('vi-VN')} đ</td>
+                    <td colspan="4"></td>
+                </tr>
+            `;
+        }
+    }
+    window.renderHrmAdvancesTable = renderHrmAdvancesTable;
+
+    async function loadHrmAdvances(month) {
+        const p = getHrmQueryPeriodParams();
+        const qs = (month && hrmPeriodMode !== 'range') ? `month=${encodeURIComponent(month)}` : p.qs;
+        try {
+            const res = await fetch(`/api/hrm/advances?${qs}`);
+            if (!res.ok) return;
+            advancesData = await res.json();
+            renderHrmAdvancesTable();
         } catch (e) {
             console.error("Lỗi tải tạm ứng:", e);
         }
@@ -1599,7 +2061,10 @@
     };
 
     window.deleteHrmAdvance = async function(id) {
-        if (!confirm("Bạn có chắc muốn xóa khoản tạm ứng này? Nếu có phiếu chi sổ quỹ liên kết, phiếu chi cũng sẽ bị hủy.")) return;
+        const ok = typeof window.showConfirmModal === 'function'
+            ? await window.showConfirmModal({ title: 'Xóa khoản tạm ứng?', message: 'Bạn có chắc muốn xóa khoản tạm ứng này?', subMessage: 'Nếu có phiếu chi sổ quỹ liên kết, phiếu chi đó cũng sẽ tự động bị hủy.', confirmText: 'Xóa tạm ứng', type: 'danger' })
+            : confirm("Bạn có chắc muốn xóa khoản tạm ứng này?");
+        if (!ok) return;
         try {
             const res = await fetch(`/api/hrm/advances/${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -1607,7 +2072,7 @@
                 loadHrmAdvances(getSelectedMonth());
             } else {
                 const data = await res.json();
-                alert(data.detail || "Lỗi xóa khoản tạm ứng");
+                if (window.showToast) window.showToast(data.detail || "Lỗi xóa khoản tạm ứng", "error");
             }
         } catch (e) {
             console.error(e);
@@ -1768,10 +2233,15 @@
         };
 
         if (body.late_flat > 0 && body.late_per_min * body.late_flat_threshold_min > body.late_flat * 2) {
-            const okWarn = confirm(
-                `Cảnh báo: Đơn giá phạt trễ từng phút (${body.late_per_min.toLocaleString('vi-VN')} đ/phút) đang quá cao so với mức phạt trễ nặng (${body.late_flat.toLocaleString('vi-VN')} đ).\n` +
-                `Quy định thông thường là 5.000 đ/phút. Anh có chắc muốn lưu mức ${body.late_per_min.toLocaleString('vi-VN')} đ/phút không?`
-            );
+            const okWarn = typeof window.showConfirmModal === 'function'
+                ? await window.showConfirmModal({
+                    title: 'Cảnh báo đơn giá phạt đi trễ cao bất thường',
+                    message: `Đơn giá phạt trễ từng phút (${body.late_per_min.toLocaleString('vi-VN')} đ/phút) đang quá cao so với mức phạt trễ nặng (${body.late_flat.toLocaleString('vi-VN')} đ).`,
+                    subMessage: `Quy định thông thường là 5.000 đ/phút. Anh có chắc muốn lưu mức ${body.late_per_min.toLocaleString('vi-VN')} đ/phút không?`,
+                    confirmText: 'Vẫn lưu mức này',
+                    type: 'warning'
+                })
+                : confirm(`Đơn giá ${body.late_per_min} đ/phút quá cao. Vẫn lưu?`);
             if (!okWarn) return;
         }
 
@@ -1783,7 +2253,7 @@
             });
             const data = await res.json();
             if (!res.ok) {
-                alert(data.detail || "Lỗi lưu quy định");
+                if (window.showToast) window.showToast(data.detail || "Lỗi lưu quy định", "error");
                 return;
             }
             if (window.showToast) window.showToast("Đã lưu quy định phạt & thưởng thành công", "success");
@@ -1875,7 +2345,10 @@
     };
 
     window.deleteHrmBlock = async function(id) {
-        if (!confirm("Bạn có chắc muốn xóa khối làm việc này?")) return;
+        const ok = typeof window.showConfirmModal === 'function'
+            ? await window.showConfirmModal({ title: 'Xóa khối làm việc?', message: 'Bạn có chắc muốn xóa khối làm việc này?', confirmText: 'Xóa khối', type: 'danger' })
+            : confirm("Bạn có chắc muốn xóa khối làm việc này?");
+        if (!ok) return;
         try {
             const res = await fetch(`/api/hrm/config/blocks/${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -1883,7 +2356,7 @@
                 loadHrmConfig();
             } else {
                 const data = await res.json();
-                alert(data.detail || "Lỗi xóa khối làm việc");
+                if (window.showToast) window.showToast(data.detail || "Lỗi xóa khối làm việc", "error");
             }
         } catch (e) {
             console.error(e);
@@ -1894,7 +2367,7 @@
         const date = document.getElementById('cfg-new-holiday-date')?.value;
         const name = document.getElementById('cfg-new-holiday-name')?.value.trim();
         if (!date || !name) {
-            alert("Vui lòng chọn ngày và nhập tên ngày lễ");
+            if (window.showToast) window.showToast("Vui lòng chọn ngày và nhập tên ngày lễ", "warning");
             return;
         }
         try {
@@ -1909,7 +2382,7 @@
                 loadHrmConfig();
             } else {
                 const data = await res.json();
-                alert(data.detail || "Lỗi thêm ngày lễ");
+                if (window.showToast) window.showToast(data.detail || "Lỗi thêm ngày lễ", "error");
             }
         } catch (e) {
             console.error(e);
@@ -1917,7 +2390,11 @@
     };
 
     window.deleteHrmHoliday = async function(date) {
-        if (!confirm(`Xóa ngày lễ ${date}?`)) return;
+        const dFmt = parseVnIsoDate(date).formatted;
+        const ok = typeof window.showConfirmModal === 'function'
+            ? await window.showConfirmModal({ title: 'Xóa ngày lễ?', message: `Xác nhận xóa ngày lễ ${dFmt}?`, confirmText: 'Xóa ngày lễ', type: 'danger' })
+            : confirm(`Xóa ngày lễ ${date}?`);
+        if (!ok) return;
         try {
             const res = await fetch(`/api/hrm/config/holidays/${date}`, { method: 'DELETE' });
             if (res.ok) {
@@ -1925,7 +2402,7 @@
                 loadHrmConfig();
             } else {
                 const data = await res.json();
-                alert(data.detail || "Lỗi xóa ngày lễ");
+                if (window.showToast) window.showToast(data.detail || "Lỗi xóa ngày lễ", "error");
             }
         } catch (e) {
             console.error(e);
@@ -2588,13 +3065,130 @@
         `;
     }
 
-    // ── Hồ Sơ Nhân Sự Lương (Staff Profiles) ──
+    // ── Hồ Sơ Nhân Sự Lương (Staff Profiles — 29 Cột + Sticky Left + Popover Ẩn/Hiện) ──
     let hrmStaffList = [];
     let hrmBlocksMap = {};
+    const STAFF_COL_STORAGE_KEY = 'hrm_staff_visible_cols_v1';
+    const STAFF_COLUMNS = [
+        { key: 'employee_code', label: 'Mã NV', fixed: true, thCls: 'p-2.5 whitespace-nowrap w-[72px] min-w-[72px] sticky left-0 z-30 bg-slate-50' },
+        { key: 'name', label: 'Họ và Tên', fixed: true, thCls: 'p-2.5 whitespace-nowrap min-w-[185px] sticky left-[72px] z-30 bg-slate-50 border-r-2 border-slate-200 shadow-[3px_0_5px_-2px_rgba(15,23,42,0.08)]' },
+        { key: 'device_code', label: 'Mã máy CC', defaultOn: true, thCls: 'p-2.5 text-center whitespace-nowrap' },
+        { key: 'phone', label: 'SĐT', defaultOn: true, thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'department', label: 'Bộ phận', defaultOn: true, thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'position', label: 'Vị trí', defaultOn: true, thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'block_name', label: 'Khối ca', defaultOn: true, thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'attendance_mode', label: 'Chế độ CC/WFH', defaultOn: true, thCls: 'p-2.5 text-center whitespace-nowrap' },
+        { key: 'hire_date', label: 'Ngày vào làm', defaultOn: true, thCls: 'p-2.5 text-center whitespace-nowrap' },
+        { key: 'official_date', label: 'Ngày chính thức', defaultOn: true, thCls: 'p-2.5 text-center whitespace-nowrap' },
+        { key: 'tenure', label: 'Thâm niên', defaultOn: true, thCls: 'p-2.5 text-center whitespace-nowrap' },
+        { key: 'contractual_status', label: 'Tình trạng HĐ', defaultOn: true, thCls: 'p-2.5 text-center whitespace-nowrap' },
+        { key: 'base_salary', label: 'Lương gốc', defaultOn: true, thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'total_base_delta', label: 'Đ/C lương', defaultOn: true, thCls: 'p-2.5 text-center whitespace-nowrap' },
+        { key: 'base_salary_effective', label: 'Lương CB hiện tại', defaultOn: true, thCls: 'p-2.5 text-right whitespace-nowrap text-emerald-700' },
+        { key: 'allowance_effective', label: 'Phụ cấp', defaultOn: true, thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'total_salary', label: 'Tổng lương', defaultOn: true, thCls: 'p-2.5 text-right whitespace-nowrap text-sky-700' },
+        { key: 'bank_name', label: 'Ngân hàng', defaultOn: true, thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'bank_account', label: 'Số TK', defaultOn: true, thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'bank_branch', label: 'Chi nhánh NH', defaultOn: false, thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'gender', label: 'Giới tính', defaultOn: false, thCls: 'p-2.5 text-center whitespace-nowrap' },
+        { key: 'birthday', label: 'Ngày sinh', defaultOn: false, thCls: 'p-2.5 text-center whitespace-nowrap' },
+        { key: 'email', label: 'Email', defaultOn: false, thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'id_card_number', label: 'CCCD', defaultOn: false, thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'contract_number', label: 'Số HĐLĐ', defaultOn: false, thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'address', label: 'Địa chỉ', defaultOn: false, thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'emergency', label: 'Liên hệ khẩn cấp', defaultOn: false, thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'account', label: 'TK Đăng nhập', defaultOn: true, thCls: 'p-2.5 text-center whitespace-nowrap' },
+        { key: 'actions', label: 'Thao tác', fixed: true, thCls: 'p-2.5 text-center whitespace-nowrap' }
+    ];
+
+    let staffColsVis = (() => {
+        const def = {};
+        STAFF_COLUMNS.forEach(c => { if (!c.fixed) def[c.key] = c.defaultOn !== false; });
+        try {
+            const raw = localStorage.getItem(STAFF_COL_STORAGE_KEY);
+            if (raw) Object.assign(def, JSON.parse(raw));
+        } catch (_) {}
+        return def;
+    })();
+    let staffColsLoadedFromServer = false;
+
+    function isStaffColVisible(col) {
+        return col.fixed ? true : staffColsVis[col.key] !== false;
+    }
+
+    function syncStaffColsBadgeAndPopover() {
+        const toggleable = STAFF_COLUMNS.filter(c => !c.fixed);
+        const onCount = toggleable.filter(c => isStaffColVisible(c)).length;
+        const badge = document.getElementById('hrm-staff-cols-badge');
+        if (badge) badge.textContent = `${onCount}/${toggleable.length}`;
+        const listEl = document.getElementById('hrm-staff-cols-list');
+        if (listEl) {
+            listEl.innerHTML = toggleable.map(c => `
+                <label class="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-slate-50 cursor-pointer select-none">
+                    <input type="checkbox" ${isStaffColVisible(c) ? 'checked' : ''} onchange="toggleStaffColumn('${c.key}', this.checked)" class="rounded text-sky-600 cursor-pointer">
+                    <span class="truncate text-slate-700">${escHrmHtml(c.label)}</span>
+                </label>
+            `).join('');
+        }
+    }
+
+    async function persistStaffColumns() {
+        try { localStorage.setItem(STAFF_COL_STORAGE_KEY, JSON.stringify(staffColsVis)); } catch (_) {}
+        try {
+            await fetch('/api/hrm/staff-columns', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ columns: staffColsVis })
+            });
+        } catch (_) {}
+    }
+
+    window.toggleStaffColumnsPopover = function(e) {
+        if (e) e.stopPropagation();
+        const pop = document.getElementById('hrm-staff-cols-popover');
+        if (!pop) return;
+        syncStaffColsBadgeAndPopover();
+        pop.classList.toggle('hidden');
+    };
+
+    document.addEventListener('click', () => {
+        const pop = document.getElementById('hrm-staff-cols-popover');
+        if (pop && !pop.classList.contains('hidden')) pop.classList.add('hidden');
+    });
+
+    window.toggleStaffColumn = function(colKey, checked) {
+        staffColsVis[colKey] = Boolean(checked);
+        syncStaffColsBadgeAndPopover();
+        persistStaffColumns();
+        filterHrmStaffTable();
+    };
+
+    window.applyStaffColsPreset = function(mode) {
+        STAFF_COLUMNS.forEach(c => {
+            if (c.fixed) return;
+            staffColsVis[c.key] = mode === 'all' ? true : (c.defaultOn !== false);
+        });
+        syncStaffColsBadgeAndPopover();
+        persistStaffColumns();
+        filterHrmStaffTable();
+    };
 
     async function loadHrmStaff() {
         const tbody = document.getElementById('table-hrm-staff');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Đang nạp danh sách nhân sự...</td></tr>`;
+        const visLen = STAFF_COLUMNS.filter(c => isStaffColVisible(c)).length;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="${visLen}" class="p-6 text-center text-slate-400">Đang nạp danh sách nhân sự...</td></tr>`;
+        if (!staffColsLoadedFromServer) {
+            staffColsLoadedFromServer = true;
+            fetch('/api/hrm/staff-columns').then(r => r.ok ? r.json() : null).then(cfg => {
+                if (cfg && cfg.columns && typeof cfg.columns === 'object') {
+                    Object.assign(staffColsVis, cfg.columns);
+                    try { localStorage.setItem(STAFF_COL_STORAGE_KEY, JSON.stringify(staffColsVis)); } catch (_) {}
+                    syncStaffColsBadgeAndPopover();
+                    filterHrmStaffTable();
+                }
+            }).catch(() => {});
+        }
+        syncStaffColsBadgeAndPopover();
         try {
             const [resStaff, resCfg] = await Promise.all([
                 fetch('/api/hrm/employees'),
@@ -2648,20 +3242,21 @@
         const btnRes = document.getElementById('btn-hrm-filter-resigned');
         const btnAll = document.getElementById('btn-hrm-filter-all');
 
-        if (btnAct) btnAct.innerHTML = `🟢 Đang làm việc (${activeCount})`;
-        if (btnRes) btnRes.innerHTML = `🔴 Đã nghỉ việc (${resignedCount})`;
+        if (btnAct) btnAct.innerHTML = `Đang làm việc (${activeCount})`;
+        if (btnRes) btnRes.innerHTML = `Đã nghỉ việc (${resignedCount})`;
         if (btnAll) btnAll.innerHTML = `Tất cả (${allCount})`;
     }
 
     function filterHrmStaffTable() {
-        const q = (document.getElementById('hrm-staff-search')?.value || '').toLowerCase().trim();
+        const q = (document.getElementById('hrm-staff-search')?.value || '').trim();
         const blockId = document.getElementById('hrm-staff-filter-block')?.value;
         const filtered = hrmStaffList.filter(s => {
             const isResigned = (s.is_active === 0 || s.contractual_status === 'Nghỉ việc');
             if (hrmStaffStatusFilter === 'active' && isResigned) return false;
             if (hrmStaffStatusFilter === 'resigned' && !isResigned) return false;
 
-            const matchQ = !q || (s.name || '').toLowerCase().includes(q) || (s.phone || '').includes(q) || (s.employee_code || '').toLowerCase().includes(q);
+            const hay = `${s.employee_code || ''} ${s.device_code || ''} ${s.name || ''} ${s.phone || ''} ${s.department || ''} ${s.position || ''} ${s.bank_account || ''} ${s.bank_name || ''} ${s.id_card_number || ''}`;
+            const matchQ = !q || matchHrmQuery(q, hay);
             const matchBlock = !blockId || s.work_block_id == blockId;
             return matchQ && matchBlock;
         });
@@ -2670,95 +3265,144 @@
     window.filterHrmStaffTable = filterHrmStaffTable;
 
     function renderHrmStaffTable(list) {
+        const thead = document.getElementById('table-hrm-staff-head');
         const tbody = document.getElementById('table-hrm-staff');
         if (!tbody) return;
+        const visCols = STAFF_COLUMNS.filter(c => isStaffColVisible(c));
+        syncStaffColsBadgeAndPopover();
+        if (thead) {
+            thead.innerHTML = `<tr>${visCols.map(c => `<th data-scol="${c.key}" class="${c.thCls}">${escHrmHtml(c.label)}</th>`).join('')}</tr>`;
+        }
         if (!list || list.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Không tìm thấy nhân viên nào phù hợp.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${visCols.length}" class="p-6 text-center text-slate-400">Không tìm thấy nhân viên nào phù hợp.</td></tr>`;
             return;
         }
 
-        const ROLE_MAP = {
-            'owner': 'Chủ Shop',
-            'cashier': 'Thu Ngân',
-            'warehouse': 'Thủ Kho',
-            'accountant': 'Kế Toán',
-            'staff': 'Nhân Viên'
-        };
+        const fMoney = v => v ? Number(v).toLocaleString('vi-VN') + ' đ' : '0 đ';
 
         tbody.innerHTML = list.map(r => {
             const hasAcc = Boolean(r.has_account);
             const block = hrmBlocksMap[r.work_block_id];
-            const blockBadge = block
-                ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700 whitespace-nowrap">${block.name}</span>`
-                : `<span class="text-slate-400  text-xs">Chưa xếp</span>`;
-
-            const fMoney = v => v ? Number(v).toLocaleString('vi-VN') + ' đ' : '0 đ';
+            const blockBadge = (block || r.block_name)
+                ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700 whitespace-nowrap">${escHrmHtml(block ? block.name : r.block_name)}</span>`
+                : `<span class="text-slate-400 text-xs">Chưa xếp</span>`;
 
             const accountBadge = hasAcc
-                ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200">
-                     <span>👤</span> ${r.username}
-                   </span>`
-                : `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded text-xs font-bold cursor-pointer transition shadow-2xs whitespace-nowrap" title="Cấp tài khoản đăng nhập (Phím tắt: F4)">
-                     ⚡ Cấp TK
-                   </button>`;
+                ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200 whitespace-nowrap">${escHrmHtml(r.username)}</span>`
+                : `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded text-xs font-bold cursor-pointer transition shadow-2xs whitespace-nowrap" title="Cấp tài khoản đăng nhập (Phím tắt: F4)">Cấp TK</button>`;
 
             const cStatus = r.contractual_status || (!r.official_date || (new Date(r.official_date) > new Date()) ? 'Thử việc' : 'Chính thức');
             const contractBadge = cStatus === 'Chính thức'
-                ? `<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">Chính thức</span>`
+                ? `<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 whitespace-nowrap">Chính thức</span>`
                 : cStatus === 'Thử việc'
-                ? `<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Thử việc</span>`
-                : `<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-600">Nghỉ việc</span>`;
+                ? `<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 whitespace-nowrap">Thử việc</span>`
+                : `<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-600 whitespace-nowrap">Nghỉ việc</span>`;
 
             const baseDelta = Number(r.total_base_delta || 0);
             const deltaBadge = baseDelta > 0
-                ? `<button onclick="filterHrmAdjByStaff(${r.id})" class="px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-emerald-100 text-emerald-800 hover:bg-emerald-200 cursor-pointer" title="Xem lịch sử điều chỉnh">+${baseDelta.toLocaleString('vi-VN')} đ</button>`
+                ? `<button onclick="filterHrmAdjByStaff(${r.id})" class="px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-emerald-100 text-emerald-800 hover:bg-emerald-200 cursor-pointer whitespace-nowrap" title="Xem lịch sử điều chỉnh">+${baseDelta.toLocaleString('vi-VN')} đ</button>`
                 : baseDelta < 0
-                ? `<button onclick="filterHrmAdjByStaff(${r.id})" class="px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-rose-100 text-rose-800 hover:bg-rose-200 cursor-pointer" title="Xem lịch sử điều chỉnh">${baseDelta.toLocaleString('vi-VN')} đ</button>`
+                ? `<button onclick="filterHrmAdjByStaff(${r.id})" class="px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-rose-100 text-rose-800 hover:bg-rose-200 cursor-pointer whitespace-nowrap" title="Xem lịch sử điều chỉnh">${baseDelta.toLocaleString('vi-VN')} đ</button>`
                 : `<span class="text-slate-300 font-mono text-xs">0 đ</span>`;
 
-            const deptText = [r.department, r.position].filter(Boolean).join(' • ') || '—';
-
             const isResigned = (r.is_active === 0 || r.contractual_status === 'Nghỉ việc');
+            const stickyBgCls = isResigned ? 'bg-slate-50 group-hover:bg-slate-100' : 'bg-white group-hover:bg-slate-50';
             const rowClass = isResigned
-                ? 'hover:bg-slate-100 transition border-t border-slate-200 bg-slate-50/70 opacity-65 hover:opacity-100'
-                : 'hover:bg-slate-50 transition border-t border-slate-100';
+                ? 'group hover:bg-slate-100 transition border-t border-slate-200 bg-slate-50/70 opacity-65 hover:opacity-100'
+                : 'group hover:bg-slate-50 transition border-t border-slate-100';
 
-            return `
-                <tr class="${rowClass}">
-                    <td class="p-2.5">
-                        <div class="font-bold text-slate-800 text-xs ${isResigned ? 'line-through text-slate-500' : ''}">${r.name}</div>
-                        <div class="text-xs text-slate-500 font-mono flex items-center gap-1.5 mt-0.5 flex-wrap">
-                            ${r.employee_code ? `<span class="bg-sky-50 text-sky-700 px-1 rounded font-bold">${r.employee_code}</span>` : ''}
-                            ${r.phone ? `<span>📞 ${r.phone}</span>` : ''}
-                            ${r.is_spa_worker ? `<span class="bg-sky-50 text-sky-700 px-1 rounded font-bold">✂️ Thợ Spa</span>` : ''}
-                            ${r.allow_remote_checkin ? `<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 rounded font-bold">🏠 Làm ở nhà (WFH)</span>` : ''}
-                            ${isResigned && r.leave_date ? `<span class="bg-rose-50 text-rose-700 px-1 rounded font-bold">Nghỉ: ${r.leave_date}</span>` : ''}
-                        </div>
-                    </td>
-                    <td class="p-2.5 text-slate-600 text-xs">${deptText}</td>
-                    <td class="p-2.5">${blockBadge}</td>
-                    <td class="p-2.5 text-right font-mono text-slate-500 text-xs">${fMoney(r.base_salary)}</td>
-                    <td class="p-2.5 text-center">${deltaBadge}</td>
-                    <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${fMoney(r.base_salary_effective || r.base_salary)}</td>
-                    <td class="p-2.5 text-right font-mono font-bold text-slate-700">${fMoney(r.allowance_effective !== undefined ? r.allowance_effective : r.allowance)}</td>
-                    <td class="p-2.5 text-right font-mono font-bold text-sky-700">${fMoney(r.total_salary || ((r.base_salary_effective || r.base_salary || 0) + (r.allowance_effective || r.allowance || 0)))}</td>
-                    <td class="p-2.5 text-center font-semibold text-slate-700 text-xs whitespace-nowrap">${r.tenure || '—'}</td>
-                    <td class="p-2.5 text-center">${contractBadge}</td>
-                    <td class="p-2.5 text-center">${accountBadge}</td>
-                    <td class="p-2.5 text-center whitespace-nowrap">
-                        ${!isResigned ? `<button onclick="toggleHrmStaffWfh(${r.id}, ${r.allow_remote_checkin ? 0 : 1})" class="px-1.5 py-1 ${r.allow_remote_checkin ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'} rounded text-xs font-bold cursor-pointer mr-1" title="Bật/tắt cho phép tự chấm công làm ở nhà trên Tác Nhân AI">🏠 WFH</button>` : ''}
-                        <button onclick="openHrmPayslipModal(${r.id})" class="px-1.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-xs font-bold cursor-pointer mr-1" title="Xem phiếu lương">🧾 Lương</button>
-                        <button onclick="openHrmStaffModal(${r.id})" class="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-xs font-bold cursor-pointer mr-1" title="Sửa hồ sơ">✏️ Sửa</button>
-                        <button onclick="openHrmAdjustmentModal(${r.id})" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-xs font-bold cursor-pointer mr-1" title="Tạo điều chỉnh lương">⚖️ Đ/C</button>
-                        ${isResigned 
-                            ? `<button onclick="confirmHrmStaffRestore(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-2 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded text-xs font-bold cursor-pointer mr-1" title="Khôi phục nhân sự đi làm lại">↩️ Đi làm lại</button>`
-                            : `<button onclick="confirmHrmStaffResign(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded text-xs font-bold cursor-pointer mr-1" title="Đánh dấu nghỉ việc (khóa tài khoản)">🛑 Nghỉ việc</button>`
-                        }
-                        ${!hasAcc && !isResigned ? `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-xs font-bold cursor-pointer mr-1" title="Cấp tài khoản POS">⚡ Cấp TK</button>` : ''}
-                        ${r.id !== 1 && (r.username || '').toLowerCase() !== 'admin' ? `<button onclick="confirmHrmStaffDelete(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-1.5 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded text-xs font-bold cursor-pointer" title="Xóa vĩnh viễn nhân sự">🗑️ Xóa</button>` : ''}
-                    </td>
-                </tr>
-            `;
+            const baseOrig = Number(r.base_salary || 0);
+            const is85Kpi = baseOrig > 0 && Math.round(baseOrig / 0.85 / 1000) * 1000 === 6500000;
+            const kpiSalaryNote = is85Kpi ? `<div class="text-[10px] text-amber-700 font-semibold">Nền 85% KPI (Đạt: 6.500.000 đ)</div>` : '';
+
+            const attBadges = [];
+            if (r.is_attendance_exempt) attBadges.push(`<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">Miễn CC</span>`);
+            if (r.allow_remote_checkin) attBadges.push(`<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">WFH</span>`);
+            if (!attBadges.length) attBadges.push(`<span class="text-slate-500 text-xs">Vân tay</span>`);
+
+            const renderStaffCell = col => {
+                switch (col.key) {
+                    case 'employee_code':
+                        return `<td class="p-2.5 font-mono font-bold text-sky-700 whitespace-nowrap w-[72px] min-w-[72px] sticky left-0 z-10 ${stickyBgCls}">${escHrmHtml(r.employee_code || '—')}</td>`;
+                    case 'name':
+                        return `<td class="p-2.5 whitespace-nowrap min-w-[185px] sticky left-[72px] z-10 border-r-2 border-slate-200 shadow-[3px_0_5px_-2px_rgba(15,23,42,0.06)] ${stickyBgCls}">
+                            <div class="font-bold text-slate-800 text-xs ${isResigned ? 'line-through text-slate-500' : ''}">${escHrmHtml(r.name)}</div>
+                            <div class="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                ${r.is_spa_worker ? `<span class="bg-sky-50 text-sky-700 px-1 rounded font-bold">Thợ Spa</span>` : ''}
+                                ${isResigned && r.leave_date ? `<span class="bg-rose-50 text-rose-700 px-1 rounded font-bold">Nghỉ: ${fmtVnDate(r.leave_date)}</span>` : ''}
+                            </div>
+                        </td>`;
+                    case 'device_code':
+                        return `<td class="p-2.5 text-center font-mono font-bold ${r.device_code ? 'text-slate-700' : 'text-slate-300'} whitespace-nowrap">${escHrmHtml(r.device_code || '—')}</td>`;
+                    case 'phone':
+                        return `<td class="p-2.5 font-mono text-slate-700 whitespace-nowrap">${escHrmHtml(r.phone || '—')}</td>`;
+                    case 'department':
+                        return `<td class="p-2.5 text-slate-700 whitespace-nowrap">${escHrmHtml(r.department || '—')}</td>`;
+                    case 'position':
+                        return `<td class="p-2.5 text-slate-600 whitespace-nowrap">${escHrmHtml(r.position || '—')}</td>`;
+                    case 'block_name':
+                        return `<td class="p-2.5 whitespace-nowrap">${blockBadge}</td>`;
+                    case 'attendance_mode':
+                        return `<td class="p-2.5 text-center whitespace-nowrap">${attBadges.join(' ')}</td>`;
+                    case 'hire_date':
+                        return `<td class="p-2.5 text-center font-mono text-slate-700 whitespace-nowrap">${fmtVnDate(r.hire_date)}</td>`;
+                    case 'official_date':
+                        return `<td class="p-2.5 text-center font-mono text-slate-700 whitespace-nowrap">${fmtVnDate(r.official_date)}</td>`;
+                    case 'tenure':
+                        return `<td class="p-2.5 text-center font-semibold text-slate-700 text-xs whitespace-nowrap">${escHrmHtml(r.tenure || '—')}</td>`;
+                    case 'contractual_status':
+                        return `<td class="p-2.5 text-center whitespace-nowrap">${contractBadge}</td>`;
+                    case 'base_salary':
+                        return `<td class="p-2.5 text-right font-mono text-slate-600 whitespace-nowrap">${fMoney(r.base_salary)}${kpiSalaryNote}</td>`;
+                    case 'total_base_delta':
+                        return `<td class="p-2.5 text-center whitespace-nowrap">${deltaBadge}</td>`;
+                    case 'base_salary_effective':
+                        return `<td class="p-2.5 text-right font-mono font-bold text-emerald-700 whitespace-nowrap">${fMoney(r.base_salary_effective || r.base_salary)}</td>`;
+                    case 'allowance_effective':
+                        return `<td class="p-2.5 text-right font-mono font-bold text-slate-700 whitespace-nowrap">${fMoney(r.allowance_effective !== undefined ? r.allowance_effective : r.allowance)}</td>`;
+                    case 'total_salary':
+                        return `<td class="p-2.5 text-right font-mono font-bold text-sky-700 whitespace-nowrap">${fMoney(r.total_salary || ((r.base_salary_effective || r.base_salary || 0) + (r.allowance_effective || r.allowance || 0)))}</td>`;
+                    case 'bank_name':
+                        return `<td class="p-2.5 text-slate-700 whitespace-nowrap">${escHrmHtml(r.bank_name || '—')}</td>`;
+                    case 'bank_account':
+                        return `<td class="p-2.5 font-mono font-semibold text-slate-800 whitespace-nowrap">${escHrmHtml(r.bank_account || '—')}</td>`;
+                    case 'bank_branch':
+                        return `<td class="p-2.5 text-slate-600 whitespace-nowrap">${escHrmHtml(r.bank_branch || '—')}</td>`;
+                    case 'gender':
+                        return `<td class="p-2.5 text-center text-slate-600 whitespace-nowrap">${escHrmHtml(r.gender || '—')}</td>`;
+                    case 'birthday':
+                        return `<td class="p-2.5 text-center font-mono text-slate-600 whitespace-nowrap">${fmtVnDate(r.birthday)}</td>`;
+                    case 'email':
+                        return `<td class="p-2.5 text-slate-600 whitespace-nowrap">${escHrmHtml(r.email || '—')}</td>`;
+                    case 'id_card_number':
+                        return `<td class="p-2.5 font-mono text-slate-700 whitespace-nowrap">${escHrmHtml(r.id_card_number || '—')}</td>`;
+                    case 'contract_number':
+                        return `<td class="p-2.5 font-mono text-slate-600 whitespace-nowrap">${escHrmHtml(r.contract_number || '—')}</td>`;
+                    case 'address':
+                        return `<td class="p-2.5 text-slate-600 max-w-[220px] truncate" title="${escHrmHtml(r.temporary_address || r.permanent_address || '')}">${escHrmHtml(r.temporary_address || r.permanent_address || '—')}</td>`;
+                    case 'emergency':
+                        return `<td class="p-2.5 text-slate-600 whitespace-nowrap">${escHrmHtml([r.emergency_phone, r.emergency_relation].filter(Boolean).join(' · ') || '—')}</td>`;
+                    case 'account':
+                        return `<td class="p-2.5 text-center whitespace-nowrap">${accountBadge}</td>`;
+                    case 'actions':
+                        return `<td class="p-2.5 text-center whitespace-nowrap">
+                            ${!isResigned ? `<button onclick="toggleHrmStaffWfh(${r.id}, ${r.allow_remote_checkin ? 0 : 1})" class="px-1.5 py-1 ${r.allow_remote_checkin ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'} rounded text-xs font-bold cursor-pointer mr-1" title="Bật/tắt cho phép tự chấm công làm ở nhà trên Tác Nhân AI">WFH</button>` : ''}
+                            <button onclick="openHrmPayslipModal(${r.id})" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-xs font-bold cursor-pointer mr-1" title="Xem phiếu lương">Lương</button>
+                            <button onclick="openHrmStaffModal(${r.id})" class="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-xs font-bold cursor-pointer mr-1" title="Sửa hồ sơ">Sửa</button>
+                            <button onclick="openHrmAdjustmentModal(${r.id})" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-xs font-bold cursor-pointer mr-1" title="Tạo điều chỉnh lương">Đ/C</button>
+                            ${isResigned
+                                ? `<button onclick="confirmHrmStaffRestore(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-2 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded text-xs font-bold cursor-pointer mr-1" title="Khôi phục nhân sự đi làm lại">Đi làm lại</button>`
+                                : `<button onclick="confirmHrmStaffResign(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded text-xs font-bold cursor-pointer mr-1" title="Đánh dấu nghỉ việc (khóa tài khoản)">Nghỉ việc</button>`
+                            }
+                            ${!hasAcc && !isResigned ? `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-xs font-bold cursor-pointer mr-1" title="Cấp tài khoản POS">Cấp TK</button>` : ''}
+                            ${r.id !== 1 && (r.username || '').toLowerCase() !== 'admin' ? `<button onclick="confirmHrmStaffDelete(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-1.5 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded text-xs font-bold cursor-pointer" title="Xóa vĩnh viễn nhân sự">Xóa</button>` : ''}
+                        </td>`;
+                    default:
+                        return `<td class="p-2.5"></td>`;
+                }
+            };
+
+            return `<tr class="${rowClass}">${visCols.map(renderStaffCell).join('')}</tr>`;
         }).join('');
     }
 
@@ -3135,9 +3779,12 @@
 
         if (tbody) tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400">Đang tải danh sách quyết định điều chỉnh lương...</td></tr>`;
 
+        const onlyPeriod = document.getElementById('hrm-adj-only-period')?.checked;
+        const adjUrl = onlyPeriod ? `/api/hrm/adjustments?${getHrmQueryPeriodParams().qs}` : '/api/hrm/adjustments';
+
         try {
             const [resAdj, resStaff] = await Promise.all([
-                fetch('/api/hrm/adjustments'),
+                fetch(adjUrl),
                 fetch('/api/hrm/employees')
             ]);
             if (seq !== adjLoadSeq || !resAdj.ok) return;
@@ -3187,9 +3834,11 @@
 
     function renderHrmAdjustmentsTable(list) {
         const tbody = document.getElementById('table-hrm-adjustments');
+        const tfoot = document.getElementById('table-hrm-adjustments-foot');
         if (!tbody) return;
         if (!list || list.length === 0) {
             tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400">Chưa có quyết định điều chỉnh lương nào.</td></tr>`;
+            if (tfoot) tfoot.innerHTML = '';
             return;
         }
 
@@ -3199,38 +3848,70 @@
             return (n > 0 ? '+' : '') + n.toLocaleString('vi-VN') + ' đ';
         };
 
-        tbody.innerHTML = list.map((r, idx) => {
+        const renderRow = r => {
             const bDelta = Number(r.base_delta || 0);
             const aDelta = Number(r.allowance_delta || 0);
-            const typeLabel = r.adjustment_type === 'salary' ? 'Lương' : r.adjustment_type === 'allowance' ? 'Phụ cấp' : 'Cả hai';
             const typeBadge = r.adjustment_type === 'salary'
                 ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">Lương</span>'
                 : r.adjustment_type === 'allowance'
                 ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">Phụ cấp</span>'
                 : '<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">Cả hai</span>';
 
-            const deptText = [r.department, r.position].filter(Boolean).join(' • ') || '—';
+            const deptText = [r.block_name, r.department, r.position].filter(Boolean).join(' • ') || '—';
 
             return `
                 <tr class="hover:bg-slate-50 transition border-t border-slate-100">
-                    <td class="p-2.5 font-mono text-xs text-slate-600">${r.decision_date || r.effective_date}</td>
-                    <td class="p-2.5">
-                        <div class="font-bold text-slate-800 text-xs">${r.staff_name || 'NV #' + r.staff_id}</div>
-                        <div class="text-xs text-sky-700 font-mono font-bold mt-0.5">${r.employee_code || ''}</div>
+                    <td class="p-2.5 font-mono text-xs text-slate-700 whitespace-nowrap">${fmtVnDate(r.decision_date || r.effective_date, true)}</td>
+                    <td class="p-2.5 whitespace-nowrap">
+                        <div class="font-bold text-slate-800 text-xs">${escHrmHtml(r.staff_name || '—')}</div>
+                        <div class="text-xs text-sky-700 font-mono font-bold mt-0.5">${escHrmHtml(r.employee_code || '')}</div>
                     </td>
-                    <td class="p-2.5 text-slate-600 text-xs">${deptText}</td>
+                    <td class="p-2.5 text-slate-600 text-xs">${escHrmHtml(deptText)}</td>
                     <td class="p-2.5 text-center">${typeBadge}</td>
                     <td class="p-2.5 text-right font-mono font-bold ${bDelta > 0 ? 'text-emerald-700' : bDelta < 0 ? 'text-rose-700' : 'text-slate-400'}">${fMoney(bDelta)}</td>
                     <td class="p-2.5 text-right font-mono font-bold ${aDelta > 0 ? 'text-emerald-700' : aDelta < 0 ? 'text-rose-700' : 'text-slate-400'}">${fMoney(aDelta)}</td>
-                    <td class="p-2.5 text-center font-mono font-bold text-emerald-700 text-xs">${r.effective_date}</td>
-                    <td class="p-2.5 text-slate-700 text-xs">${r.reason || '—'}</td>
-                    <td class="p-2.5 text-center text-slate-500 text-xs">${r.created_by || 'Hệ thống'}</td>
+                    <td class="p-2.5 text-center font-mono font-bold text-emerald-700 text-xs whitespace-nowrap">${fmtVnDate(r.effective_date, true)}</td>
+                    <td class="p-2.5 text-slate-700 text-xs">${escHrmHtml(r.reason || '—')}</td>
+                    <td class="p-2.5 text-center text-slate-500 text-xs">${escHrmHtml(r.created_by || 'Hệ thống')}</td>
                     <td class="p-2.5 text-center">
-                        <button onclick="deleteHrmAdjustment(${r.id})" class="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded text-xs font-bold cursor-pointer" title="Xóa quyết định">🗑️ Xóa</button>
+                        <button onclick="deleteHrmAdjustment(${r.id})" class="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded text-xs font-bold cursor-pointer" title="Xóa quyết định">Xóa</button>
                     </td>
                 </tr>
             `;
-        }).join('');
+        };
+
+        const groups = groupRowsByStaff(list);
+        if (hrmSubTableGroupMode === 'grouped') {
+            tbody.innerHTML = groups.map(g => {
+                const sumB = g.rows.reduce((s, r) => s + Number(r.base_delta || 0), 0);
+                const sumA = g.rows.reduce((s, r) => s + Number(r.allowance_delta || 0), 0);
+                const codePrefix = g.employee_code ? `[${escHrmHtml(g.employee_code)}] ` : '';
+                return `
+                    <tr class="bg-sky-50/90 border-y border-sky-200 font-bold text-sky-950">
+                        <td colspan="4" class="p-2">${codePrefix}${escHrmHtml(g.staff_name)} <span class="text-slate-500 font-semibold">· ${escHrmHtml(g.meta)} (${g.rows.length} QĐ)</span></td>
+                        <td class="p-2 text-right font-mono ${sumB >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${fMoney(sumB)}</td>
+                        <td class="p-2 text-right font-mono ${sumA >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${fMoney(sumA)}</td>
+                        <td colspan="4"></td>
+                    </tr>
+                    ${g.rows.map(renderRow).join('')}
+                `;
+            }).join('');
+        } else {
+            tbody.innerHTML = list.map(renderRow).join('');
+        }
+
+        const grandB = list.reduce((s, r) => s + Number(r.base_delta || 0), 0);
+        const grandA = list.reduce((s, r) => s + Number(r.allowance_delta || 0), 0);
+        if (tfoot) {
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="4" class="p-2.5 uppercase text-slate-700">Tổng cộng (${groups.length} nhân viên · ${list.length} quyết định):</td>
+                    <td class="p-2.5 text-right font-mono ${grandB >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${fMoney(grandB)}</td>
+                    <td class="p-2.5 text-right font-mono ${grandA >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${fMoney(grandA)}</td>
+                    <td colspan="4"></td>
+                </tr>
+            `;
+        }
     }
 
     window.filterHrmAdjustmentsTable = function() {
@@ -3647,13 +4328,17 @@
     let activeCommDeptFilter = 'all';
 
     async function loadHrmCommissions(month) {
-        const m = month || getSelectedMonth();
+        const p = getHrmQueryPeriodParams();
+        const m = month || p.month;
         const tbody = document.getElementById('table-hrm-commissions');
         if (tbody && !currentCommData) {
-            tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-slate-400">Đang tính toán hoa hồng tháng ${m}...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Đang tính toán hoa hồng kỳ ${m}...</td></tr>`;
         }
         try {
-            const res = await fetch(`/api/hrm/commissions/${m}`);
+            const url = (hrmPeriodMode === 'range' && p.dateFrom && p.dateTo)
+                ? `/api/hrm/commissions/${m}?date_from=${encodeURIComponent(p.dateFrom)}&date_to=${encodeURIComponent(p.dateTo)}`
+                : `/api/hrm/commissions/${m}`;
+            const res = await fetch(url);
             if (!res.ok) return;
             const data = await res.json();
             currentCommData = data;
@@ -3689,12 +4374,33 @@
         return pols.length ? pols.map(p => p.dept) : ['Bán Lẻ POS', 'Spa & Grooming', 'Sales Online & TMĐT', 'Kho & Khách Sạn'];
     }
 
+    function _findMatchingDeptPolicy(deptStr, policies) {
+        const pols = policies || [];
+        const dLow = String(deptStr || '').trim().toLowerCase();
+        const exact = pols.find(p => String(p.dept || '').trim().toLowerCase() === dLow);
+        if (exact) return exact;
+        if (dLow.includes('spa') || dLow.includes('groom')) return pols.find(p => p.dept === 'Spa & Grooming') || pols[0];
+        if (['kinh doanh', 'marketing', 'sales', 'online', 'tmđt', 'tmdt', 'sàn', 'pancake', 'digital'].some(k => dLow.includes(k))) {
+            return pols.find(p => p.dept === 'Sales Online & TMĐT') || pols[0];
+        }
+        if (['kho', 'khách sạn', 'hotel'].some(k => dLow.includes(k))) {
+            return pols.find(p => p.dept === 'Kho & Khách Sạn') || pols[0];
+        }
+        return pols.find(p => p.dept === 'Bán Lẻ POS') || pols[0];
+    }
+
     function renderHrmCommissionsUI(data) {
         const s = data.summary || {};
         const fmt = v => fmtN(v) + ' ₫';
         const setEl = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
         setEl('hrm-comm-kpi-pos', fmt(s.pos_commission_total));
-        setEl('hrm-comm-kpi-pos-sub', `Doanh số POS thuần: ${fmt(s.pos_net_total)}`);
+        const posSubEl = document.getElementById('hrm-comm-kpi-pos-sub');
+        if (posSubEl) {
+            const adminLine = (s.admin_pos_net || s.admin_pos_orders)
+                ? `<div class="text-xs text-amber-700 font-semibold mt-0.5">Đơn TK Admin (Chủ shop): ${fmt(s.admin_pos_net)} (${s.admin_pos_orders || 0} đơn · không tính HH NV)</div>`
+                : '';
+            posSubEl.innerHTML = `<div>Doanh số POS của NV: <b>${fmt(s.pos_net_total)}</b> (${s.pos_orders_total || 0} đơn)</div>${adminLine}`;
+        }
         setEl('hrm-comm-kpi-spa', fmt(s.spa_commission_total));
         setEl('hrm-comm-kpi-spa-sub', `Doanh thu dịch vụ Spa: ${fmt(s.spa_revenue_total)}`);
         setEl('hrm-comm-kpi-tips', fmt((s.spa_tips_total || 0) + (s.tmdt_commission_total || 0)));
@@ -3711,11 +4417,11 @@
             deptSel.value = [...deptSel.options].some(o => o.value === cur) ? cur : 'all';
         }
 
-        // Mức chuẩn theo bộ phận: bảng 4 dòng
+        // Mức chuẩn theo bộ phận: bảng 4 dòng (đếm cả NV ánh xạ theo nhóm bộ phận)
         const deptBody = document.getElementById('hrm-dept-policy-cards');
         if (deptBody) {
             deptBody.innerHTML = (data.dept_policies || []).map((p, idx) => {
-                const n = (data.items || []).filter(x => x.department === p.dept && x.staff_id).length;
+                const n = (data.items || []).filter(x => (x.policy_dept === p.dept || x.department === p.dept) && x.staff_id).length;
                 return `
                     <tr class="hover:bg-slate-50" title="${escHtml(p.desc || '')}">
                         <td class="p-2.5 font-bold text-slate-800">${escHtml(p.dept)}</td>
@@ -3762,22 +4468,22 @@
         renderCommTable();
     }
 
-    // Bảng NV 6 cột: chỉ đọc, lọc/tìm phía client; sửa qua popup (bấm vào dòng)
+    // Bảng NV 7 cột: luôn hiện Doanh số POS & Tiến độ Đủ/Thiếu Pancake/KOC ngay cả khi hoa hồng = 0 đ
     window.renderCommTable = function() {
         const data = currentCommData;
         const tbody = document.getElementById('table-hrm-commissions');
         const tfoot = document.getElementById('table-hrm-commissions-foot');
         if (!data || !tbody) return;
-        const q = (document.getElementById('hrm-comm-search')?.value || '').trim().toLowerCase();
+        const q = (document.getElementById('hrm-comm-search')?.value || '').trim();
         const dept = document.getElementById('hrm-comm-filter-dept')?.value || 'all';
         const hideZero = document.getElementById('hrm-comm-hide-zero')?.checked;
         const onlyCustom = document.getElementById('hrm-comm-only-custom')?.checked;
         const all = data.items || [];
         const items = all.filter(it =>
-            (dept === 'all' || it.department === dept) &&
+            (dept === 'all' || it.department === dept || it.policy_dept === dept) &&
             (!hideZero || (it.total_commission || 0) > 0) &&
             (!onlyCustom || it.policy_mode === 'custom') &&
-            (!q || `${it.name} ${it.employee_code}`.toLowerCase().includes(q)));
+            (!q || matchHrmQuery(q, `${it.name || ''} ${it.employee_code || ''} ${(it.pancake_sellers || []).join(' ')}`)));
         const cnt = document.getElementById('hrm-comm-count');
         if (cnt) cnt.textContent = `${items.length}/${all.length} NV`;
 
@@ -3791,18 +4497,63 @@
             const tmdt = (it.pancake_commission || 0) + (it.koc_commission || 0);
             const spaTotal = (it.spa_commission || 0) + (it.spa_tips || 0);
             const modeTag = it.policy_mode === 'custom'
-                ? '<span class="ml-1 px-1.5 rounded bg-amber-50 text-amber-800 border border-amber-200">Mức riêng</span>' : '';
+                ? '<span class="ml-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold">Mức riêng</span>' : '';
             const probTag = it.spa_commission_tier === 'probation' ? '<span class="ml-1 px-1.5 rounded bg-amber-50 text-amber-700 border border-amber-200">TV</span>' : '';
             const unlinked = it.is_unlinked_spa ? '<span class="ml-1 px-1.5 rounded bg-amber-100 text-amber-800 font-bold">Chưa tạo NV</span>' : '';
+            const sellerBadges = (it.pancake_sellers && it.pancake_sellers.length)
+                ? `<div class="mt-0.5"><span class="inline-flex items-center px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 font-semibold">Pancake: ${escHtml(it.pancake_sellers.join(', '))}${it.pancake_custom_rules ? ' (Riêng)' : ''}</span></div>`
+                : '';
+
+            // Cột POS: luôn hiện rõ số đơn, doanh số thuần & % hiệu lực ngay cả khi 0 đ
+            const posCell = `<div class="font-bold ${it.pos_commission > 0 ? 'text-sky-700' : 'text-slate-500'}">${fmtN(it.pos_commission || 0)} ₫</div>
+                <div class="text-slate-400">${it.pos_orders || 0} đơn · ${fmtN(it.pos_net || 0)} ₫ × ${it.commission_rate || 0}%</div>`;
+
+            // Cột Tiến độ Sàn / Pancake / KOC: Đủ hay Thiếu mốc đều hiện rõ
+            let tmdtCell = dash;
+            if (it.pancake_assigned || it.pancake_has_kpi || it.pancake_revenue > 0 || it.koc_commission > 0 || it.koc_videos > 0) {
+                const blocks = [];
+                if (it.pancake_assigned || it.pancake_has_kpi || it.pancake_revenue > 0) {
+                    const pct = Math.min(100, Math.max(0, Number(it.pancake_progress_pct || 0)));
+                    const statusBadge = it.pancake_achieved
+                        ? `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold whitespace-nowrap">Đạt mốc ${Math.round(it.pancake_progress_pct || 100)}%${it.pancake_over_amount > 0 ? ` · Vượt +${fmtN(it.pancake_over_amount)} ₫ (×${it.pancake_rate}%)` : ''}</span>`
+                        : `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold whitespace-nowrap">Chưa đủ mốc · Thiếu ${fmtN(it.pancake_shortfall)} ₫</span>`;
+                    const nickHint = !it.pancake_assigned ? `<div class="text-amber-700 font-semibold mt-0.5">Chưa gán nick ở tab Sàn TMĐT → Pancake</div>` : '';
+                    const commLine = it.pancake_commission > 0
+                        ? `<div class="font-mono font-bold text-emerald-700 mt-0.5">+${fmtN(it.pancake_commission)} ₫ <span class="text-slate-500 font-normal">(Thưởng mốc +${fmtN(it.pancake_bonus)} ₫${it.pancake_tier_commission > 0 ? ` + Vượt +${fmtN(it.pancake_tier_commission)} ₫` : ''})</span></div>`
+                        : '';
+                    blocks.push(`
+                        <div>
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <span class="font-mono text-slate-700"><b>${fmtN(it.pancake_revenue)}</b> / ${fmtN(it.pancake_threshold)} ₫ (${it.pancake_orders || 0} đơn)</span>
+                                ${statusBadge}
+                            </div>
+                            <div class="w-40 max-w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
+                                <div class="h-full ${it.pancake_achieved ? 'bg-emerald-500' : 'bg-amber-500'} rounded-full" style="width:${pct}%"></div>
+                            </div>
+                            ${commLine}
+                            ${nickHint}
+                        </div>
+                    `);
+                }
+                if (it.koc_commission > 0 || it.koc_videos > 0) {
+                    blocks.push(`<div class="font-mono text-sky-700 font-semibold mt-1">KOC TikTok: +${fmtN(it.koc_commission)} ₫ (${it.koc_qualified_videos || 0}/${it.koc_videos || 0} video đạt view)</div>`);
+                }
+                tmdtCell = blocks.join('');
+            }
+
+            const spaCell = spaTotal
+                ? `<div class="font-bold text-sky-700">${fmtN(spaTotal)} ₫${probTag}</div><div class="text-slate-400">${it.spa_tickets || 0} ca${it.spa_tips ? ` · tip ${fmtN(it.spa_tips)}` : ''}</div>`
+                : `<span class="text-slate-400">0 ₫</span>`;
+
             const click = it.staff_id ? `onclick="openCommStaffModal(${it.staff_id})" class="hover:bg-sky-50/60 cursor-pointer"` : 'class=""';
             return `
                 <tr ${click}>
-                    <td class="p-2.5"><div class="font-bold text-slate-900">${escHtml(it.name)}${unlinked}</div><div class="text-slate-400 font-mono">${escHtml(it.employee_code || '')}</div></td>
-                    <td class="p-2.5 text-slate-700">${escHtml(it.department || '')}${modeTag}</td>
-                    <td class="p-2.5 text-right font-mono">${it.pos_commission ? `<div class="font-bold text-sky-700">${fmtN(it.pos_commission)}</div><div class="text-slate-400">${fmtN(it.pos_net)} × ${it.commission_rate || 0}%</div>` : dash}</td>
-                    <td class="p-2.5 text-right font-mono">${spaTotal ? `<div class="font-bold text-sky-700">${fmtN(spaTotal)}${probTag}</div><div class="text-slate-400">${it.spa_tickets || 0} ca${it.spa_tips ? ` · tip ${fmtN(it.spa_tips)}` : ''}</div>` : dash}</td>
-                    <td class="p-2.5 text-right font-mono ${tmdt ? 'font-bold text-sky-700' : ''}">${tmdt ? fmtN(tmdt) : dash}</td>
-                    <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${fmtN(it.total_commission)}</td>
+                    <td class="p-2.5 whitespace-nowrap"><div class="font-bold text-slate-900">${escHtml(it.name)}${unlinked}</div><div class="text-sky-700 font-mono font-bold">${escHtml(it.employee_code || '')}</div></td>
+                    <td class="p-2.5 text-slate-700"><div>${escHtml(it.department || '')}${modeTag}</div>${sellerBadges}</td>
+                    <td class="p-2.5 text-right font-mono whitespace-nowrap">${posCell}</td>
+                    <td class="p-2.5 min-w-[260px]">${tmdtCell}</td>
+                    <td class="p-2.5 text-right font-mono whitespace-nowrap">${spaCell}</td>
+                    <td class="p-2.5 text-right font-mono font-bold ${it.total_commission > 0 ? 'text-emerald-700' : 'text-slate-500'} whitespace-nowrap">${fmtN(it.total_commission)} ₫</td>
                     <td class="p-2.5 text-slate-400">${it.staff_id ? '<i class="ph ph-pencil-simple"></i>' : ''}</td>
                 </tr>`;
         }).join('');
@@ -3810,10 +4561,10 @@
         if (tfoot) tfoot.innerHTML = `
             <tr>
                 <td colspan="2" class="p-2.5 text-right text-slate-600">Tổng (${items.length} NV)</td>
-                <td class="p-2.5 text-right font-mono text-sky-700">${sum(b => b.pos_commission || 0)}</td>
-                <td class="p-2.5 text-right font-mono text-sky-700">${sum(b => (b.spa_commission || 0) + (b.spa_tips || 0))}</td>
-                <td class="p-2.5 text-right font-mono text-sky-700">${sum(b => (b.pancake_commission || 0) + (b.koc_commission || 0))}</td>
-                <td class="p-2.5 text-right font-mono text-emerald-800">${sum(b => b.total_commission || 0)}</td>
+                <td class="p-2.5 text-right font-mono text-sky-700">${sum(b => b.pos_commission || 0)} ₫</td>
+                <td class="p-2.5 text-right font-mono text-sky-700">TMĐT/KOC: ${sum(b => (b.pancake_commission || 0) + (b.koc_commission || 0))} ₫</td>
+                <td class="p-2.5 text-right font-mono text-sky-700">${sum(b => (b.spa_commission || 0) + (b.spa_tips || 0))} ₫</td>
+                <td class="p-2.5 text-right font-mono text-emerald-800">${sum(b => b.total_commission || 0)} ₫</td>
                 <td></td>
             </tr>`;
     };
@@ -3847,7 +4598,7 @@
         box.classList.toggle('opacity-60', !custom);
         if (!custom) {
             const dept = document.getElementById('hrm-comm-staff-dept').value;
-            const pol = (currentCommData?.dept_policies || []).find(p => p.dept === dept);
+            const pol = _findMatchingDeptPolicy(dept, currentCommData?.dept_policies || []);
             if (pol) {
                 document.getElementById('hrm-comm-staff-rate').value = pol.pos_rate || 0;
                 document.getElementById('hrm-comm-staff-spa').checked = !!pol.spa_on;
@@ -4259,7 +5010,15 @@
     window.cloneNewSpaMatrixProfile = async function() {
         const base = getActiveMatrixProfile();
         if (!base) return;
-        const newName = prompt('Nhập tên Mẫu Hoa Hồng cho Cơ Sở Mới:', `${base.name} (Cơ sở mới)`);
+        const newName = typeof window.showPromptModal === 'function'
+            ? await window.showPromptModal({
+                title: 'Tạo Mẫu Hoa Hồng Cơ Sở Mới',
+                message: 'Nhập tên mẫu hoa hồng mới (nhân bản từ mẫu hiện tại):',
+                defaultValue: `${base.name} (Cơ sở mới)`,
+                confirmText: 'Tạo mẫu mới',
+                type: 'primary'
+            })
+            : prompt('Nhập tên Mẫu Hoa Hồng cho Cơ Sở Mới:', `${base.name} (Cơ sở mới)`);
         if (!newName || !newName.trim()) return;
         const cloned = JSON.parse(JSON.stringify(base));
         cloned.id = 'branch_' + Date.now();
@@ -4273,7 +5032,10 @@
     window.deleteActiveSpaMatrixProfile = async function() {
         if (!currentSpaMatrixConfig || currentSpaMatrixConfig.profiles.length <= 1) return;
         const prof = getActiveMatrixProfile();
-        if (!confirm(`Bạn có chắc muốn xóa mẫu "${prof.name}"?`)) return;
+        const ok = typeof window.showConfirmModal === 'function'
+            ? await window.showConfirmModal({ title: 'Xóa mẫu hoa hồng?', message: `Bạn có chắc muốn xóa mẫu "${prof.name}"?`, confirmText: 'Xóa mẫu', type: 'danger' })
+            : confirm(`Bạn có chắc muốn xóa mẫu "${prof.name}"?`);
+        if (!ok) return;
         currentSpaMatrixConfig.profiles = currentSpaMatrixConfig.profiles.filter(p => p.id !== prof.id);
         currentSpaMatrixConfig.active_profile_id = currentSpaMatrixConfig.profiles[0].id;
         renderSpaMatrixEditor(currentSpaMatrixConfig);
@@ -4344,10 +5106,16 @@
     window.exportImportSpaMatrixModal = async function() {
         if (!currentSpaMatrixConfig) return;
         const jsonStr = JSON.stringify(currentSpaMatrixConfig, null, 2);
-        const input = prompt(
-            'Sao chép chuỗi JSON dưới đây để mang sang Cơ sở khác, hoặc dán chuỗi JSON mới vào để Nhập (Import):',
-            jsonStr
-        );
+        const input = typeof window.showPromptModal === 'function'
+            ? await window.showPromptModal({
+                title: 'Xuất / Nhập Cấu Hình Hoa Hồng (JSON)',
+                message: 'Sao chép chuỗi JSON bên dưới để mang sang Cơ sở khác, hoặc dán JSON mới vào để Nhập:',
+                defaultValue: jsonStr,
+                multiline: true,
+                confirmText: 'Áp dụng JSON',
+                type: 'primary'
+            })
+            : prompt('Sao chép hoặc dán chuỗi JSON:', jsonStr);
         if (!input || input.trim() === jsonStr.trim()) return;
         try {
             const parsed = JSON.parse(input);

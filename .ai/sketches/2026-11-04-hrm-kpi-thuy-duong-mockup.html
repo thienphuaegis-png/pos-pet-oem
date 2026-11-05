@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Giải thích Lương KPI Thùy Dương & Giao diện KPI Nhân viên</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f1f5f9;
+    color: #0f172a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 12px;
+    line-height: 1.45;
+    padding: 12px;
+  }
+  .wrap { max-width: 920px; display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .formula-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .f-box {
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    padding: 9px 10px;
+    background: #f8fafc;
+  }
+  .f-box.warn { background: #fffbeb; border-color: #fcd34d; }
+  .f-box.ok { background: #f0fdf4; border-color: #86efac; }
+  .f-box.err { background: #fef2f2; border-color: #fca5a5; }
+  .f-lbl { font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #475569; }
+  .f-val { font-family: Consolas, monospace; font-size: 15px; font-weight: 700; margin-top: 3px; }
+  .f-sub { font-size: 11px; color: #334155; margin-top: 3px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .col-bad { background: #fffafa; border: 1px solid #fca5a5; border-radius: 10px; padding: 10px; }
+  .col-good { background: #f8fafc; border: 1px solid #7dd3fc; border-radius: 10px; padding: 10px; }
+  .tag-bad, .tag-good {
+    display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 99px; margin-bottom: 8px; text-transform: uppercase;
+  }
+  .tag-bad { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+  .tag-good { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+
+  table.tbl { width: 100%; border-collapse: collapse; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; font-size: 11px; }
+  table.tbl th { background: #f8fafc; color: #334155; font-size: 10px; text-transform: uppercase; padding: 6px 7px; border-bottom: 1px solid #cbd5e1; text-align: left; }
+  table.tbl td { padding: 7px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  table.tbl tr:last-child td { border-bottom: none; }
+  .mono { font-family: Consolas, monospace; }
+  .code-b { font-family: Consolas, monospace; font-size: 10px; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 1px 5px; border-radius: 4px; }
+  .badge-miss { display: inline-block; background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; font-weight: 700; font-size: 10px; padding: 1px 6px; border-radius: 99px; }
+  .badge-hit { display: inline-block; background: #dcfce7; color: #166534; border: 1px solid #86efac; font-weight: 700; font-size: 10px; padding: 1px 6px; border-radius: 99px; }
+  .bar-bg { width: 100%; height: 5px; background: #e2e8f0; border-radius: 99px; margin-top: 4px; overflow: hidden; }
+  .bar-fill-amber { height: 100%; background: #d97706; border-radius: 99px; }
+  .bar-fill-green { height: 100%; background: #16a34a; border-radius: 99px; }
+  .note { margin-top: 7px; font-size: 11px; padding: 5px 8px; border-radius: 6px; font-weight: 500; }
+  .note-bad { background: #fee2e2; color: #991b1b; }
+  .note-good { background: #dcfce7; color: #166534; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- KHỐI GIẢI THÍCH SỐ TIỀN THÙY DƯƠNG -->
+  <div class="card">
+    <div class="title">Giải phẫu mức lương 5.525.000 đ của Lê Thụy Thùy Dương (NV17 - Sales Chiều)</div>
+    <div class="formula-grid">
+      <div class="f-box warn">
+        <div class="f-lbl">1. Khi CHƯA ĐẠT KPI (&lt; Mốc KPI)</div>
+        <div class="f-val" style="color:#b45309;">5.525.000 đ</div>
+        <div class="f-sub">= <strong>85%</strong> của 6.500.000 đ.<br>Đang lưu cứng trong cột Lương CB hiện tại.</div>
+      </div>
+      <div class="f-box ok">
+        <div class="f-lbl">2. Khi ĐẠT KPI (&ge; Mốc KPI)</div>
+        <div class="f-val" style="color:#15803d;">6.500.000 đ (+HH)</div>
+        <div class="f-sub">= <strong>100%</strong> lương chuẩn (bù thêm <strong>+975.000 đ</strong>) + Hoa hồng vượt mốc.</div>
+      </div>
+      <div class="f-box err">
+        <div class="f-lbl">3. Lệch ngầm trong code Pancake cũ</div>
+        <div class="f-val" style="color:#b91c1c;">+1.300.000 đ (Sai!)</div>
+        <div class="f-sub">Code cũ tính từ nền 5,2tr (+1,3tr). Nếu cộng vào 5.525.000 đ sẽ vọt thành <strong>6.825.000 đ</strong> (dư 325k).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MÀN HÌNH 1: BẢNG NHÂN SỰ -->
+  <div class="card">
+    <div class="title">Màn hình 1: Tab Nhân Sự — Chỉ hiện cấu hình KPI ở người có tính KPI</div>
+    <div class="grid2">
+      <div class="col-bad">
+        <span class="tag-bad">Hiện tại (Không biết ai áp KPI)</span>
+        <table class="tbl">
+          <thead><tr><th>Nhân sự</th><th style="text-align:right;">Lương CB</th><th>Trạng thái</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Mai Phúc Lộc</strong> <span class="code-b">NV15</span><div style="color:#64748b;font-size:10px;">Thực tập sinh TMĐT</div></td>
+              <td class="mono" style="text-align:right;font-weight:700;">3.000.000 đ</td>
+              <td><span class="badge-hit">Chính thức</span></td>
+            </tr>
+            <tr style="background:#fef2f2;">
+              <td><strong>Lê Thụy Thùy Dương</strong> <span class="code-b">NV17</span><div style="color:#64748b;font-size:10px;">Digital Marketing • Sales Chiều</div></td>
+              <td class="mono" style="text-align:right;font-weight:700;color:#b91c1c;">5.525.000 đ</td>
+              <td><span class="badge-hit">Chính thức</span></td>
+            </tr>
+            <tr>
+              <td><strong>Tăng Văn Tấn</strong> <span class="code-b">NV18</span><div style="color:#64748b;font-size:10px;">Kho • Nhân viên kho</div></td>
+              <td class="mono" style="text-align:right;font-weight:700;">7.000.000 đ</td>
+              <td><span class="badge-hit">Chính thức</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="note note-bad">Nhìn 5.525.000 đ không biết là lương chưa đạt KPI (85%), cũng không biết mốc KPI là bao nhiêu.</div>
+      </div>
+
+      <div class="col-good">
+        <span class="tag-good">Đề xuất (Hiện rõ nền chưa KPI &amp; mốc đạt KPI)</span>
+        <table class="tbl">
+          <thead><tr><th>Nhân sự</th><th style="text-align:right;">Lương &amp; Mức KPI</th><th>Chỉ tiêu KPI</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Mai Phúc Lộc</strong> <span class="code-b">NV15</span><div style="color:#64748b;font-size:10px;">Thực tập sinh TMĐT</div></td>
+              <td class="mono" style="text-align:right;font-weight:700;">3.000.000 đ</td>
+              <td></td>
+            </tr>
+            <tr style="background:#f0f9ff;">
+              <td><strong>Lê Thụy Thùy Dương</strong> <span class="code-b">NV17</span><div style="color:#0369a1;font-size:10px;font-weight:600;">Sales Chiều (Áp KPI)</div></td>
+              <td class="mono" style="text-align:right;">
+                <div style="font-weight:700;color:#b45309;">5.525.000 đ <span style="font-size:9.5px;">(Chưa KPI)</span></div>
+                <div style="font-size:10px;color:#15803d;font-weight:700;">Đạt KPI: 6.500.000 đ</div>
+              </td>
+              <td>
+                <span class="badge-miss">Mốc: 120.000.000 đ</span>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Tăng Văn Tấn</strong> <span class="code-b">NV18</span><div style="color:#64748b;font-size:10px;">Kho • Nhân viên kho</div></td>
+              <td class="mono" style="text-align:right;font-weight:700;">7.000.000 đ</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="note note-good">NV không tính KPI (NV15, NV18): ô KPI để trống sạch. NV có KPI (NV17): hiện rõ 2 mức lương &amp; chỉ tiêu.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MÀN HÌNH 2: TAB HOA HỒNG & TIP -->
+  <div class="card">
+    <div class="title">Màn hình 2: Tab Hoa Hồng &amp; Tip — Theo dõi Tiến độ KPI Tháng (Đạt / Chưa đạt)</div>
+    <div class="grid2">
+      <div class="col-bad">
+        <span class="tag-bad">Hiện tại (Lọt TK admin/Kho + Mù thông tin KPI)</span>
+        <table class="tbl">
+          <thead><tr><th>Nhân viên</th><th>Bộ phận</th><th style="text-align:right;">Sàn / KOC</th><th style="text-align:right;">Tổng</th></tr></thead>
+          <tbody>
+            <tr style="background:#fef2f2;"><td><strong>admin</strong> / NV01</td><td>Bán Lẻ POS</td><td style="text-align:right;">—</td><td class="mono" style="text-align:right;">0</td></tr>
+            <tr style="background:#fef2f2;"><td><strong>Kho</strong> / NV07</td><td>Bán Lẻ POS</td><td style="text-align:right;">—</td><td class="mono" style="text-align:right;">0</td></tr>
+            <tr><td><strong>Bùi Thiên Phú</strong> / NV01</td><td>HCNS</td><td style="text-align:right;">—</td><td class="mono" style="text-align:right;">0</td></tr>
+            <tr><td><strong>Lê Thụy Thùy Dương</strong> / NV17</td><td>Kinh doanh</td><td style="text-align:right;">—</td><td class="mono" style="text-align:right;">0</td></tr>
+          </tbody>
+        </table>
+        <div class="note note-bad">Lọt admin/Kho trùng mã NV01, NV07; không thấy doanh số hiện tại được bao nhiêu so với KPI.</div>
+      </div>
+
+      <div class="col-good">
+        <span class="tag-good">Đề xuất (Ẩn KPI nếu không áp · Hiện rõ Đạt / Chưa đạt)</span>
+        <table class="tbl">
+          <thead><tr><th>Nhân viên</th><th>KPI Tháng (Chỉ tiêu &amp; Tiến độ)</th><th style="text-align:right;">Thưởng / HH</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Bùi Thiên Phú</strong> <span class="code-b">NV01</span><div style="color:#64748b;font-size:10px;">HCNS (Không tính KPI)</div></td>
+              <td></td>
+              <td class="mono" style="text-align:right;color:#94a3b8;">0</td>
+            </tr>
+            <tr>
+              <td><strong>Lê Thụy Thùy Dương</strong> <span class="code-b">NV17</span><div style="color:#64748b;font-size:10px;">TH1: Tháng chưa đủ KPI</div></td>
+              <td>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
+                  <span class="badge-miss">Chưa đạt (72%)</span>
+                  <span class="mono" style="font-size:10px;font-weight:700;">86,4tr / 120tr</span>
+                </div>
+                <div class="bar-bg"><div class="bar-fill-amber" style="width:72%;"></div></div>
+              </td>
+              <td class="mono" style="text-align:right;color:#b45309;font-weight:700;">0 đ<div style="font-size:9.5px;">Lương 85%</div></td>
+            </tr>
+            <tr style="background:#f0fdf4;">
+              <td><strong>Lê Thụy Thùy Dương</strong> <span class="code-b">NV17</span><div style="color:#15803d;font-size:10px;font-weight:600;">TH2: Tháng đạt KPI</div></td>
+              <td>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
+                  <span class="badge-hit">ĐẠT KPI (115%)</span>
+                  <span class="mono" style="font-size:10px;font-weight:700;">138tr / 120tr</span>
+                </div>
+                <div class="bar-bg"><div class="bar-fill-green" style="width:100%;"></div></div>
+              </td>
+              <td class="mono" style="text-align:right;color:#15803d;font-weight:700;">+1.425.000 đ<div style="font-size:9.5px;">+975k KPI +450k HH</div></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="note note-good">Ai không tính KPI: ô KPI trống hoàn toàn. Ai có KPI: thấy ngay chỉ tiêu, thực đạt, % và Đạt / Chưa đạt.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

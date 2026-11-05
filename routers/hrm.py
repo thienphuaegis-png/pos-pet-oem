@@ -43,6 +43,23 @@ def _date_or_none(v, field):
         raise HTTPException(400, f"{field} không hợp lệ (YYYY-MM-DD)")
 
 
+def _resolve_period_dates(month: Optional[str] = None, date_from: Optional[str] = None, date_to: Optional[str] = None):
+    """Chuẩn hóa bộ lọc thời gian: hỗ trợ cả khoảng ngày (date_from..date_to) lẫn tháng (YYYY-MM)."""
+    if date_from and date_to:
+        d1 = date.fromisoformat(_date_or_none(date_from, "Từ ngày"))
+        d2 = date.fromisoformat(_date_or_none(date_to, "Đến ngày"))
+        if d1 > d2:
+            d1, d2 = d2, d1
+        return d1, d2, f"{d1.year:04d}-{d1.month:02d}"
+    if month:
+        _, _, first, last = ps.parse_month(month)
+        return first, last, month
+    today = date.today()
+    m_str = f"{today.year:04d}-{today.month:02d}"
+    _, _, first, last = ps.parse_month(m_str)
+    return first, last, m_str
+
+
 # ── Cấu hình ──
 class BlockIn(BaseModel):
     name: str
@@ -564,20 +581,31 @@ class AdjustmentIn(BaseModel):
 
 
 @router.get("/adjustments")
-def list_all_adjustments(month: Optional[str] = None, staff_id: Optional[int] = None, user=Depends(require_permission(PERM))):
+def list_all_adjustments(
+    month: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    staff_id: Optional[int] = None,
+    user=Depends(require_permission(PERM)),
+):
     """Lấy danh sách quyết định điều chỉnh lương trên toàn hệ thống kèm thông tin nhân sự."""
     conn = get_db(); cur = conn.cursor()
     query = """
-        SELECT a.*, s.name as staff_name, s.employee_code, s.position, s.department
+        SELECT a.*, s.name as staff_name, s.employee_code, s.position, s.department, b.name as block_name
         FROM hrm_salary_adjustments a
         JOIN staff s ON s.id = a.staff_id
+        LEFT JOIN hrm_work_blocks b ON b.id = s.work_block_id
         WHERE 1=1
     """
     params = []
     if staff_id:
         query += " AND a.staff_id = ?"
         params.append(staff_id)
-    if month:
+    if date_from and date_to:
+        d1, d2, _ = _resolve_period_dates(None, date_from, date_to)
+        query += " AND a.effective_date BETWEEN ? AND ?"
+        params.extend([d1.isoformat(), d2.isoformat()])
+    elif month:
         query += " AND a.effective_date LIKE ?"
         params.append(f"{month}%")
     query += " ORDER BY a.effective_date DESC, a.id DESC"
@@ -966,6 +994,31 @@ def save_payroll_visible_columns(body: dict, user=Depends(require_permission(PER
     return {"status": "ok", "columns": clean}
 
 
+@router.get("/staff-columns")
+def get_staff_visible_columns(user=Depends(require_permission(PERM))):
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT value FROM settings WHERE key = 'hrm_staff_columns'")
+    row = cur.fetchone()
+    conn.close()
+    cols = json.loads(row["value"]) if row and row["value"] else None
+    return {"columns": cols}
+
+
+@router.put("/staff-columns")
+def save_staff_visible_columns(body: dict, user=Depends(require_permission(PERM))):
+    cols = body.get("columns")
+    if not isinstance(cols, dict):
+        raise HTTPException(400, "columns phải là object {col_key: bool}")
+    clean = {str(k): bool(v) for k, v in cols.items()}
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO settings (key, value) VALUES ('hrm_staff_columns', ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    """, (json.dumps(clean),))
+    conn.commit(); conn.close()
+    return {"status": "ok", "columns": clean}
+
+
 # ── Kỳ tính lương & Danh sách tháng ──
 @router.get("/periods")
 def list_periods(year: Optional[int] = None, user=Depends(require_permission(PERM))):
@@ -1000,16 +1053,28 @@ class LeaveIn(BaseModel):
 
 
 @router.get("/leaves")
-def list_leaves(month: Optional[str] = None, staff_id: Optional[int] = None, user=Depends(require_permission(PERM))):
+def list_leaves(
+    month: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    staff_id: Optional[int] = None,
+    user=Depends(require_permission(PERM)),
+):
     conn = get_db(); cur = conn.cursor()
     query = """
-        SELECT l.*, s.name AS staff_name, s.employee_code AS staff_code, s.department, s.position
+        SELECT l.*, s.name AS staff_name, s.employee_code, s.employee_code AS staff_code,
+               s.department, s.position, b.name AS block_name
         FROM staff_leaves l
         JOIN staff s ON s.id = l.staff_id
+        LEFT JOIN hrm_work_blocks b ON b.id = s.work_block_id
         WHERE 1=1
     """
     params = []
-    if month:
+    if date_from and date_to:
+        first, last, _ = _resolve_period_dates(None, date_from, date_to)
+        query += " AND l.work_date BETWEEN ? AND ?"
+        params.extend([first.isoformat(), last.isoformat()])
+    elif month:
         y, m, first, last = ps.parse_month(month)
         query += " AND l.work_date BETWEEN ? AND ?"
         params.extend([first.isoformat(), last.isoformat()])
@@ -1190,12 +1255,47 @@ class OvertimeIn(BaseModel):
 
 
 @router.get("/overtime")
-def list_overtime(month: str = Query(...), user=Depends(require_permission(PERM))):
-    y, m, first, last = ps.parse_month(month)
+def list_overtime(
+    month: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    staff_id: Optional[int] = None,
+    user=Depends(require_permission(PERM)),
+):
+    first, last, _ = _resolve_period_dates(month, date_from, date_to)
     conn = get_db(); cur = conn.cursor()
-    cur.execute("""SELECT o.*, s.name FROM staff_overtime o JOIN staff s ON s.id=o.staff_id
-                   WHERE o.work_date BETWEEN ? AND ? ORDER BY o.work_date, s.name""", (first.isoformat(), last.isoformat()))
-    rows = [dict(r) for r in cur.fetchall()]
+    rules = ps.load_rules(cur)
+    blocks = ps.load_blocks(cur)
+    sql = """
+        SELECT o.*, s.name, s.name AS staff_name, s.employee_code, s.department, s.position,
+               s.base_salary, s.allowance, s.hire_date, s.probation_start, s.official_date,
+               s.work_block_id, b.name AS block_name
+        FROM staff_overtime o
+        JOIN staff s ON s.id = o.staff_id
+        LEFT JOIN hrm_work_blocks b ON b.id = s.work_block_id
+        WHERE o.work_date BETWEEN ? AND ?
+    """
+    params = [first.isoformat(), last.isoformat()]
+    if staff_id:
+        sql += " AND o.staff_id = ?"
+        params.append(staff_id)
+    sql += " ORDER BY o.work_date DESC, COALESCE(s.employee_code, 'zz'), s.name"
+    cur.execute(sql, tuple(params))
+    raw_rows = [dict(r) for r in cur.fetchall()]
+    rows = []
+    from services.payroll_engine import std_days as calc_std_days
+    for r in raw_rows:
+        wd = ps._d(r["work_date"]) or last
+        base_eff, _ = ps.salary_at(cur, {"id": r["staff_id"], "base_salary": r["base_salary"], "allowance": r["allowance"]}, wd)
+        blk = blocks.get(r.get("work_block_id"))
+        sd = calc_std_days(blk, wd.year, wd.month) if blk else 26
+        sh = float(blk.std_hours) if (blk and blk.std_hours) else 8.0
+        in_prob = ps.is_probation(r, wd)
+        eff_base = base_eff * float(rules.probation_rate) if in_prob else float(base_eff)
+        hourly = (eff_base / sd / sh) if (sd and sh) else 0.0
+        r["est_ot_pay"] = int(round(hourly * float(rules.ot_multiplier) * float(r["hours"] or 0)))
+        r["ot_multiplier"] = float(rules.ot_multiplier)
+        rows.append(r)
     conn.close()
     return rows
 
@@ -1237,13 +1337,38 @@ class AdvanceIn(BaseModel):
 
 
 @router.get("/advances")
-def list_advances(month: str = Query(...), user=Depends(require_permission(PERM))):
-    y, m, first, last = ps.parse_month(month)
+def list_advances(
+    month: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    staff_id: Optional[int] = None,
+    user=Depends(require_permission(PERM)),
+):
+    first, last, _ = _resolve_period_dates(month, date_from, date_to)
     conn = get_db(); cur = conn.cursor()
-    cur.execute("""SELECT a.*, s.name, c.code AS cashbook_code FROM staff_advances a JOIN staff s ON s.id=a.staff_id
-                   LEFT JOIN cashbook c ON c.id=a.cashbook_id WHERE a.advance_date BETWEEN ? AND ? ORDER BY a.advance_date""",
-                (first.isoformat(), last.isoformat()))
-    rows = [dict(r) for r in cur.fetchall()]
+    sql = """
+        SELECT a.*, s.name, s.name AS staff_name, s.employee_code, s.department, s.position,
+               s.base_salary, s.allowance, b.name AS block_name,
+               c.code AS cashbook_code, pa.name AS account_name, pa.account_type AS account_type
+        FROM staff_advances a
+        JOIN staff s ON s.id = a.staff_id
+        LEFT JOIN hrm_work_blocks b ON b.id = s.work_block_id
+        LEFT JOIN cashbook c ON c.id = a.cashbook_id
+        LEFT JOIN payment_accounts pa ON pa.id = c.account_id
+        WHERE a.advance_date BETWEEN ? AND ?
+    """
+    params = [first.isoformat(), last.isoformat()]
+    if staff_id:
+        sql += " AND a.staff_id = ?"
+        params.append(staff_id)
+    sql += " ORDER BY a.advance_date DESC, a.id DESC"
+    cur.execute(sql, tuple(params))
+    rows = []
+    for raw in cur.fetchall():
+        r = dict(raw)
+        base_eff, _ = ps.salary_at(cur, {"id": r["staff_id"], "base_salary": r["base_salary"], "allowance": r["allowance"]}, last)
+        r["base_salary_effective"] = base_eff
+        rows.append(r)
     conn.close()
     return rows
 
@@ -1365,8 +1490,13 @@ def _ensure_staff_comm_cols(cur):
 
 # ── Xem & Tính Hoa Hồng Tổng Hợp (POS + Spa + Sàn TMĐT + KOC) ──
 @router.get("/commissions/{month}")
-def get_commissions_breakdown(month: str, user=Depends(require_permission(PERM))):
-    y, m, first, last = ps.parse_month(month)
+def get_commissions_breakdown(
+    month: str,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    user=Depends(require_permission(PERM)),
+):
+    first, last, ref_month = _resolve_period_dates(month, date_from, date_to)
     from_dt = f"{first.isoformat()} 00:00:00"
     to_dt = f"{last.isoformat()} 23:59:59"
 
@@ -1397,22 +1527,31 @@ def get_commissions_breakdown(month: str, user=Depends(require_permission(PERM))
 
     from services.commission import (
         sales_commission_by_staff,
+        admin_pos_sales_summary,
+        resolve_dept_comm_policy,
+        effective_pos_commission_rate,
         spa_commission_by_name,
         load_spa_commission_config,
         EXCLUDED_ORDER_STATUSES,
     )
-    from services.pancake import commission_by_staff as pancake_commission_by_staff
+    from services.pancake import (
+        commission_by_staff as pancake_commission_by_staff,
+        load_default_rules as load_pancake_default_rules,
+    )
     from services.koc_service import commission_by_staff as koc_commission_by_staff
 
     spa_matrix_config = load_spa_commission_config(cur)
+    pancake_default_rules = load_pancake_default_rules(cur)
+    default_pk_threshold = round(float(pancake_default_rules.get("threshold") or 120_000_000))
     conn.commit()
     pos_sales = sales_commission_by_staff(cur, from_dt, to_dt)
+    admin_pos = admin_pos_sales_summary(cur, from_dt, to_dt)
     try:
         pancake_sales = pancake_commission_by_staff(cur, first.isoformat(), last.isoformat())
     except Exception:
         pancake_sales = {}
     try:
-        koc_sales = koc_commission_by_staff(cur, month)
+        koc_sales = koc_commission_by_staff(cur, ref_month)
     except Exception:
         koc_sales = {}
     spa_map = spa_commission_by_name(cur, first.isoformat(), last.isoformat())
@@ -1432,7 +1571,7 @@ def get_commissions_breakdown(month: str, user=Depends(require_permission(PERM))
     # Danh sách nhân viên
     cur.execute("""
         SELECT s.id, s.name, s.employee_code, s.department, s.position, s.role, s.commission_rate,
-               s.is_spa_worker, s.is_active,
+               s.base_salary, s.is_spa_worker, s.is_active,
                COALESCE(s.commission_policy_mode, 'dept') as commission_policy_mode,
                COALESCE(s.enable_spa_commission, 1) as enable_spa_commission,
                COALESCE(s.enable_tmdt_commission, 1) as enable_tmdt_commission,
@@ -1460,20 +1599,33 @@ def get_commissions_breakdown(month: str, user=Depends(require_permission(PERM))
         if sname_low in spa_map:
             matched_spa_keys.add(sname_low)
 
-        dept = (st.get("department") or "").strip()
-        if not dept:
-            dept = "Spa & Grooming" if st.get("is_spa_worker") else "Bán Lẻ POS"
+        raw_dept = (st.get("department") or "").strip()
+        resolved_pol = resolve_dept_comm_policy(raw_dept, bool(st.get("is_spa_worker")), dept_policies)
+        policy_dept = resolved_pol.get("dept") or ("Spa & Grooming" if st.get("is_spa_worker") else "Bán Lẻ POS")
+        dept = raw_dept or policy_dept
 
+        mode = st.get("commission_policy_mode") or "dept"
         spa_on = int(st.get("enable_spa_commission", 1) or 0)
         tmdt_on = int(st.get("enable_tmdt_commission", 1) or 0)
 
         pos_rev = round(float(p_info.get("revenue") or 0))
         pos_ret = round(float(p_info.get("returns") or 0))
         pos_net = round(float(p_info.get("net") or 0))
-        pos_rate = float(st.get("commission_rate") or 0)
-        pos_comm = round(float(p_info.get("commission") or 0))
+        pos_rate = effective_pos_commission_rate(st, dept_policies)
+        pos_comm = round(float(p_info.get("commission") if "commission" in p_info else (pos_net * pos_rate / 100.0)))
 
+        pk_assigned = bool(pk_info)
+        is_online_kpi_staff = pk_assigned or policy_dept == "Sales Online & TMĐT"
         pk_rev = round(float(pk_info.get("revenue") or 0))
+        pk_orders = int(pk_info.get("orders") or 0)
+        pk_threshold = round(float(pk_info.get("threshold") or (default_pk_threshold if is_online_kpi_staff else 0)))
+        pk_shortfall = round(float(pk_info.get("shortfall") if pk_assigned else max(0, pk_threshold - pk_rev)))
+        pk_over = round(float(pk_info.get("over_amount") or 0))
+        pk_pct = float(pk_info.get("progress_pct") or (round((pk_rev / pk_threshold) * 100.0, 1) if pk_threshold > 0 else 0.0))
+        pk_achieved = bool(pk_info.get("achieved"))
+        pk_rate = float(pk_info.get("rate") or 0.0)
+        pk_bonus = round(float(pk_info.get("bonus") or 0)) if tmdt_on else 0
+        pk_tier_comm = round(float(pk_info.get("tier_commission") or 0)) if tmdt_on else 0
         pk_comm = round(float(pk_info.get("commission") or 0)) if tmdt_on else 0
         kc_comm = round(float(kc_info.get("commission") or 0)) if tmdt_on else 0
 
@@ -1490,10 +1642,11 @@ def get_commissions_breakdown(month: str, user=Depends(require_permission(PERM))
             "employee_code": st.get("employee_code") or "",
             "name": st["name"],
             "department": dept,
+            "policy_dept": policy_dept,
             "position": st.get("position") or st.get("role") or "Nhân viên",
             "block_name": st.get("block_name") or "",
             "is_unlinked_spa": False,
-            "policy_mode": st.get("commission_policy_mode") or "dept",
+            "policy_mode": mode,
             "commission_rate": pos_rate,
             "enable_spa_commission": spa_on,
             "enable_tmdt_commission": tmdt_on,
@@ -1504,8 +1657,23 @@ def get_commissions_breakdown(month: str, user=Depends(require_permission(PERM))
             "pos_returns": pos_ret,
             "pos_net": pos_net,
             "pos_commission": pos_comm,
+            "pancake_assigned": pk_assigned,
+            "pancake_has_kpi": is_online_kpi_staff,
+            "pancake_sellers": pk_info.get("seller_names") or [],
+            "pancake_custom_rules": bool(pk_info.get("custom_rules")),
+            "pancake_orders": pk_orders,
             "pancake_revenue": pk_rev,
+            "pancake_threshold": pk_threshold,
+            "pancake_shortfall": pk_shortfall,
+            "pancake_over_amount": pk_over,
+            "pancake_progress_pct": pk_pct,
+            "pancake_achieved": pk_achieved,
+            "pancake_rate": pk_rate,
+            "pancake_bonus": pk_bonus,
+            "pancake_tier_commission": pk_tier_comm,
             "pancake_commission": pk_comm,
+            "koc_videos": int(kc_info.get("videos") or 0),
+            "koc_qualified_videos": int(kc_info.get("qualified_videos") or 0),
             "koc_commission": kc_comm,
             "spa_tickets": spa_tickets,
             "spa_revenue": spa_rev,
@@ -1528,6 +1696,7 @@ def get_commissions_breakdown(month: str, user=Depends(require_permission(PERM))
             "employee_code": "THO-SPA",
             "name": sp_info.get("display_name") or k_low.title(),
             "department": "Spa & Grooming",
+            "policy_dept": "Spa & Grooming",
             "position": "Thợ Spa (Chưa tạo hồ sơ NV)",
             "block_name": "Khối Spa",
             "is_unlinked_spa": True,
@@ -1540,8 +1709,23 @@ def get_commissions_breakdown(month: str, user=Depends(require_permission(PERM))
             "pos_returns": 0,
             "pos_net": 0,
             "pos_commission": 0,
+            "pancake_assigned": False,
+            "pancake_has_kpi": False,
+            "pancake_sellers": [],
+            "pancake_custom_rules": False,
+            "pancake_orders": 0,
             "pancake_revenue": 0,
+            "pancake_threshold": 0,
+            "pancake_shortfall": 0,
+            "pancake_over_amount": 0,
+            "pancake_progress_pct": 0.0,
+            "pancake_achieved": False,
+            "pancake_rate": 0.0,
+            "pancake_bonus": 0,
+            "pancake_tier_commission": 0,
             "pancake_commission": 0,
+            "koc_videos": 0,
+            "koc_qualified_videos": 0,
             "koc_commission": 0,
             "spa_tickets": int(sp_info.get("tickets") or 0),
             "spa_revenue": round(float(sp_info.get("service_revenue") or 0)),
@@ -1554,11 +1738,18 @@ def get_commissions_breakdown(month: str, user=Depends(require_permission(PERM))
             "total_commission": spa_comm + spa_tips
         })
 
-    items.sort(key=lambda x: (x["total_commission"], x["pos_net"], x["spa_revenue"]), reverse=True)
+    items.sort(key=lambda x: (x["total_commission"], x["pancake_revenue"], x["pos_net"], x["spa_revenue"]), reverse=True)
 
+    pos_net_staff = sum(x["pos_net"] for x in items)
+    pos_orders_staff = sum(x["pos_orders"] for x in items)
     summary = {
-        "pos_net_total": sum(x["pos_net"] for x in items),
+        "pos_orders_total": pos_orders_staff,
+        "pos_net_total": pos_net_staff,
         "pos_commission_total": sum(x["pos_commission"] for x in items),
+        "admin_pos_orders": admin_pos["orders"],
+        "admin_pos_net": admin_pos["net"],
+        "shop_pos_net_total": pos_net_staff + admin_pos["net"],
+        "pancake_revenue_total": sum(x["pancake_revenue"] for x in items),
         "tmdt_commission_total": sum(x["pancake_commission"] + x["koc_commission"] for x in items),
         "spa_revenue_total": sum(x["spa_revenue"] for x in items),
         "spa_commission_total": sum(x["spa_commission"] for x in items),
@@ -1568,9 +1759,12 @@ def get_commissions_breakdown(month: str, user=Depends(require_permission(PERM))
 
     conn.close()
     return {
-        "month": month,
+        "month": ref_month,
+        "date_from": first.isoformat(),
+        "date_to": last.isoformat(),
         "summary": summary,
         "dept_policies": dept_policies,
+        "pancake_default_rules": pancake_default_rules,
         "spa_rules": spa_rules,
         "spa_matrix_config": spa_matrix_config,
         "items": items
@@ -1633,23 +1827,22 @@ def update_dept_comm_policies(body: dict, user=Depends(require_permission(PERM))
 
     updated_count = 0
     if apply_to_staff and target_dept:
-        # Áp dụng cho tất cả nhân viên thuộc bộ phận này (trừ những người đang khóa 'custom' nếu force_all=False)
+        from services.commission import resolve_dept_comm_policy
         force_all = bool(body.get("force_all", True))
-        if force_all:
-            cur.execute("""
-                SELECT id FROM staff
-                WHERE COALESCE(is_active, 1) = 1
-                  AND (department = ? OR ((department IS NULL OR department = '') AND ? = CASE WHEN is_spa_worker = 1 THEN 'Spa & Grooming' ELSE 'Bán Lẻ POS' END))
-            """, (target_dept, target_dept))
-        else:
-            cur.execute("""
-                SELECT id FROM staff
-                WHERE COALESCE(is_active, 1) = 1
-                  AND COALESCE(commission_policy_mode, 'dept') = 'dept'
-                  AND (department = ? OR ((department IS NULL OR department = '') AND ? = CASE WHEN is_spa_worker = 1 THEN 'Spa & Grooming' ELSE 'Bán Lẻ POS' END))
-            """, (target_dept, target_dept))
-        staff_ids = [r["id"] for r in cur.fetchall()]
-        for sid in staff_ids:
+        cur.execute("""
+            SELECT id, department, is_spa_worker, COALESCE(commission_policy_mode, 'dept') AS mode
+            FROM staff
+            WHERE COALESCE(is_active, 1) = 1
+              AND COALESCE(is_payroll_staff, 1) = 1
+        """)
+        staff_ids = []
+        for r in cur.fetchall():
+            if not force_all and r["mode"] != "dept":
+                continue
+            resolved = resolve_dept_comm_policy(r["department"] or "", bool(r["is_spa_worker"]), policies)
+            if (r["department"] or "").strip() == target_dept or resolved.get("dept") == target_dept:
+                staff_ids.append((r["id"], (r["department"] or "").strip() or target_dept))
+        for sid, keep_dept in staff_ids:
             cur.execute("""
                 UPDATE staff
                 SET department = ?,
@@ -1658,7 +1851,7 @@ def update_dept_comm_policies(body: dict, user=Depends(require_permission(PERM))
                     enable_spa_commission = ?,
                     enable_tmdt_commission = ?
                 WHERE id = ?
-            """, (target_dept, pos_rate, spa_on, tmdt_on, sid))
+            """, (keep_dept, pos_rate, spa_on, tmdt_on, sid))
             _recalc_staff_orders_comm(cur, sid, pos_rate, month)
             updated_count += 1
 
@@ -1673,7 +1866,8 @@ def update_staff_commission_policy(staff_id: int, body: dict, user=Depends(requi
     conn = get_db()
     cur = conn.cursor()
     _ensure_staff_comm_cols(cur)
-    policies = {p["dept"]: p for p in _load_dept_comm_policies(cur)}
+    from services.commission import resolve_dept_comm_policy
+    pol_list = _load_dept_comm_policies(cur)
 
     cur.execute("SELECT * FROM staff WHERE id = ?", (staff_id,))
     st = cur.fetchone()
@@ -1686,8 +1880,8 @@ def update_staff_commission_policy(staff_id: int, body: dict, user=Depends(requi
     mode = (body.get("policy_mode") if "policy_mode" in body else st.get("commission_policy_mode")) or "dept"
     month = body.get("month")
 
-    if mode == "dept" and dept in policies and not body.get("manual_override"):
-        pol = policies[dept]
+    if mode == "dept" and not body.get("manual_override"):
+        pol = resolve_dept_comm_policy(dept, bool(st.get("is_spa_worker")), pol_list)
         pos_rate = float(pol.get("pos_rate") or 0.0)
         spa_on = int(pol.get("spa_on") or 0)
         tmdt_on = int(pol.get("tmdt_on") or 0)

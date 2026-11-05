@@ -93,7 +93,8 @@ def test_mapping_later_deducts_and_remap_moves_stock():
 def test_commission_formula_matches_old_tool():
     r = P.DEFAULT_RULES
     assert P.calc_commission(119_999_999, r) == {"rate": 0.0, "commission": 0, "bonus": 0}
-    assert P.calc_commission(200_000_000, r) == {"rate": 2.5, "commission": 2_000_000, "bonus": 1_300_000}
+    # Quyết định nghiệp vụ 2026-11-04: lương nền 85% = 5.525.000đ -> đạt mốc 120tr bù +975.000đ lên chuẩn 6.500.000đ
+    assert P.calc_commission(200_000_000, r) == {"rate": 2.5, "commission": 2_000_000, "bonus": 975_000}
     assert P.calc_commission(400_000_000, r)["commission"] == round(280_000_000 * 0.03)
     assert P.calc_commission(600_000_000, r)["rate"] == 3.5
 

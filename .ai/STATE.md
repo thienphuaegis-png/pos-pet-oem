@@ -1,55 +1,41 @@
 # PROJECT STATE — POS Petcare & Retail (Cloud D1 + Vercel + Local dual-server)
 
-**Checkpoint:** 2026-10-31 — Dual-server 8998/8997 + 2 domain Vercel, chặn tồn âm, quy tắc mã chứng từ, ví Spa theo danh mục, xuất Excel sổ quỹ/đơn hàng, tối ưu D1 (v3.6.85)
+**Checkpoint:** 2026-11-05 — Hoàn thành trọn gói Plan đồng bộ HRM & Hoa hồng Pancake (`hrm-ux-sync-grouping-and-commissions`)
 **Lịch sử checkpoint:** `.ai/checkpoints/CHECKPOINT_2026_10_25.md` (trước đó `CHECKPOINT_2026_10_23.md`)
-**Active Plan:** `.ai/plans/2026-10-30-fix-pos-search-and-cloud-load-speed.md`
+**Archived Plan:** `.ai/plans/archive/2026-11-04-hrm-ux-sync-grouping-and-commissions.md` (Mockup: `.ai/sketches/2026-11-04-hrm-ux-overhaul-and-commissions.html` — ĐÃ CODE & VERIFY)
 **Server:** Local `http://127.0.0.1:8998` (MCare, `data/pos.db`) + `:8997` (PetNT, `data/pos_instance2.db`) — `CHAY_2_MAY_CHU.bat` → `scripts/share_online.py --dual`
 **Cloud:** `https://mcarepet.vercel.app` & `https://petnt.vercel.app` (Cloudflare D1); deploy `scripts/deploy_2_vercel.py`
-**Working dir:** `D:/Projects_Hermes/pos-petcare2` (đổi tên từ `pos-offline-petcare2`)
+**Working dir:** `D:/Projects_Hermes/pos-petcare2`
 **Remote:** `https://github.com/thienphuaegis-png/pos-pet-oem.git` (Branch: `main`)
-**Version:** `v3.6.85` (động từ `version_helper.py` + git, HEAD `0ce289d`)
+**Version:** `v3.6.85` (`version_helper.py` + git, HEAD `758f282`)
 
 ---
 
-## 1. Phiên Hiện Tại ✅ (2026-10-28 → 2026-11-01)
-- **Fix 13 test fail → 4 bug thật (2026-11-01):** (1) Thăng hạng: các nhóm cùng `min_points=0` (LE/GOLD/TITAN/LAZADA...) bị nhảy ngang sang nhóm priority cao nhất (LAZADA) mỗi đơn tích điểm → `services/loyalty.py::apply_tier_by_points` chỉ lên khi ngưỡng mới cao hơn, chỉ hạ khi điểm < ngưỡng hiện tại; dùng chung ở `routers/pos.py` (bán/hủy), `routers/topup.py`, `routers/cashbook.py`, `services/telegram_bot.py`. Dữ liệu đã lệch chưa sửa: #1, #29313 (`pos_instance2.db`), #22256. (2) `reset-data` 500: xóa `pets` trước `hotel_bookings` (FK NO ACTION) → đổi thứ tự `routers/settings.py`. (3) AI OEM heuristic hardcode ID 10/SP 34-37 → tra CSDL theo tên (`routers/ai_assistant.py`). (4) `index.html` bỏ `text-[11px]` + 3 emoji → Phosphor.
-- Test: ID cố định đụng KH thật (7777/9500/9600) → dải 9.00x.xxx; 4 test seed DB trắng riêng (`tmp_path` + `POS_DB_PATH`). Import Excel giữ hành vi GHI ĐÈ công nợ/điểm (`f3c697c`, đồng bộ KiotViet) — test cập nhật theo.
-- **Dual-server + Vercel bridge (`0ce289d` & fix Vercel register & pure proxy):** 2 server local độc lập (8998 → `pos.db`, 8997 → `pos_instance2.db`, `POS_SIBLING_MODE=1` tắt Telegram bot bản 2). Đã tách Vercel thành Pure Reverse Proxy (`deploy/vercel_bridge/`), KHÔNG chứa CSDL, chỉ chuyển tiếp mọi request về link tunnel của 2 port máy chủ Windows; khi máy chủ tắt, tự động trả trang 503 "Máy chủ ngoại tuyến" chống nhầm lẫn dữ liệu. Đã tái tạo lại và gán 2 domain `https://mcarepet.vercel.app` & `https://petnt.vercel.app`.
-- **POS/Spa/Sổ quỹ (`1ef3331`):** chặn bán/đổi hàng làm tồn âm; quy tắc mã chứng từ tùy chỉnh; bật/tắt dùng ví Spa theo danh mục (`pet_service_categories.allow_spa_wallet`, chỉ combo VIP, không phụ thu/nhuộm); xuất Excel sổ quỹ theo khoảng ngày.
-- **Cloud D1 (`90353f2`, `cf9bde5`, `7aa6e8c`):** gốc lỗi POS không tìm được hàng = D1 thiếu cột `requires_bom` → `/api/products` 500; thêm cột + fallback. Gộp multi-query thành batch D1, bỏ table scan Spa KPI/briefing, contacts compact, httpx keep-alive; logo PetNT giữ khi D1 hết quota (fallback SQLite); POS cart hết giật; menu thao tác phiếu nhập không bị cắt.
-- **Đơn hàng (`2f6356f`, `d6b17e9`, `4e88b70`):** xuất Excel đơn đã lọc/đã chọn kèm sheet chi tiết dòng; in phiếu giao hàng A4 không giá.
-- **HRM/Báo cáo/Auth (`fcd0031`, `649827a`):** import nhân sự từ Google Sheet tạo hàng loạt tài khoản đăng nhập bằng SĐT; sửa Excel báo cáo 500 + chia theo tháng; UI đăng nhập tách đôi, đổi mật khẩu, xóa nhân viên.
-- **BOM/Nhập hàng/Guide (`c7fd8dc`, `cdbccad`, `63e7a0a`):** tách hàng bán lẻ vs hàng tự sản xuất, loại nguyên liệu, toggle BOM 1 chạm; lưới hàng chờ đặt từ phiếu yêu cầu; mẫu in sổ quỹ; sửa tour spotlight.
-- **Migrate Cloud (`265349d`):** chuyển sang Cloudflare D1 + Vercel 2 instance, bỏ đóng gói EXE offline.
-- **Checkpoint fix (phiên này):** `tests/test_checkpoint_integrity.py` hardcode path cũ → đổi sang path tương đối `ROOT`; `scripts/generate_checkpoint.py` lấy tên project từ thư mục. `database.py` `init_db()` trên DB trắng query `settings` trước khi tạo bảng (migration `migration_spa_cat_allow_wallet_v1` từ `1ef3331`) → thêm `CREATE TABLE IF NOT EXISTS settings` ngay trước.
+## 1. Phiên Hiện Tại ✅ (2026-11-05)
+- **Engine Chấm Công & Lưới Tháng (`services/payroll_engine.py`, `services/payroll_service.py`, `static/js/modules/hrm.js`):** Không trừ phạt Vắng `-500.000 đ/ngày` cho NV cả kỳ chưa có lượt quẹt vân tay (`0 công, 0 phạt`, bỏ gạch đỏ); Lưới Chấm Công chỉ đọc, 2 hàng tiêu đề (`01..31` + `T2..T7, CN`), tô nền hồng cột `CN`, ghim `Mã NV + Họ và Tên`.
+- **Ghim Cột Bảng Lương & Mở Đủ 29 Cột `Nhân Sự` (`routers/hrm.py`, `static/js/modules/hrm.js`, `templates/index.html`):** `sticky left` cụm `⚠ + Mã NV + Họ và Tên` (kể cả dòng `Tổng cộng`); tab `Nhân Sự` mở 29 cột kèm Popover `Cột hiển thị` (`GET/PUT /api/hrm/staff-columns`) và ghi chú nền 85% KPI (`5.525.000 đ` → `6.500.000 đ`).
+- **Thanh Thời Gian Dùng Chung + Sửa Mất Tên + Gom Nhóm Tổng Theo NV:** Nút `Tháng này | Tháng trước | Khoảng ngày` đồng bộ 2 chiều HRM & Sàn Pancake; sửa mất tên NV ở `Tăng Ca` & `Tạm Ứng` + sửa `pa.account_type`; ngày `DD/MM/YYYY (Thứ)`; gom nhóm theo NV kèm tổng từng người + `<tfoot>` tổng kỳ ở `Xin Off`, `Tăng Ca`, `Tạm Ứng`, `Điều Chỉnh Lương`.
+- **Hoa Hồng POS & Tiến Độ Đủ/Thiếu Pancake (`services/commission.py`, `services/pancake.py`, `routers/hrm.py`, `static/js/modules/hrm.js`):** Chế độ `dept` tự hưởng `% Bán POS` của Bộ phận (tách rõ đơn TK `Admin`); thưởng đạt mốc `120tr` của `NV17` về `+975.000 đ` (lên đúng `6.500.000 đ`), bỏ ẩn NV `0 đ` mặc định, luôn hiện tiến độ `Thực đạt / Mốc (Đạt / Thiếu ... đ)`.
 
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
-- 2026-11-01 full suite `pytest tests/ --ignore=tests/manual`: **944 passed, 0 failed, 10 skipped** (203s). Mới: `tests/test_loyalty_tier.py`.
-- 2026-10-31 full suite `pytest tests/ --ignore=tests/manual`: **929 passed, 13 failed, 10 skipped** (235s).
-- 13 fail còn lại phụ thuộc DB thật/đang chạy, không do checkpoint: dữ liệu `Lucky Star`/SP37 (`test_ai_agent_smart_oem`, `test_oem_bom_cost_calculation` ×2), `database is locked` khi server 8998 bật (`test_cashbook_supplier_debt_no_duplicate`, `test_k80_discount`), `UNIQUE contacts.id` (`test_cashbook_edit_delete`), assert UI cũ (`test_k80_discount`, `test_po_and_oem_6col_table`, `test_ui_elaya_anti_slop_7fixes`), `test_points_and_tier_upgrade`, `test_rbac_and_supplier_dedup` ×2, `test_ai_batch_drafts_and_projected_stock`, `test_bugfixes_2026_10::test_reset_data_customers_lowercase`.
-- Fix `settings` trước migration: `test_cashbook_print_template`, `test_purchase_requests_pending_items` từ fail → pass.
-- Feature tests mới: `test_pos_spa_10_requirements_2026_10_31`, `test_query_performance_guard`, `test_hrm_sheets_import`, `test_reports_analytics`, `test_order_delivery_note_print`, `test_password_visibility`, `test_bom_retail_separation_and_ingredient_exclusion`, `test_d1_adapter`: pass.
-- `tests/test_checkpoint_integrity.py` & `tests/test_html_integrity.py`: xem commit `docs(checkpoint)` 2026-10-31.
+- 2026-11-05 `pytest` trên `test_hrm_ux_sync_grouping_and_commissions.py` + 13 bộ test HRM / Commission / Pancake / D1 / HTML / Elaya / Query Guard / Checkpoint: **80 passed, 0 failed** (34.5s).
+- `pyflakes` (6 file Python) = 0 lỗi; `node --check` (`hrm.js`, `marketplace.js`, `app.js`) = exit 0.
 
 ---
 
 ## 3. Files Thay Đổi Chính
-- `server.py`, `scripts/share_online.py`, `scripts/deploy_2_vercel.py`, `CHAY_2_MAY_CHU.bat`, `TAT_POS.bat`: dual-server + Vercel bridge.
-- `database.py`: D1 adapter (batch, keep-alive, fallback SQLite khi hết quota), migration `requires_bom`, `allow_spa_wallet`.
-- `routers/pos.py`, `routers/cashbook.py`, `routers/partners.py`, `routers/products.py`, `routers/inventory.py`, `routers/hrm.py`, `routers/ai_assistant.py`.
-- `static/js/pos.js`, `static/js/modules/{productions,spa,hrm,purchases,contacts,reports_analytics}.js`, `templates/index.html`.
+- Backend: `services/payroll_engine.py`, `services/payroll_service.py`, `services/commission.py`, `services/pancake.py`, `routers/hrm.py`.
+- Frontend: `templates/index.html`, `static/js/modules/hrm.js`, `static/js/modules/marketplace.js`, `static/js/app.js`.
+- Tests: `tests/test_hrm_ux_sync_grouping_and_commissions.py`, `tests/test_marketplace_pancake.py`, `tests/test_hrm_attendance_detail_sort_sum_and_50k_fix.py`.
 
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
-- [ ] Sửa phân hạng KH bị nhảy sang LAZADA do bug cũ (#1, #29313 trên `pos_instance2.db`; #22256) — chờ anh xác nhận nhóm đúng.
-- [ ] Khóa chỉnh sửa trực tiếp trên lưới lương (bỏ nút Sửa số để bảo toàn tính bất biến kế toán).
-- [ ] Bỏ droplist dư "Loại điều chỉnh" trong modal điều chỉnh lương (chỉ giữ 2 ô Lương CB & Phụ cấp).
-- [ ] Bảng riêng quản lý Nhân Viên Miễn Chấm Công (mặc định đủ công trừ off chế độ & xin off).
-- [ ] Nút tự báo công Check-in/Check-out trên trang Phiếu Lương cho nhân sự Remote.
-- [ ] Chuẩn hóa parser máy chấm công vân tay (format DD/MM/YYYY) & tính lương Sales Pancake (KPI 85%/100%), Part-time theo giờ.
+- [ ] Kiểm tra trực quan trên trình duyệt & commit toàn bộ đợt nâng cấp HRM + Hoa hồng Pancake (`feat(hrm,pancake): sync period bar, sticky columns, staff grouping, and KPI progress`).
+- [ ] Đồng bộ đơn thực tế Tháng 10/2026 trên `Bán Hàng Sàn TMĐT → Pancake` (chọn `Tháng trước`) và gán nick `Thùy Dương -> NV17` để lên số thật.
+- [ ] Xác nhận & sửa phân hạng KH bị nhảy sang LAZADA do bug cũ (#1, #29313 trên `pos_instance2.db`; #22256).
 
 ---
 

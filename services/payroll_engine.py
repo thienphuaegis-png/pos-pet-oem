@@ -120,6 +120,7 @@ class DayInput:
     employed: bool = True         # trong khoảng ngày nhận việc .. ngày nghỉ việc
     probation: bool = False
     exempt: bool = False          # NV miễn chấm công: mặc định đủ công, không phạt
+    no_attendance_data: bool = False  # Cả kỳ chưa có lượt quẹt vân tay nào -> để trống 0 công, 0 phạt
 
 
 def day_thresholds(b: Block, r: Rules) -> tuple:
@@ -177,6 +178,9 @@ def classify_day(d: DayInput, b: Block, r: Rules) -> DayResult:
             res.code = "L"
         elif d.work_date.weekday() == 6 and b.off_sunday:
             res.code = "CN"
+        elif d.no_attendance_data:
+            res.code = ""
+            res.penalty = 0
         else:
             if d.leave != "off_morning":
                 res.violations.append("absent")
