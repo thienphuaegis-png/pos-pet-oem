@@ -5031,48 +5031,111 @@
         }
         window.onOrderDatePresetChange = onOrderDatePresetChange;
 
+        let _orderCustFilterTimer = null;
+
         async function initOrderFilterDropdowns() {
-            // Nạp danh sách nhân viên vào dropdown lọc nếu chưa có
+            // Nạp danh sách nhân viên vào dropdown lọc nếu chưa có (chạy nền, không chặn tải hóa đơn)
             const staffSelect = document.getElementById('filter-order-staff');
             if (staffSelect && staffSelect.options.length <= 1) {
                 try {
                     const res = await fetch('/api/staff');
                     if (res.ok) {
                         const staffList = await res.json();
+                        const frag = document.createDocumentFragment();
                         staffList.forEach(s => {
                             const opt = document.createElement('option');
                             opt.value = s.id;
                             opt.textContent = s.name;
-                            staffSelect.appendChild(opt);
+                            frag.appendChild(opt);
                         });
+                        staffSelect.appendChild(frag);
                     }
                 } catch (e) {
                     console.error("Lỗi nạp staff filter:", e);
                 }
             }
-
-            // Nạp danh sách khách hàng vào dropdown lọc nếu chưa có
-            const custSelect = document.getElementById('filter-order-customer');
-            if (custSelect && custSelect.options.length <= 1) {
-                try {
-                    const res = await fetch('/api/contacts?type=customer&limit=500');
-                    if (res.ok) {
-                        const customers = await res.json();
-                        customers.forEach(c => {
-                            const opt = document.createElement('option');
-                            opt.value = c.id;
-                            opt.textContent = `${c.name} (${c.phone || 'K-SĐT'})`;
-                            custSelect.appendChild(opt);
-                        });
-                    }
-                } catch (e) {
-                    console.error("Lỗi nạp customer filter:", e);
-                }
-            }
         }
 
+        async function renderOrderCustomerFilterList(kw = '') {
+            const dd = document.getElementById('filter-order-customer-dropdown');
+            if (!dd) return;
+            const q = (kw || '').trim();
+            let list = [];
+
+            if (typeof posContacts !== 'undefined' && Array.isArray(posContacts) && posContacts.length > 0) {
+                if (!q) {
+                    list = posContacts.slice(0, 25);
+                } else {
+                    const qNorm = typeof removeVietnameseTones === 'function' ? removeVietnameseTones(q) : q.toLowerCase();
+                    for (const c of posContacts) {
+                        if (!c) continue;
+                        const raw = `${c.name || ''} ${c.phone || ''}`;
+                        const norm = typeof removeVietnameseTones === 'function' ? removeVietnameseTones(raw) : raw.toLowerCase();
+                        if (norm.includes(qNorm)) {
+                            list.push(c);
+                            if (list.length >= 25) break;
+                        }
+                    }
+                }
+            } else {
+                try {
+                    const p = new URLSearchParams({ type: 'customer', compact: '1', limit: '25' });
+                    if (q) p.set('search', q);
+                    const res = await fetch(`/api/contacts?${p.toString()}`);
+                    if (res.ok) list = await res.json();
+                } catch (e) {}
+            }
+
+            const allRow = `<div onclick="selectOrderCustomerFilter('', '')" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-sky-50 cursor-pointer">-- Tất cả khách hàng --</div>`;
+            const itemRows = (list || []).map(c => {
+                const label = `${c.name || 'Khách'} (${c.phone || 'K-SĐT'})`;
+                const safeLabel = label.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                return `<div onclick="selectOrderCustomerFilter('${c.id}', this.dataset.label)" data-label="${safeLabel}" class="px-2.5 py-1.5 text-xs text-slate-700 hover:bg-sky-50 cursor-pointer truncate"><span class="font-semibold">${c.name || ''}</span> <span class="text-slate-400">${c.phone ? '(' + c.phone + ')' : ''}</span></div>`;
+            }).join('');
+            dd.innerHTML = allRow + (itemRows || '<div class="px-2.5 py-2 text-xs text-slate-400 text-center">Không tìm thấy khách phù hợp</div>');
+            dd.classList.remove('hidden');
+        }
+
+        function openOrderCustomerFilterDropdown() {
+            const inp = document.getElementById('filter-order-customer-search');
+            renderOrderCustomerFilterList(inp ? inp.value : '');
+        }
+        window.openOrderCustomerFilterDropdown = openOrderCustomerFilterDropdown;
+
+        function onOrderCustomerFilterInput(val) {
+            const hid = document.getElementById('filter-order-customer');
+            const clr = document.getElementById('btn-clear-order-cust-filter');
+            if (!val || !val.trim()) {
+                if (hid) hid.value = '';
+                if (clr) clr.classList.add('hidden');
+            }
+            if (_orderCustFilterTimer) clearTimeout(_orderCustFilterTimer);
+            _orderCustFilterTimer = setTimeout(() => renderOrderCustomerFilterList(val), 120);
+        }
+        window.onOrderCustomerFilterInput = onOrderCustomerFilterInput;
+
+        function selectOrderCustomerFilter(id, label) {
+            const hid = document.getElementById('filter-order-customer');
+            const inp = document.getElementById('filter-order-customer-search');
+            const dd = document.getElementById('filter-order-customer-dropdown');
+            const clr = document.getElementById('btn-clear-order-cust-filter');
+            if (hid) hid.value = id || '';
+            if (inp) inp.value = id ? (label || '') : '';
+            if (clr) clr.classList.toggle('hidden', !id);
+            if (dd) dd.classList.add('hidden');
+            applyOrdersFilters();
+        }
+        window.selectOrderCustomerFilter = selectOrderCustomerFilter;
+
+        document.addEventListener('click', function(ev) {
+            const wrap = document.getElementById('order-filter-cust-wrap');
+            if (wrap && !wrap.contains(ev.target)) {
+                document.getElementById('filter-order-customer-dropdown')?.classList.add('hidden');
+            }
+        });
+
         async function loadOrdersList() {
-            await initOrderFilterDropdowns();
+            initOrderFilterDropdowns();
             await applyOrdersFilters();
         }
 
@@ -5121,6 +5184,9 @@
             document.getElementById('filter-order-payment').value = '';
             document.getElementById('filter-order-staff').value = '';
             document.getElementById('filter-order-customer').value = '';
+            const custSearchInp = document.getElementById('filter-order-customer-search');
+            if (custSearchInp) custSearchInp.value = '';
+            document.getElementById('btn-clear-order-cust-filter')?.classList.add('hidden');
             document.getElementById('filter-order-product').value = '';
             document.getElementById('filter-order-debt').value = '';
             document.getElementById('search-orders').value = '';
@@ -5414,6 +5480,10 @@
                 let prodTotal = 0;
                 let svcTotal = 0;
 
+                const ordVatRaw = Number(ord.vat_amount) || 0;
+                const ordExpectedNoVat = Math.max(0, (Number(ord.total_amount) || 0) - (Number(ord.discount) || 0) - (Number(ord.spa_wallet_deduction) || 0) + (Number(ord.shipping_fee) || 0));
+                const ordHasAddedVat = ordVatRaw > 0 && (Number(ord.final_amount) || 0) > ordExpectedNoVat + 0.5;
+
                 const tbody = document.getElementById('view-order-items');
                 tbody.innerHTML = (ord.items || []).map((item, idx) => {
                     const sub = item.subtotal || ((item.quantity || 0) * (item.price || 0));
@@ -5426,12 +5496,15 @@
                     const typeBadge = isSvc 
                         ? '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700 mr-1.5 whitespace-nowrap">💆 Dịch vụ</span>'
                         : '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700 mr-1.5 whitespace-nowrap">📦 Sản phẩm</span>';
+                    const vatBadge = (ordHasAddedVat && Number(item.vat_rate) > 0)
+                        ? `<span class="ml-1.5 px-1.5 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">VAT ${Number(item.vat_rate)}%</span>`
+                        : '';
 
                     return `
                     <tr class="border-b hover:bg-gray-50">
                         <td class="p-2 text-center text-gray-500">${idx + 1}</td>
                         <td class="p-2 font-medium text-slate-800 flex items-center">
-                            ${typeBadge} <span>${item.product_name}</span>
+                            ${typeBadge} <span>${item.product_name}</span>${vatBadge}
                         </td>
                         <td class="p-2 text-right font-mono font-bold">${item.quantity} ${item.unit || ''}</td>
                         <td class="p-2 text-right font-mono">${formatMoney(item.price)}</td>
@@ -5454,6 +5527,17 @@
                         elWalletDeduct.textContent = `-${formatMoney(walletDeduct)}`;
                     } else {
                         elWalletRow.classList.add('hidden');
+                    }
+                }
+
+                const elVatRow = document.getElementById('view-order-vat-row');
+                const elVatVal = document.getElementById('view-order-vat');
+                if (elVatRow && elVatVal) {
+                    if (ordHasAddedVat && ordVatRaw > 0) {
+                        elVatRow.classList.remove('hidden');
+                        elVatVal.textContent = `+${formatMoney(ordVatRaw)}`;
+                    } else {
+                        elVatRow.classList.add('hidden');
                     }
                 }
 
@@ -9113,6 +9197,11 @@
             const totalSavings = isWholesale ? billDiscount : (itemDiscountTotal + billDiscount);
             const finalDiscountToDisplay = isWholesale ? billDiscount : (totalSavings > 0 ? (billDiscount > 0 ? billDiscount : totalSavings) : (billDiscount || 0));
 
+            const previewVatRaw = Number(ord.vat_amount) || 0;
+            const previewExpectedNoVat = Math.max(0, (Number(ord.total_amount) || 0) - (Number(ord.discount) || 0) - (Number(ord.spa_wallet_deduction) || 0) + (Number(ord.shipping_fee) || 0));
+            const previewHasAddedVat = ord.add_vat === true || (previewVatRaw > 0 && (Number(ord.final_amount) || 0) > previewExpectedNoVat + 0.5);
+            const previewEffVat = previewHasAddedVat ? previewVatRaw : 0;
+
             const printData = {
                 ten_cua_hang: currentSettings.shop_name || "PET CARE SPA & CLINIC",
                 dia_chi: currentSettings.shop_address || "123 Đường Trần Phú, Nha Trang",
@@ -9128,6 +9217,8 @@
                 tong_tien: formatMoney(ord.total_amount || 0),
                 giam_gia: formatMoney(finalDiscountToDisplay),
                 tiet_kiem: formatMoney(totalSavings),
+                tien_thue: formatMoney(previewEffVat),
+                raw_tien_thue: previewEffVat,
                 phai_tra: formatMoney(ord.final_amount || 0),
                 khach_tra: formatMoney(ord.paid_amount || 0),
                 con_no: formatMoney(ord.debt_amount || 0),
@@ -9280,7 +9371,7 @@
                                     <td style="border: 1px solid #ccc; padding: 4px 2px; text-align: right;">0%</td>
                                     <td style="border: 1px solid #ccc; padding: 4px 2px; font-weight: bold;">${it.quantity}</td>
                                     <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right; font-weight: bold;">${formatMoney(it.quantity * it.price)}</td>
-                                    <td style="border: 1px solid #ccc; padding: 4px 4px; font-size: 9px; color: #666;">-</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px; font-size: 9px; color: #334155;">${(previewHasAddedVat && Number(it.vat_rate) > 0) ? `VAT ${Number(it.vat_rate)}% (+${formatMoney(it.vat_amount || Math.round(it.quantity * it.price * (Number(it.vat_rate) / 100)))})` : '-'}</td>
                                 </tr>
                                 `).join('')}
                             </tbody>
@@ -9319,6 +9410,7 @@
                                 <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💰 Tổng Kết Thanh Toán</div>
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Tổng tiền hàng:</span> <span>${printData.tong_tien}</span></div>
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Chiết khấu:</span> <span>${printData.giam_gia}</span></div>
+                                ${previewEffVat > 0 ? `<div style="display: flex; justify-content: space-between; margin-bottom: 2px; color: #047857; font-weight: 600;"><span>Thuế GTGT (VAT):</span> <span>+${printData.tien_thue}</span></div>` : ''}
                                 <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 11px; margin-bottom: 2px; border-top: 1px dashed #999; padding-top: 2px;"><span>PHẢI TRẢ:</span> <span style="color: #b91c1c;">${printData.phai_tra}</span></div>
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Khách đã trả:</span> <span>${printData.khach_tra}</span></div>
                                 <div style="display: flex; justify-content: space-between; font-weight: bold;"><span>Còn nợ lại:</span> <span>${printData.con_no}</span></div>
@@ -9430,6 +9522,7 @@
             txt = txt.replace(/{{dia_chi_khach}}/g, printData.dia_chi_khach || '');
                     txt = txt.replace(/{{tong_tien}}/g, printData.tong_tien);
                     txt = txt.replace(/{{giam_gia}}/g, printData.giam_gia);
+                    txt = txt.replace(/{{tien_thue}}/g, printData.tien_thue || formatMoney(0));
                     txt = txt.replace(/{{tiet_kiem}}/g, printData.tiet_kiem);
                     txt = txt.replace(/{{phai_tra}}/g, printData.phai_tra);
                     txt = txt.replace(/{{khach_tra}}/g, printData.khach_tra);

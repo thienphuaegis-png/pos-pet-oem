@@ -30,6 +30,7 @@ class OrderCreate(BaseModel):
     payments: Optional[List[PaymentSplitIn]] = None
     use_spa_wallet: Optional[bool] = False
     spa_wallet_amount: Optional[float] = 0
+    add_vat: Optional[bool] = False
 
 class OrderUpdate(BaseModel):
     customer_id: Optional[int] = None
@@ -39,6 +40,7 @@ class OrderUpdate(BaseModel):
     paid_amount: Optional[float] = None
     note: Optional[str] = None
     warehouse_id: Optional[int] = 1
+    add_vat: Optional[bool] = None
     items: Optional[List[OrderItemIn]] = None
 
 class ReturnItemSchema(BaseModel):
@@ -81,6 +83,7 @@ class ProductCreate(BaseModel):
     min_stock: Optional[float] = 5.0
     image_url: Optional[str] = ""
     requires_bom: Optional[int] = None
+    vat_rate: Optional[float] = 0.0
 
 class ProductUpdate(BaseModel):
     code: Optional[str] = None
@@ -94,6 +97,7 @@ class ProductUpdate(BaseModel):
     min_stock: Optional[float] = None
     image_url: Optional[str] = None
     requires_bom: Optional[int] = None
+    vat_rate: Optional[float] = None
 
 class ProductBulkStatusIn(BaseModel):
     product_ids: List[int]

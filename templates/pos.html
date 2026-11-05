@@ -121,12 +121,22 @@
                 margin: 0;
             }
         }
+        .vat-col {
+            display: none !important;
+        }
+        .pos-vat-enabled .vat-col {
+            display: block !important;
+        }
         @media (min-width: 768px) {
             .cart-grid-header,
             .cart-row-responsive {
                 display: grid !important;
-                grid-template-columns: 34px 34px 85px minmax(130px, 1fr) 48px 100px 175px 120px !important;
+                grid-template-columns: 34px 34px 44px 85px minmax(130px, 1fr) 48px 100px 175px 120px !important;
                 gap: 8px !important;
+            }
+            .cart-grid-header.pos-vat-enabled,
+            .pos-vat-enabled .cart-row-responsive {
+                grid-template-columns: 34px 34px 44px 80px minmax(115px, 1fr) 46px 96px 145px 92px 115px !important;
             }
         }
         @media (max-width: 767px) {
@@ -239,14 +249,16 @@
             </div>
 
             <!-- Table Header (Desktop) -->
-            <div class="cart-grid-header hidden md:grid bg-slate-50 border-b border-slate-200 px-3 md:px-4 py-2.5 items-center text-xs font-bold text-slate-600 uppercase tracking-wider shrink-0 select-none">
+            <div id="pos-cart-grid-header" class="cart-grid-header hidden md:grid bg-slate-50 border-b border-slate-200 px-3 md:px-4 py-2.5 items-center text-xs font-bold text-slate-600 uppercase tracking-wider shrink-0 select-none">
                 <div class="text-center">Xóa</div>
                 <div class="text-center">STT</div>
+                <div class="text-center">Ảnh</div>
                 <div>Mã hàng</div>
                 <div>Tên hàng hóa</div>
                 <div class="text-center">ĐVT</div>
                 <div class="text-center">SL</div>
                 <div class="text-right">Đơn giá</div>
+                <div class="text-right text-emerald-700 vat-col">Thuế VAT</div>
                 <div class="text-right">Thành tiền</div>
             </div>
 
@@ -394,6 +406,15 @@
                         <span id="pos-points-discount-display" class="font-bold text-emerald-600">0 đ</span>
                     </div>
 
+                    <!-- Checkbox Tính thuế VAT -->
+                    <div id="pos-vat-row" class="flex justify-between items-center text-slate-600 text-xs pt-1 select-none">
+                        <label class="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-700">
+                            <input type="checkbox" id="chk-pos-enable-vat" onchange="togglePosVatMode(this.checked)" class="rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5 cursor-pointer">
+                            <span>Tính thuế VAT:</span>
+                        </label>
+                        <span id="pos-vat-display" class="font-bold text-slate-500">0 đ</span>
+                    </div>
+
                     <!-- Khách cần trả (Highlight) -->
                     <div class="flex justify-between items-baseline pt-2 border-t border-slate-200">
                         <span class="font-bold text-slate-800 text-sm">Khách cần trả:</span>
@@ -502,6 +523,13 @@
                             <button type="button" id="btn-item-disc-pct" onclick="setItemDiscountType('pct')" class="px-2.5 py-1 font-bold text-xs bg-slate-100 text-slate-700">%</button>
                         </div>
                     </div>
+                </div>
+
+                <!-- Thuế VAT -->
+                <div>
+                    <label class="font-bold text-slate-500 block mb-1">Thuế VAT (%):</label>
+                    <input type="number" id="modal-item-vat-rate" value="0" min="0" max="100" step="any"
+                           class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
                 </div>
 
                 <!-- Giá bán thực tế -->

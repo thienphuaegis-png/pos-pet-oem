@@ -1,25 +1,31 @@
-"""Deploy tự động 2 domain Vercel (mcarepet.vercel.app & petnt.vercel.app) làm Proxy thuần về 2 cổng 8998 & 8997."""
+"""Deploy tự động 2 domain Vercel (mcarepet.vercel.app & petnt.vercel.app):
+- Phát trực tiếp toàn bộ /static/* từ Edge CDN Vercel (giảm tải 100% JS/CSS/font khỏi Tailscale Funnel)
+- Proxy động (/ & /api/*) từ vùng hkg1 (Hong Kong) về máy chủ cửa hàng (8998 / 8997).
+"""
 import json
 import os
+import shutil
 import subprocess
+import sys
+import tempfile
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BRIDGE_DIR = os.path.join(BASE_DIR, "deploy", "vercel_bridge")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 AUTH_FILE = os.path.join(BASE_DIR, ".cf_auth.json")
 
 
 def main():
-    if not os.path.exists(AUTH_FILE):
-        print("❌ Không tìm thấy file .cf_auth.json để lấy thông tin Cloudflare D1!")
-        return
+    sync_env = "--sync-env" in sys.argv
+    auth = {}
+    if os.path.exists(AUTH_FILE):
+        with open(AUTH_FILE, "r", encoding="utf-8") as f:
+            auth = json.load(f)
 
-    with open(AUTH_FILE, "r", encoding="utf-8") as f:
-        auth = json.load(f)
-
-    acc = auth.get("account_id")
-    tok = auth.get("api_token")
-    if not acc or not tok:
-        print("❌ File .cf_auth.json thiếu account_id hoặc api_token!")
+    acc = auth.get("account_id", "")
+    tok = auth.get("api_token", "")
+    if sync_env and (not acc or not tok):
+        print("[!!] Thiếu .cf_auth.json để đồng bộ biến môi trường Cloudflare D1!")
         return
 
     projects = [
@@ -44,42 +50,46 @@ def main():
         store = p["store_name"]
 
         print("=" * 72)
-        print(f"🚀 Đang cấu hình và deploy Vercel Bridge [{proj}] -> https://{domain}...")
+        print(f"[..] Đang đóng gói & deploy Vercel Bridge + Static CDN [{proj}] -> https://{domain}")
         print("=" * 72)
 
-        # 1. Link project
-        subprocess.run(f"npx vercel link --project {proj} --yes", shell=True, cwd=BRIDGE_DIR, check=True)
-
-        # 2. Cài đặt biến môi trường
-        env_vars = {
-            "CF_ACCOUNT_ID": acc,
-            "CF_API_TOKEN": tok,
-            "CF_D1_DATABASE_ID": db_id,
-            "STORE_NAME": store,
-        }
-        for k, v in env_vars.items():
-            cmd = f'npx vercel env add {k} --environment production,preview,development --value "{v}" --force --yes --project {proj}'
-            subprocess.run(cmd, shell=True, cwd=BRIDGE_DIR, check=True)
-
-        # 3. Deploy Production từ thư mục sạch không kèm .git
         stage_dir = os.path.join(tempfile.gettempdir(), f"pos_bridge_{proj}")
         if os.path.exists(stage_dir):
             shutil.rmtree(stage_dir)
-        shutil.copytree(BRIDGE_DIR, stage_dir, ignore=shutil.ignore_patterns(".vercel", ".env*"))
+
+        shutil.copytree(
+            BRIDGE_DIR,
+            stage_dir,
+            ignore=shutil.ignore_patterns(".vercel", ".env*", "nul", "NUL", "*.bak*"),
+        )
+        if os.path.exists(STATIC_DIR):
+            shutil.copytree(
+                STATIC_DIR,
+                os.path.join(stage_dir, "public", "static"),
+                ignore=shutil.ignore_patterns("mockups", "*.bak*", "nul", "NUL", "__pycache__"),
+            )
+
         subprocess.run(f"npx vercel link --project {proj} --yes", shell=True, cwd=stage_dir, check=True)
-        for k, v in env_vars.items():
-            cmd = f'npx vercel env add {k} --environment production,preview,development --value "{v}" --force --yes --project {proj}'
-            subprocess.run(cmd, shell=True, cwd=stage_dir, check=True)
+
+        if sync_env:
+            env_vars = {
+                "CF_ACCOUNT_ID": acc,
+                "CF_API_TOKEN": tok,
+                "CF_D1_DATABASE_ID": db_id,
+                "STORE_NAME": store,
+            }
+            for k, v in env_vars.items():
+                cmd = f'npx vercel env add {k} --environment production,preview,development --value "{v}" --force --yes --project {proj}'
+                subprocess.run(cmd, shell=True, cwd=stage_dir, check=True)
+
         subprocess.run(
             "npx vercel deploy --prod --yes",
             shell=True,
             cwd=stage_dir,
             check=True,
         )
-
-        # 4. Gán domain
-        subprocess.run(f"npx vercel domains add {domain} {proj}", shell=True, cwd=BRIDGE_DIR)
-        print(f"✅ Đã deploy thành công Vercel Proxy: https://{domain} -> {store}\n")
+        subprocess.run(f"npx vercel domains add {domain} {proj}", shell=True, cwd=stage_dir)
+        print(f"[OK] Đã deploy thành công: https://{domain}\n")
 
 
 if __name__ == "__main__":

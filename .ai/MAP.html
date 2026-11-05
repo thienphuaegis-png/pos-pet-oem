@@ -673,9 +673,10 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-11-05)
-    const ROADMAP_VERSION = 'v7.6-2026-11-05-payroll-items-koc-tiktok-scan-and-month-picker';
+    const ROADMAP_VERSION = 'v7.7-2026-11-05-b2b-partial-vat-orders-perf-and-vercel-cdn';
     const DEFAULT_TASKS = [
       // 0. CẬP NHẬT MỚI NHẤT (2026-11-05)
+      { id: 'b2b-partial-vat-orders-perf-and-vercel-cdn', cat: 'POS', title: 'Checkbox Tính Thuế VAT Riêng Từng Món Đại Lý, Tăng Tốc Tab Hóa Đơn & Đưa Static Lên Edge CDN Vercel', done: true, note: 'Checkbox #chk-pos-enable-vat ẩn/hiện cột Thuế VAT (.vat-col) trên giỏ hàng (ô nhập % tự do, không nút cứng); cài vat_rate mặc định ở Sản phẩm; cộng đúng tiền thuế sau giảm giá phân bổ vào final_amount, Sổ Quỹ, Công nợ, VietQR, Trả hàng và bản in A4 9 cột; bỏ waterfall & 13.000 option khách ở Tab Hóa Đơn + CTE item_count; đưa /static/* lên Vercel Edge CDN vùng hkg1.' },
       { id: 'payroll-manual-items-koc-scan-month-picker', cat: 'HRM', title: 'Nhập Nhiều Khoản Thưởng/Phụ Cấp/Trừ Khác Bảng Lương, Quét View TikTok 461 Video Theo Lô & Bộ Chọn Tháng Firefox/Chrome', done: true, note: 'Click ô PC Xăng/Khác, Thưởng khác, Trừ khác hoặc nút trên Phiếu Lương để nhập nhiều dòng chi tiết (manual_items_json lưu bền vững qua Tính Lương & in lên Phiếu Lương); sửa thiếu import asyncio gây lỗi JSON.parse, điều tiết TikWM 1.08s + fallback HTML TikTok + quét theo lô 8 video có Tạm dừng/Dừng hẳn; thay sạch 4 thẻ input month bằng Popover 12 tháng trên Tab KOC, Modal nguồn KOC, Phiếu Lương, Thợ Spa.' },
       { id: 'hrm-ux-sync-grouping-and-commissions', cat: 'HRM', title: 'Đồng Bộ Kỳ Thời Gian HRM & Pancake, Ghim Cột Bảng Lương/Nhân Sự 29 Cột, Gom Nhóm Tổng NV & Tiến Độ Đủ/Thiếu Hoa Hồng KPI', done: true, note: 'Chặn phạt Vắng -500k cho NV 0 lượt quẹt cả kỳ; Lưới Chấm Công chỉ đọc 2 hàng Thứ + tô cột CN + sticky Mã NV/Tên; Bảng Lương & Nhân Sự sticky left + Popover 29 cột (GET/PUT /api/hrm/staff-columns); Xin Off/Tăng Ca/Tạm Ứng/ĐC Lương sửa mất tên + ngày DD/MM/YYYY (Thứ) + gom nhóm tổng theo NV; Hoa hồng POS tự áp % Bộ phận (tách đơn Admin) & Pancake thưởng mốc 120tr +975k (5.525k -> 6.500k) luôn hiện Đủ/Thiếu.' },
       // CẬP NHẬT (2026-10-31 → 2026-11-01)

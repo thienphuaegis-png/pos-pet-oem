@@ -876,14 +876,24 @@ def list_orders(
         debt_status=debt_status,
     )
     sql = f"""
-    SELECT o.*, c.name as customer_name, s.name as staff_name,
-           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
-    FROM orders o
-    LEFT JOIN contacts c ON o.customer_id = c.id
-    LEFT JOIN staff s ON o.staff_id = s.id
-    WHERE {where_sql}
-    ORDER BY o.id DESC
-    LIMIT ? OFFSET ?
+    WITH page_orders AS (
+        SELECT o.*, c.name as customer_name, s.name as staff_name
+        FROM orders o
+        LEFT JOIN contacts c ON o.customer_id = c.id
+        LEFT JOIN staff s ON o.staff_id = s.id
+        WHERE {where_sql}
+        ORDER BY o.id DESC
+        LIMIT ? OFFSET ?
+    )
+    SELECT po.*, COALESCE(oi_cnt.cnt, 0) as item_count
+    FROM page_orders po
+    LEFT JOIN (
+        SELECT order_id, COUNT(*) as cnt
+        FROM order_items
+        WHERE order_id IN (SELECT id FROM page_orders)
+        GROUP BY order_id
+    ) oi_cnt ON oi_cnt.order_id = po.id
+    ORDER BY po.id DESC
     """
     params.extend([limit, offset])
 
@@ -1131,9 +1141,14 @@ def get_order_returnable_items(code: str):
     conn.close()
 
     total_amount = float(order["total_amount"]) if order["total_amount"] is not None else 0.0
-    # Phải khớp công thức trần trong create_order_return: loại trừ ship & ví, chỉ trừ discount
+    # Phải khớp công thức trần trong create_order_return: loại trừ ship & ví, chỉ trừ discount, cộng VAT nếu đơn cộng thuế ngoài giá
     order_discount = float(order["discount"]) if order["discount"] is not None else 0.0
     net_goods_amount = max(0.0, total_amount - order_discount)
+    ord_keys = order.keys()
+    ord_vat = float(order["vat_amount"] or 0.0) if "vat_amount" in ord_keys else 0.0
+    ord_ship = float(order["shipping_fee"] or 0.0) if "shipping_fee" in ord_keys else 0.0
+    ord_spa = float(order["spa_wallet_deduction"] or 0.0) if "spa_wallet_deduction" in ord_keys else 0.0
+    is_vat_added = (ord_vat > 0 and float(order["final_amount"] or 0.0) > max(0.0, total_amount - order_discount - ord_spa + ord_ship) + 0.5)
 
     items = []
     for it in raw_items:
@@ -1144,6 +1159,8 @@ def get_order_returnable_items(code: str):
 
         if total_amount > 0 and qty > 0:
             unit_price_net = (float(it_dict["subtotal"]) / total_amount * net_goods_amount) / qty
+            if is_vat_added:
+                unit_price_net += float(it_dict.get("vat_amount") or 0.0) / qty
         else:
             unit_price_net = float(it_dict["price"])
 
@@ -1261,8 +1278,14 @@ def create_order_return(req: CreateReturnRequest, user=Depends(require_permissio
             total_amount = float(orig_order["total_amount"]) if orig_order["total_amount"] is not None else 0.0
             order_discount = float(orig_order["discount"]) if orig_order["discount"] is not None else 0.0
             net_goods_amount = max(0.0, total_amount - order_discount)
+            orig_keys = orig_order.keys()
+            orig_vat = float(orig_order["vat_amount"] or 0.0) if "vat_amount" in orig_keys else 0.0
+            orig_ship = float(orig_order["shipping_fee"] or 0.0) if "shipping_fee" in orig_keys else 0.0
+            orig_spa = float(orig_order["spa_wallet_deduction"] or 0.0) if "spa_wallet_deduction" in orig_keys else 0.0
+            orig_is_vat_added = (orig_vat > 0 and float(orig_order["final_amount"] or 0.0) > max(0.0, total_amount - order_discount - orig_spa + orig_ship) + 0.5)
             if total_amount > 0 and qty_bought > 0:
-                max_return_price = round((float(matching_oi["subtotal"]) / total_amount * net_goods_amount) / qty_bought, 2)
+                unit_vat_part = (float(matching_oi.get("vat_amount") or 0.0) / qty_bought) if orig_is_vat_added else 0.0
+                max_return_price = round(((float(matching_oi["subtotal"]) / total_amount * net_goods_amount) / qty_bought) + unit_vat_part, 2)
             else:
                 max_return_price = float(matching_oi["price"])
 
@@ -1723,10 +1746,26 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
             else:
                 wallet_deduction = max_usable
 
+        # Multi-VAT cho từng item (tính trước final_amount để cộng khi bật checkbox add_vat)
+        discount_ratio = (req.discount / total_amount) if (total_amount > 0 and req.discount > 0) else 0.0
+        discount_ratio = min(1.0, discount_ratio)
+        total_vat_amount = 0.0
+        item_vat_data = []
+        for item in req.items:
+            item_vat_rate = float(item.vat_rate or 0.0)
+            item_sub = item.quantity * item.price
+            item_net = item_sub * (1.0 - discount_ratio)
+            item_vat = round(item_net * (item_vat_rate / 100.0), 2) if item_vat_rate > 0 else 0.0
+            total_vat_amount += item_vat
+            item_vat_data.append((item_vat_rate, item_vat))
+
+        vat_amount = round(total_vat_amount, 2)
+        added_vat_amount = vat_amount if req.add_vat else 0.0
+
         shipping_fee = max(0.0, float(req.shipping_fee or 0.0))
-        final_amount = max(0.0, total_amount - req.discount - wallet_deduction + shipping_fee)
+        final_amount = round(max(0.0, total_amount - req.discount - wallet_deduction + shipping_fee + added_vat_amount), 2)
         actual_paid = min(req.paid_amount, final_amount) if req.paid_amount > 0 else 0.0
-        debt_amount = max(0.0, final_amount - actual_paid)
+        debt_amount = round(max(0.0, final_amount - actual_paid), 2)
         
         code = generate_document_code(cur, "order")
 
@@ -1797,21 +1836,6 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                         status_code=400,
                         detail=f"Sản phẩm '{_pname_by_pid.get(_pid, _pid)}' không đủ tồn kho (Tồn: {_avail:g}, Cần: {_req_qty:g}). Hệ thống đang bật chặn bán âm!"
                     )
-
-        # Multi-VAT cho từng item
-        discount_ratio = (req.discount / total_amount) if (total_amount > 0 and req.discount > 0) else 0.0
-        discount_ratio = min(1.0, discount_ratio)
-        total_vat_amount = 0.0
-        item_vat_data = []
-        for item in req.items:
-            item_vat_rate = float(item.vat_rate or 0.0)
-            item_sub = item.quantity * item.price
-            item_net = item_sub * (1.0 - discount_ratio)
-            item_vat = round(item_net * (item_vat_rate / 100.0), 2) if item_vat_rate > 0 else 0.0
-            total_vat_amount += item_vat
-            item_vat_data.append((item_vat_rate, item_vat))
-
-        vat_amount = round(total_vat_amount, 2)
 
         cur.execute("""
         INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id, spa_wallet_deduction, warehouse_id, created_by, vat_amount)
@@ -2348,13 +2372,21 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
             total_amount = order["total_amount"]
 
         shipping_fee = float(req.shipping_fee) if req.shipping_fee is not None else float(order["shipping_fee"] or 0.0)
-        spa_wallet_deduct = order["spa_wallet_deduction"] or 0.0
-        final_amount = max(0, total_amount - spa_wallet_deduct - new_discount + shipping_fee)
+        spa_wallet_deduct = float(order["spa_wallet_deduction"] or 0.0)
+        old_vat_val = float(order["vat_amount"] or 0.0) if "vat_amount" in order.keys() else 0.0
+        old_no_vat = max(0.0, float(order["total_amount"] or 0.0) - float(order["spa_wallet_deduction"] or 0.0) - float(order["discount"] or 0.0) + float(order["shipping_fee"] or 0.0))
+        old_was_vat_added = (old_vat_val > 0 and float(order["final_amount"] or 0.0) > old_no_vat + 0.5)
+        use_add_vat = req.add_vat if req.add_vat is not None else old_was_vat_added
+        if req.add_vat is False and req.items is None:
+            new_vat_amount = 0.0
+            cur.execute("UPDATE order_items SET vat_rate = 0, vat_amount = 0 WHERE order_id = ?", (order_id,))
+        else:
+            new_vat_amount = vat_amount if req.items is not None else old_vat_val
+        eff_added_vat = new_vat_amount if use_add_vat else 0.0
+        final_amount = round(max(0.0, total_amount - spa_wallet_deduct - (new_discount or 0.0) + shipping_fee + eff_added_vat), 2)
         new_paid = req.paid_amount if req.paid_amount is not None else old_paid
         actual_new_paid = min(new_paid, final_amount) if new_paid > 0 else 0.0
-        new_debt = max(0, final_amount - actual_new_paid)
-
-        new_vat_amount = vat_amount if req.items is not None else (order["vat_amount"] or 0.0)
+        new_debt = round(max(0.0, final_amount - actual_new_paid), 2)
         from services.commission import calc_order_commission
         new_commission = calc_order_commission(cur, new_staff_id, total_amount, new_discount)
         updater_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"

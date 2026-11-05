@@ -4,12 +4,22 @@
         const style = document.createElement('style');
         style.id = 'pos-cart-grid-style';
         style.textContent = `
+            .vat-col {
+                display: none !important;
+            }
+            .pos-vat-enabled .vat-col {
+                display: block !important;
+            }
             @media (min-width: 768px) {
                 .cart-grid-header,
                 .cart-row-responsive {
                     display: grid !important;
                     grid-template-columns: 34px 34px 44px 85px minmax(130px, 1fr) 48px 100px 175px 120px !important;
                     gap: 8px !important;
+                }
+                .cart-grid-header.pos-vat-enabled,
+                .pos-vat-enabled .cart-row-responsive {
+                    grid-template-columns: 34px 34px 44px 80px minmax(115px, 1fr) 46px 96px 145px 92px 115px !important;
                 }
             }
             @media (max-width: 767px) {
@@ -31,6 +41,9 @@
                 }
                 .cart-row-responsive .price-col {
                     display: none !important;
+                }
+                .pos-vat-enabled .cart-row-responsive .vat-col {
+                    order: 3;
                 }
                 .cart-row-responsive .subtotal-col {
                     order: 4;
@@ -170,6 +183,7 @@ var invoiceTabs = [
         use_points: false,
         coupon_code: "",
         coupon_discount: 0,
+        add_vat: false,
         paid_amount: null, // null nếu chưa gõ tay
         payment_method: 'cash'
     }
@@ -798,6 +812,7 @@ function addNewInvoiceTab() {
         use_points: false,
         coupon_code: "",
         coupon_discount: 0,
+        add_vat: false,
         paid_amount: null,
         payment_method: 'cash'
     };
@@ -842,6 +857,7 @@ async function closeInvoiceTab(e, tabId) {
             use_points: false,
             coupon_code: "",
             coupon_discount: 0,
+            add_vat: false,
             paid_amount: null,
             payment_method: 'cash'
         }];
@@ -1098,6 +1114,14 @@ function renderActiveTabCart() {
         if (!container) return;
         scheduleDraftSave();
 
+        // Đồng bộ trạng thái checkbox Tính thuế VAT & ẩn/hiện cột Thuế VAT
+        const isVatOn = !!tab.add_vat;
+        const chkEnableVat = document.getElementById('chk-pos-enable-vat');
+        if (chkEnableVat) chkEnableVat.checked = isVatOn;
+        const cartHeader = document.getElementById('pos-cart-grid-header') || document.querySelector('.cart-grid-header');
+        if (cartHeader) cartHeader.classList.toggle('pos-vat-enabled', isVatOn);
+        container.classList.toggle('pos-vat-enabled', isVatOn);
+
         // Cập nhật ô ghi chú
         const noteInput = document.getElementById('pos-order-note');
         if (noteInput) noteInput.value = tab.note || '';
@@ -1118,6 +1142,8 @@ function renderActiveTabCart() {
             updateFinancialSummary();
             return;
         }
+
+        const vatBreakdown = calcTabVatBreakdown(tab);
 
         container.innerHTML = tab.cart.map((item, idx) => {
             const itemPrice = typeof item.price === 'number' ? item.price : (parseFloat(item.price) || 0);
@@ -1218,7 +1244,6 @@ function renderActiveTabCart() {
                         <!-- Dòng 1: Giá bán thực tế + Badge + Bút -->
                         <div class="font-bold text-slate-800 hover:text-sky-600 flex items-center justify-end gap-1 flex-nowrap leading-tight">
                             <span class="font-bold text-slate-800 text-xs">${formatMoney(itemPrice)}</span>
-                            ${(item.vat_rate && item.vat_rate > 0) ? `<span class="inline-flex items-center px-1 py-0.2 rounded text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200 shrink-0">VAT ${item.vat_rate}%</span>` : ''}
                             ${itemPrice !== itemOriginalPrice ? `<span class="inline-flex items-center px-1 py-0.2 rounded text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">🏷️ ${item.price_list_name || 'Giá riêng'}</span>` : ''}
                             <span class="opacity-0 group-hover:opacity-100 text-sky-500 text-xs">✏️</span>
                         </div>
@@ -1230,6 +1255,24 @@ function renderActiveTabCart() {
                             </div>
                         ` : ''}
                     </div>
+
+                    <!-- Cột Thuế VAT (chỉ hiển thị khi tick checkbox Tính thuế VAT) -->
+                    ${(() => {
+                        const itemVatRate = item.vat_rate !== undefined && item.vat_rate !== null ? item.vat_rate : 0;
+                        const rowVatAmt = (vatBreakdown.itemVats && vatBreakdown.itemVats[idx]) || 0;
+                        return `
+                        <div class="vat-col text-right" onclick="event.stopPropagation()">
+                            <div class="inline-flex items-center justify-end gap-0.5">
+                                <input type="number" min="0" max="100" step="any" value="${itemVatRate}"
+                                       onfocus="this.select()"
+                                       oninput="updateCartItemVatRate(${idx}, this.value)"
+                                       class="w-14 text-right font-mono font-bold text-emerald-700 text-xs border border-emerald-300 rounded px-1.5 py-0.5 bg-emerald-50/40 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                       title="Nhập % thuế VAT cho sản phẩm này">
+                                <span class="text-[11px] font-bold text-emerald-700">%</span>
+                            </div>
+                            <div id="cart-item-vat-amt-${idx}" class="text-[11px] font-mono font-semibold ${rowVatAmt > 0 ? 'text-emerald-600' : 'text-slate-400'} leading-tight mt-0.5 whitespace-nowrap">${rowVatAmt > 0 ? '+' + formatMoney(rowVatAmt) : '0 đ'}</div>
+                        </div>`;
+                    })()}
 
                     <!-- Thành tiền -->
                     <div class="text-right font-bold text-sky-700 text-sm whitespace-nowrap subtotal-col">
@@ -1779,19 +1822,16 @@ function updateFinancialSummary() {
             shipInput.value = shippingFee > 0 ? shippingFee : '';
         }
 
-        const finalAmount = Math.max(0, subtotal - billDiscAmount - couponAmount - pointsAmount + shippingFee);
+        const { totalVat } = calcTabVatBreakdown(tab);
+        const finalAmount = Math.max(0, subtotal - billDiscAmount - couponAmount - pointsAmount + shippingFee + totalVat);
         const elFinalAmount = document.getElementById('pos-final-amount-display');
         if (elFinalAmount) elFinalAmount.innerText = formatMoney(finalAmount);
 
-        // Tính tiền thuế VAT đa mức theo sản phẩm
-        const totalVat = tab.cart.reduce((s, i) => {
-            const q = Number(i.quantity) || 0;
-            const p = Number(i.price) || 0;
-            const vr = Number(i.vat_rate) || 0;
-            return s + Math.round(q * p * (vr / 100));
-        }, 0);
         const elVat = document.getElementById('pos-vat-display');
-        if (elVat) elVat.innerText = formatMoney(totalVat);
+        if (elVat) {
+            elVat.innerText = (tab.add_vat && totalVat > 0) ? `+${formatMoney(totalVat)}` : formatMoney(0);
+            elVat.className = (tab.add_vat && totalVat > 0) ? 'font-bold text-emerald-600' : 'font-bold text-slate-500';
+        }
 
         const mobileTotalPay = document.getElementById('mobile-total-pay-display');
         if (mobileTotalPay) {
@@ -1960,12 +2000,67 @@ function setPaymentMethod(method) {
     }
 }
 
+function calcTabVatBreakdown(tab) {
+    if (!tab || !tab.add_vat || !Array.isArray(tab.cart) || tab.cart.length === 0) {
+        return { totalVat: 0, itemVats: [] };
+    }
+    const subtotal = tab.cart.reduce((s, i) => s + ((Number(i.price) || 0) * (Number(i.quantity) || 0)), 0);
+    const billDisc = tab.bill_discount_type === 'pct' ? Math.round(subtotal * ((Number(tab.bill_discount) || 0) / 100)) : (Number(tab.bill_discount) || 0);
+    const pointsAmount = (tab.use_points && tab.customer) ? Math.min((tab.customer.points || 0) * 1000, subtotal) : 0;
+    const totalDiscount = billDisc + (Number(tab.coupon_discount) || 0) + pointsAmount;
+    const discRatio = (subtotal > 0 && totalDiscount > 0) ? Math.min(1, totalDiscount / subtotal) : 0;
+    let totalVat = 0;
+    const itemVats = tab.cart.map(i => {
+        const vr = Math.max(0, Number(i.vat_rate) || 0);
+        if (vr <= 0) return 0;
+        const sub = (Number(i.quantity) || 0) * (Number(i.price) || 0);
+        const v = Math.round((sub * (1 - discRatio)) * (vr / 100));
+        totalVat += v;
+        return v;
+    });
+    return { totalVat, itemVats };
+}
+
+function togglePosVatMode(checked) {
+    const tab = getActiveTab();
+    tab.add_vat = !!checked;
+    if (!tab.split_payment) {
+        tab.paid_amount = null;
+    }
+    renderActiveTabCart();
+}
+window.togglePosVatMode = togglePosVatMode;
+
+function updateCartItemVatRate(idx, rawVal) {
+    const tab = getActiveTab();
+    const item = tab?.cart?.[idx];
+    if (!item) return;
+    const vr = rawVal === '' ? 0 : Math.min(100, Math.max(0, parseFloat(rawVal) || 0));
+    item.vat_rate = vr;
+    if (!tab.split_payment) {
+        tab.paid_amount = null;
+    }
+    const { itemVats } = calcTabVatBreakdown(tab);
+    (tab.cart || []).forEach((_, rowIdx) => {
+        const el = document.getElementById(`cart-item-vat-amt-${rowIdx}`);
+        if (el) {
+            const v = itemVats[rowIdx] || 0;
+            el.innerText = v > 0 ? `+${formatMoney(v)}` : '0 đ';
+            el.className = `text-[11px] font-mono font-semibold ${v > 0 ? 'text-emerald-600' : 'text-slate-400'} leading-tight mt-0.5 whitespace-nowrap`;
+        }
+    });
+    scheduleDraftSave();
+    updateFinancialSummary();
+}
+window.updateCartItemVatRate = updateCartItemVatRate;
+
 function getPosFinalAmount(tab) {
     const subtotal = tab.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
     const billDisc = tab.bill_discount_type === 'pct' ? Math.round(subtotal * (tab.bill_discount / 100)) : tab.bill_discount;
     const pointsAmount = (tab.use_points && tab.customer) ? Math.min((tab.customer.points || 0) * 1000, subtotal) : 0;
     const shippingFee = parseFloat(tab.shipping_fee) || 0;
-    return Math.max(0, subtotal - billDisc - (tab.coupon_discount || 0) - pointsAmount + shippingFee);
+    const { totalVat } = calcTabVatBreakdown(tab);
+    return Math.max(0, subtotal - billDisc - (tab.coupon_discount || 0) - pointsAmount + shippingFee + totalVat);
 }
 
 function updateShippingFee(val) {
@@ -2468,6 +2563,7 @@ async function submitPOSOrder() {
             account_id: tab.account_id || null,
             shift_id: (typeof currentShift !== 'undefined' && currentShift) ? currentShift.id : null,
             note: tab.note || "",
+            add_vat: !!tab.add_vat,
             payments: splitPayments,
             items: tab.cart.map(i => ({
                 product_id: i.product_id,
@@ -2475,7 +2571,7 @@ async function submitPOSOrder() {
                 price: i.price,
                 unit: i.unit,
                 unit_ratio: i.unit_ratio || 1,
-                vat_rate: i.vat_rate !== undefined && i.vat_rate !== null ? i.vat_rate : 0
+                vat_rate: tab.add_vat ? (i.vat_rate !== undefined && i.vat_rate !== null ? i.vat_rate : 0) : 0
             }))
         };
 
@@ -2542,6 +2638,7 @@ async function submitPOSOrder() {
         tab.use_points = false;
         tab.coupon_code = "";
         tab.coupon_discount = 0;
+        tab.add_vat = false;
         tab.paid_amount = null;
         tab.shipping_fee = 0;
         tab.split_payment = false;
@@ -3062,7 +3159,8 @@ function printDraftOrder() {
     const pointsAmount = (tab.use_points && tab.customer) ? Math.min((tab.customer.points || 0) * 1000, subtotal) : 0;
     const totalDiscount = billDisc + (tab.coupon_discount || 0) + pointsAmount;
     const shippingFee = parseFloat(tab.shipping_fee) || 0;
-    const finalAmount = Math.max(0, subtotal - totalDiscount + shippingFee);
+    const draftVat = calcTabVatBreakdown(tab);
+    const finalAmount = Math.max(0, subtotal - totalDiscount + shippingFee + draftVat.totalVat);
 
     const paidInput = document.getElementById('pos-paid-input');
     const cleanPaid = (paidInput?.value || '0').replace(/\D/g, '');
@@ -3099,6 +3197,8 @@ function printDraftOrder() {
         total_amount: subtotal,
         discount: totalDiscount,
         shipping_fee: shippingFee,
+        vat_amount: draftVat.totalVat,
+        add_vat: !!tab.add_vat,
         final_amount: finalAmount,
         paid_amount: paidAmount,
         debt_amount: Math.max(0, finalAmount - paidAmount),
@@ -3106,7 +3206,7 @@ function printDraftOrder() {
         customer_price_list_name: tab.customer?.price_list_name || null,
         customer_segment_name: tab.customer?.segment_name || null,
         is_wholesale: isWholesale,
-        items: tab.cart.map(i => {
+        items: tab.cart.map((i, idx) => {
             const isGift = (Number(i.price) === 0 && Number(i.quantity || 0) > 0);
             let origPrice;
             if (isCustomerWholesale) {
@@ -3129,6 +3229,8 @@ function printDraftOrder() {
                 original_price: origPrice, // original_price: i.original_price || i.price
                 price_list_name: i.price_list_name || null,
                 quantity: i.quantity,
+                vat_rate: tab.add_vat ? (Number(i.vat_rate) || 0) : 0,
+                vat_amount: draftVat.itemVats[idx] || 0,
                 is_gift: isGift
             };
         })
@@ -3223,6 +3325,11 @@ function renderAndPrint(ord, isDraft = false) {
     const displayTotalAmount = (ord.total_amount || 0) + itemDiscountTotal;
     const totalSavings = finalDiscountToDisplay;
 
+    const ordVatRaw = Number(ord.vat_amount) || 0;
+    const expectedNoVat = Math.max(0, (Number(ord.total_amount) || 0) - (Number(ord.discount) || 0) - (Number(ord.spa_wallet_deduction) || 0) + (Number(ord.shipping_fee) || 0));
+    const hasAddedVat = ord.add_vat === true || (ordVatRaw > 0 && (Number(ord.final_amount) || 0) > expectedNoVat + 0.5);
+    const effVatAmount = hasAddedVat ? ordVatRaw : 0;
+
     const printData = {
         ten_cua_hang: posSettings.shop_name || "TÊN CỬA HÀNG",
         dia_chi: posSettings.shop_address || "Địa chỉ shop",
@@ -3241,6 +3348,8 @@ function renderAndPrint(ord, isDraft = false) {
         raw_tru_vi: ord.spa_wallet_deduction || 0,
         phi_ship: formatMoney(ord.shipping_fee || 0),
         raw_phi_ship: ord.shipping_fee || 0,
+        tien_thue: formatMoney(effVatAmount),
+        raw_tien_thue: effVatAmount,
         phai_tra: formatMoney(ord.final_amount),
         khach_tra: formatMoney(ord.paid_amount),
         con_no: formatMoney(ord.debt_amount),
@@ -3345,6 +3454,42 @@ function renderAndPrint(ord, isDraft = false) {
                 type: "text",
                 text: "Phí giao hàng: +{{phi_ship}}",
                 label: "Phí Giao Hàng",
+                x: payElem.x !== undefined ? payElem.x : (isThermal ? 10 : 30),
+                y: insY,
+                w: payElem.w !== undefined ? payElem.w : (isThermal ? 270 : 250),
+                fsz: Math.max(9, (payElem.fsz || 12) - 1),
+                bold: false,
+                align: payElem.align || "right"
+            });
+        }
+    }
+
+    // Tự động ẩn/hiện dòng Thuế GTGT (VAT) trên các mẫu K80/A5/A4 đơn lẻ khi đơn có cộng thuế ngoài giá
+    const vatElem = effectiveElements.find(e => (e.catalog_key === 'vat_amount') || (e.text && e.text.includes('{{tien_thue}}')));
+    if (effVatAmount <= 0 && vatElem) {
+        const vatY = vatElem.y || 0;
+        effectiveElements = effectiveElements.filter(e => e !== vatElem);
+        effectiveElements.forEach(e => {
+            if ((e.zone || 'header') === 'footer' && (e.y || 0) > vatY) {
+                e.y = (e.y || 0) - 18;
+            }
+        });
+    } else if (effVatAmount > 0 && !vatElem) {
+        const payElem = effectiveElements.find(e => e.text && (e.text.includes('{{phai_tra}}') || (e.label && e.label.toLowerCase().includes('phải trả'))));
+        if (payElem) {
+            const insY = payElem.y;
+            effectiveElements.forEach(e => {
+                if ((e.zone || 'header') === 'footer' && (e.y || 0) >= insY) {
+                    e.y = (e.y || 0) + 18;
+                }
+            });
+            effectiveElements.push({
+                id: "e_auto_tien_thue",
+                catalog_key: "vat_amount",
+                zone: "footer",
+                type: "text",
+                text: "Thuế GTGT (VAT): +{{tien_thue}}",
+                label: "Thuế GTGT (VAT)",
                 x: payElem.x !== undefined ? payElem.x : (isThermal ? 10 : 30),
                 y: insY,
                 w: payElem.w !== undefined ? payElem.w : (isThermal ? 270 : 250),
@@ -3635,7 +3780,7 @@ function renderAndPrint(ord, isDraft = false) {
                             ${showDisc ? `<td style="border: 1px solid #ccc; padding: 4px 2px; text-align: right;">${discText}</td>` : ''}
                             <td style="border: 1px solid #ccc; padding: 4px 2px; font-weight: bold;">${it.quantity}</td>
                             <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right; font-weight: bold;">${formatMoney(it.quantity * it.price)}</td>
-                            ${showNote ? `<td style="border: 1px solid #ccc; padding: 4px 4px; font-size: 9px; color: #666;">${isGift ? 'Hàng tặng' : '-'}</td>` : ''}
+                            ${showNote ? `<td style="border: 1px solid #ccc; padding: 4px 4px; font-size: 9px; color: #334155;">${isGift ? 'Hàng tặng' : ((hasAddedVat && Number(it.vat_rate) > 0) ? `VAT ${Number(it.vat_rate)}% (+${formatMoney(it.vat_amount || Math.round(it.quantity * it.price * (Number(it.vat_rate) / 100)))})` : '-')}</td>` : ''}
                         </tr>
                             `;
                         }).join('')}
@@ -3701,6 +3846,7 @@ function renderAndPrint(ord, isDraft = false) {
                         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Tổng tiền hàng:</span> <span>${printData.tong_tien}</span></div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Chiết khấu:</span> <span>${printData.giam_gia}</span></div>
                         ${(ord.shipping_fee || 0) > 0 ? `<div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Phí giao hàng:</span> <span>+${formatMoney(ord.shipping_fee)}</span></div>` : ''}
+                        ${effVatAmount > 0 ? `<div style="display: flex; justify-content: space-between; margin-bottom: 2px; color: #047857; font-weight: 600;"><span>Thuế GTGT (VAT):</span> <span>+${printData.tien_thue}</span></div>` : ''}
                         ${(ord.spa_wallet_deduction || 0) > 0 ? `<div style="display: flex; justify-content: space-between; margin-bottom: 2px; color: #6b21a8; font-weight: 500;"><span>Trừ Ví Spa:</span> <span>-${printData.tru_vi}</span></div>` : ''}
                         <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 11px; margin-bottom: 2px; border-top: 1px dashed #999; padding-top: 2px;"><span>PHẢI TRẢ:</span> <span style="color: #b91c1c;">${printData.phai_tra}</span></div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Khách đã trả:</span> <span>${printData.khach_tra}</span></div>
@@ -3830,6 +3976,7 @@ function renderAndPrint(ord, isDraft = false) {
             txt = txt.replace(/{{giam_gia}}/g, printData.giam_gia);
             txt = txt.replace(/{{tru_vi}}/g, printData.tru_vi);
             txt = txt.replace(/{{phi_ship}}/g, printData.phi_ship);
+            txt = txt.replace(/{{tien_thue}}/g, printData.tien_thue);
             txt = txt.replace(/{{tiet_kiem}}/g, printData.tiet_kiem);
             txt = txt.replace(/{{phai_tra}}/g, printData.phai_tra);
             txt = txt.replace(/{{khach_tra}}/g, printData.khach_tra);

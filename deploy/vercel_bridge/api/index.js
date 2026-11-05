@@ -18,7 +18,7 @@ let cachedAt = 0;
 
 async function getLiveTunnelUrl() {
   const now = Date.now();
-  if (now - cachedAt < 10000 && cachedUrl !== undefined) {
+  if (now - cachedAt < 60000 && cachedUrl) {
     return cachedUrl;
   }
   if (!ACCOUNT_ID || !API_TOKEN || !DB_ID) {
@@ -316,6 +316,7 @@ export default async function handler(req, res) {
     forwardHeaders["host"] = targetUrl.host;
     forwardHeaders["x-forwarded-host"] = req.headers["host"] || "";
     forwardHeaders["x-forwarded-proto"] = "https";
+    forwardHeaders["accept-encoding"] = "gzip";
 
     const isBodyAllowed = req.method !== "GET" && req.method !== "HEAD";
     const bodyBuffer = isBodyAllowed ? await extractRequestBody(req) : null;
@@ -330,7 +331,7 @@ export default async function handler(req, res) {
       headers: forwardHeaders,
       body: bodyBuffer && bodyBuffer.length > 0 ? bodyBuffer : undefined,
       redirect: "manual",
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(55000),
     });
 
     // Chuyển tiếp status & headers
@@ -349,10 +350,14 @@ export default async function handler(req, res) {
       }
     }
 
-    // Luôn yêu cầu trình duyệt tải mới, không lưu cache cũ tránh dính bản tải dở
-    res.setHeader("cache-control", "no-cache, no-store, must-revalidate");
-    res.setHeader("pragma", "no-cache");
-    res.setHeader("expires", "0");
+    // Static fallback (nếu lọt vào proxy) cho phép cache; HTML & API giữ no-store
+    if (urlPath.startsWith("/static/")) {
+      res.setHeader("cache-control", "public, max-age=3600, stale-while-revalidate=86400");
+    } else {
+      res.setHeader("cache-control", "no-cache, no-store, must-revalidate");
+      res.setHeader("pragma", "no-cache");
+      res.setHeader("expires", "0");
+    }
 
     if (proxyResp.body) {
       const arrayBuffer = await proxyResp.arrayBuffer();

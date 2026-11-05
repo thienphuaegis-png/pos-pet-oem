@@ -3739,6 +3739,8 @@
             document.getElementById('modal-prod-stock').value = '';
             const minStockEl = document.getElementById('modal-prod-min-stock');
             if (minStockEl) minStockEl.value = '5';
+            const vatRateEl = document.getElementById('modal-prod-vat-rate');
+            if (vatRateEl) vatRateEl.value = '0';
             const reqBomEl = document.getElementById('modal-prod-requires-bom');
             if (reqBomEl) reqBomEl.checked = false;
             document.getElementById('modal-prod-stock-group')?.classList.remove('hidden');
@@ -3777,6 +3779,8 @@
                 document.getElementById('modal-prod-stock-group').classList.add('hidden');
                 const minStockEl = document.getElementById('modal-prod-min-stock');
                 if (minStockEl) minStockEl.value = (p.min_stock != null) ? p.min_stock : 5;
+                const vatRateEl = document.getElementById('modal-prod-vat-rate');
+                if (vatRateEl) vatRateEl.value = (p.vat_rate != null) ? p.vat_rate : 0;
                 const reqBomEl = document.getElementById('modal-prod-requires-bom');
                 if (reqBomEl) reqBomEl.checked = !!p.requires_bom;
                 
@@ -4059,6 +4063,7 @@
             const sell_price = parseMoneyInput(document.getElementById('modal-prod-price').value);
             const stock = parseFloat(document.getElementById('modal-prod-stock').value) || 0;
             const min_stock = parseFloat(document.getElementById('modal-prod-min-stock')?.value) || 5.0;
+            const vat_rate = Math.max(0, parseFloat(document.getElementById('modal-prod-vat-rate')?.value) || 0);
             const image_url = (document.getElementById('modal-prod-image-data')?.value || '').trim();
             const supplier_ids = [...selectedProdSupplierIds];
 
@@ -4102,7 +4107,7 @@
                                 await fetch(`/api/products/${id}`, {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ category, image_url })
+                                    body: JSON.stringify({ category, image_url, vat_rate })
                                 });
                             }
                         } else {
@@ -4121,7 +4126,7 @@
                                 await fetch(`/api/products/${id}`, {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ type: 'combo', category, image_url })
+                                    body: JSON.stringify({ type: 'combo', category, image_url, vat_rate })
                                 });
                             }
                         }
@@ -4138,7 +4143,7 @@
                                 items: currentComboItems.map(it => ({ product_id: it.product_id, quantity: it.quantity }))
                             })
                         });
-                        if (res.ok && (category || image_url)) {
+                        if (res.ok && (category || image_url || vat_rate > 0)) {
                             try {
                                 const pListRes = await fetch('/api/products');
                                 const pList = await pListRes.json();
@@ -4147,7 +4152,7 @@
                                     await fetch(`/api/products/${pEntry.id}`, {
                                         method: 'PUT',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ category, image_url })
+                                        body: JSON.stringify({ category, image_url, vat_rate })
                                     });
                                 }
                             } catch (eCat) {}
@@ -4159,7 +4164,7 @@
                     res = await fetch(`/api/products/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, category, supplier_ids, min_stock, image_url, requires_bom })
+                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, category, supplier_ids, min_stock, image_url, requires_bom, vat_rate })
                     });
                 } else {
                     // Create
@@ -4167,7 +4172,7 @@
                     res = await fetch('/api/products', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, stock, category, supplier_ids, min_stock, image_url, requires_bom })
+                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, stock, category, supplier_ids, min_stock, image_url, requires_bom, vat_rate })
                     });
                 }
 

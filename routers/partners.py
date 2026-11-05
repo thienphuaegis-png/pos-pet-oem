@@ -101,7 +101,7 @@ class PetUpdate(BaseModel):
     note: Optional[str] = None
 
 @router.get("")
-def list_contacts(type: Optional[str] = None, search: Optional[str] = None, compact: Optional[int] = 0):
+def list_contacts(type: Optional[str] = None, search: Optional[str] = None, compact: Optional[int] = 0, limit: Optional[int] = None):
     conn = get_db()
     cur = conn.cursor()
     if compact and type == "customer":
@@ -128,6 +128,9 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None, comp
             s = f"%{search}%"
             params.extend([s, s])
         query += " ORDER BY c.id DESC"
+        if limit and int(limit) > 0:
+            query += " LIMIT ?"
+            params.append(int(limit))
         cur.execute(query, tuple(params))
         rows = [dict(r) for r in cur.fetchall()]
         conn.close()
@@ -182,6 +185,9 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None, comp
         s = f"%{search}%"
         params.extend([s, s])
     query += " ORDER BY c.id DESC"
+    if limit and int(limit) > 0:
+        query += " LIMIT ?"
+        params.append(int(limit))
     cur.execute(query, tuple(params))
     rows = []
     for r in cur.fetchall():

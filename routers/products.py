@@ -624,9 +624,10 @@ def create_product(p: ProductCreate, user=Depends(get_optional_user)):
         min_stock = float(p.min_stock) if p.min_stock is not None else 5.0
         img_url = (p.image_url or "").strip()
         req_bom = p.requires_bom if p.requires_bom is not None else 0
+        vat_rate = max(0.0, float(p.vat_rate)) if p.vat_rate is not None else 0.0
         cur.execute(
-            "INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, category, created_by, min_stock, image_url, requires_bom) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (code, p.name, p.type, cost_price, p.sell_price, p.stock, p.unit, cat, user_name, min_stock, img_url, req_bom)
+            "INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, category, created_by, min_stock, image_url, requires_bom, vat_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (code, p.name, p.type, cost_price, p.sell_price, p.stock, p.unit, cat, user_name, min_stock, img_url, req_bom, vat_rate)
         )
         pid = cur.lastrowid
         if p.type != 'service' and p.stock > 0:
@@ -679,12 +680,13 @@ def update_product(product_id: int, p: ProductUpdate, user=Depends(get_optional_
         min_stock = float(p.min_stock) if p.min_stock is not None else (float(existing["min_stock"]) if "min_stock" in existing.keys() and existing["min_stock"] is not None else 5.0)
         image_url = p.image_url if p.image_url is not None else (existing["image_url"] if "image_url" in existing.keys() else "")
         requires_bom = p.requires_bom if p.requires_bom is not None else (existing["requires_bom"] if "requires_bom" in existing.keys() else None)
+        vat_rate = max(0.0, float(p.vat_rate)) if p.vat_rate is not None else (float(existing["vat_rate"]) if "vat_rate" in existing.keys() and existing["vat_rate"] is not None else 0.0)
         cur.execute('''
             UPDATE products 
             SET code = ?, name = ?, type = ?, cost_price = ?, sell_price = ?, unit = ?, category = ?,
-                updated_by = ?, updated_at = ?, min_stock = ?, image_url = ?, requires_bom = ?
+                updated_by = ?, updated_at = ?, min_stock = ?, image_url = ?, requires_bom = ?, vat_rate = ?
             WHERE id = ?
-        ''', (code, name, prod_type, cost_price, sell_price, unit, category, user_name, now_vn, min_stock, image_url, requires_bom, product_id))
+        ''', (code, name, prod_type, cost_price, sell_price, unit, category, user_name, now_vn, min_stock, image_url, requires_bom, vat_rate, product_id))
 
         if p.supplier_ids is not None:
             cur.execute("DELETE FROM supplier_items WHERE item_type = 'product' AND product_id = ?", (product_id,))
