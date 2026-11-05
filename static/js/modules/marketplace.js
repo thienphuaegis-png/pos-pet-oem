@@ -2270,14 +2270,25 @@
         }
     }
 
+    async function safeKocJson(res) {
+        const raw = await res.text();
+        try {
+            return raw ? JSON.parse(raw) : {};
+        } catch (_err) {
+            const snippet = String(raw || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90);
+            throw new Error(`Máy chủ phản hồi lỗi HTTP ${res.status}${snippet ? ' (' + snippet + ')' : ''}`);
+        }
+    }
+
     async function loadKocTab() {
         await ensureKocStaffLoaded();
+        if (typeof window.syncPosMonthWidget === 'function') window.syncPosMonthWidget('koc-month-filter');
         const monthEl = document.getElementById('koc-month-filter');
         const month = monthEl ? monthEl.value : '';
         try {
             const url = month ? `/api/marketplace/koc/sources?month=${encodeURIComponent(month)}` : '/api/marketplace/koc/sources';
             const res = await fetch(url);
-            const data = await res.json();
+            const data = await safeKocJson(res);
             if (!res.ok) throw new Error(data.detail || 'Lỗi tải nguồn KOC');
             kocSources = data.sources || [];
             kocDefaultRules = data.default_rules || { min_views: 200, kpi_deduct_videos: 0, rate_per_video: 10000, viral_min_views: 1000, viral_bonus: 0 };
@@ -2319,7 +2330,7 @@
             ? kocSources.filter(s => String(s.id) === String(kocSelectedSourceId))
             : kocSources;
 
-        let totalKoc = 0, totalVids = 0, totalViews = 0, qualVids = 0, payableVids = 0, underVids = 0, errVids = 0, totalComm = 0;
+        let totalKoc = 0, totalVids = 0, totalViews = 0, qualVids = 0, payableVids = 0, underVids = 0, errVids = 0, pendingVids = 0, totalComm = 0;
         let minViewLabel = kocDefaultRules ? kocDefaultRules.min_views : 200;
 
         activeList.forEach(s => {
@@ -2331,6 +2342,7 @@
             payableVids += Number(st.payable_videos || 0);
             underVids += Number(st.under_kpi_videos || 0);
             errVids += Number(st.error_videos || 0);
+            pendingVids += Number(st.pending_videos !== undefined ? st.pending_videos : Math.max(0, Number(st.total_videos || 0) - Number(st.qualified_videos || 0)));
             totalComm += Number(st.commission || 0);
             if (activeList.length === 1 && s.rules) minViewLabel = s.rules.min_views;
         });
@@ -2344,6 +2356,11 @@
         document.getElementById('kpi-koc-under-videos').textContent = underVids.toLocaleString('vi-VN');
         document.getElementById('kpi-koc-error-videos').textContent = `Lỗi/riêng tư: ${errVids}`;
         document.getElementById('kpi-koc-commission').textContent = pcMoney(totalComm);
+
+        const scanLbl = document.getElementById('lbl-koc-scan-pending');
+        if (scanLbl && !kocScanRunning) {
+            scanLbl.textContent = pendingVids > 0 ? `Quét View Chưa Có (${pendingVids})` : 'Quét View Chưa Có (0)';
+        }
     }
 
     function renderKocSourcesTable() {
@@ -2577,8 +2594,10 @@
         const src = sourceId ? kocSources.find(s => s.id === sourceId) : null;
         document.getElementById('koc-src-id').value = src ? src.id : '';
         document.getElementById('koc-src-name').value = src ? src.name : '';
-        const nowMonth = new Date().toISOString().slice(0, 7);
+        const nowD = new Date();
+        const nowMonth = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}`;
         document.getElementById('koc-src-month').value = src ? src.month : (document.getElementById('koc-month-filter')?.value || nowMonth);
+        if (typeof window.syncPosMonthWidget === 'function') window.syncPosMonthWidget('koc-src-month');
         document.getElementById('koc-src-url').value = src ? src.sheet_url : '';
         document.getElementById('koc-src-staff').value = src && src.staff_id ? src.staff_id : '';
         document.getElementById('btn-koc-src-delete').classList.toggle('invisible', !src);
@@ -2617,7 +2636,7 @@
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sheet_url: url })
             });
-            const data = await res.json();
+            const data = await safeKocJson(res);
             if (!res.ok) throw new Error(data.detail || 'Không đọc được Sheet');
             const tabs = data.tabs || [];
             const kocTabSel = document.getElementById('koc-src-koc-tab');
@@ -2676,11 +2695,11 @@
                     rules: existing && existing.custom_rules ? existing.rules : null
                 })
             });
-            const data = await res.json();
+            const data = await safeKocJson(res);
             if (!res.ok) throw new Error(data.detail || 'Lỗi lưu nguồn');
 
             const syncRes = await fetch(`/api/marketplace/koc/sources/${data.id}/sync`, { method: 'POST' });
-            const syncData = await syncRes.json();
+            const syncData = await safeKocJson(syncRes);
             if (!syncRes.ok) throw new Error(syncData.detail || 'Lỗi đồng bộ dữ liệu từ Sheet');
 
             pcToast(syncData.message || 'Đã lưu và đồng bộ thành công!', 'success');
@@ -2715,17 +2734,17 @@
 
     async function syncSingleKocSource(sourceId) {
         const btn = document.getElementById('btn-koc-sync-sheet');
-        if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang đồng bộ...'; }
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Đang đồng bộ...'; }
         try {
             const res = await fetch(`/api/marketplace/koc/sources/${sourceId}/sync`, { method: 'POST' });
-            const data = await res.json();
+            const data = await safeKocJson(res);
             if (!res.ok) throw new Error(data.detail || 'Lỗi đồng bộ');
             pcToast(data.message, 'success');
             await loadKocTab();
         } catch (e) {
             pcToast('Lỗi: ' + e.message, 'error');
         } finally {
-            if (btn) { btn.disabled = false; btn.textContent = '🔄 Đồng Bộ Từ Sheet'; }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<span><i class="ph ph-arrows-clockwise"></i> Đồng Bộ Từ Sheet</span>'; }
         }
     }
     window.syncSingleKocSource = syncSingleKocSource;
@@ -2741,21 +2760,146 @@
     }
     window.syncCurrentKocSheet = syncCurrentKocSheet;
 
-    async function scanCurrentKocViews() {
-        const targetId = kocSelectedSourceId || (kocSources[0] ? kocSources[0].id : null);
-        if (!targetId) return pcToast('Hãy kết nối nguồn Sheet trước', 'warning');
-        const btn = document.getElementById('btn-koc-scan-views');
-        if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang quét view...'; }
+    let kocScanRunning = false;
+    let kocScanPaused = false;
+    let kocScanAborted = false;
+
+    function togglePauseKocScan() {
+        if (!kocScanRunning) return;
+        kocScanPaused = !kocScanPaused;
+        const pauseBtn = document.getElementById('btn-koc-scan-pause');
+        const spinner = document.getElementById('koc-scan-spinner');
+        if (pauseBtn) pauseBtn.textContent = kocScanPaused ? 'Tiếp tục' : 'Tạm dừng';
+        if (spinner) spinner.classList.toggle('animate-spin', !kocScanPaused);
+    }
+    window.togglePauseKocScan = togglePauseKocScan;
+
+    function stopKocScan() {
+        kocScanAborted = true;
+        kocScanPaused = false;
+    }
+    window.stopKocScan = stopKocScan;
+
+    async function scanCurrentKocViews(mode = 'pending') {
+        if (kocScanRunning) {
+            pcToast('Đang có tiến trình quét view chạy. Anh có thể bấm Tạm dừng hoặc Dừng hẳn trên thanh tiến trình.', 'warning');
+            return;
+        }
+        const targetSources = kocSelectedSourceId
+            ? kocSources.filter(s => String(s.id) === String(kocSelectedSourceId))
+            : kocSources;
+        if (!targetSources.length) return pcToast('Hãy kết nối nguồn Sheet trước', 'warning');
+
+        const scanMode = mode === 'all' ? 'all' : 'pending';
+        const btnPending = document.getElementById('btn-koc-scan-views');
+        const btnAll = document.getElementById('btn-koc-rescan-all');
+        const progWrap = document.getElementById('koc-scan-progress-wrap');
+        const progText = document.getElementById('koc-scan-progress-text');
+        const progFill = document.getElementById('koc-scan-progress-fill');
+        const pauseBtn = document.getElementById('btn-koc-scan-pause');
+        const spinner = document.getElementById('koc-scan-spinner');
+
+        kocScanRunning = true;
+        kocScanPaused = false;
+        kocScanAborted = false;
+        if (btnPending) btnPending.disabled = true;
+        if (btnAll) btnAll.disabled = true;
+        if (pauseBtn) pauseBtn.textContent = 'Tạm dừng';
+        if (spinner) spinner.classList.add('animate-spin');
+        if (progWrap) progWrap.classList.remove('hidden');
+        if (progFill) progFill.style.width = '2%';
+
+        let totalScanned = 0, totalUpdated = 0, totalQual = 0, totalErr = 0, batchIdx = 0;
+        let estTotal = targetSources.reduce((acc, s) => {
+            const st = s.stats || {};
+            return acc + Number(scanMode === 'pending' ? (st.pending_videos ?? st.total_videos ?? 0) : (st.total_videos ?? 0));
+        }, 0);
+
         try {
-            const res = await fetch(`/api/marketplace/koc/sources/${targetId}/refresh-views?limit=80`, { method: 'POST' });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Lỗi quét view');
-            pcToast(data.message, 'success');
+            for (const src of targetSources) {
+                let afterId = 0;
+                let hasMore = true;
+                while (hasMore && !kocScanAborted) {
+                    while (kocScanPaused && !kocScanAborted) {
+                        if (progText) progText.textContent = `Đã tạm dừng tại ${totalScanned}/${estTotal || '?'} video — bấm "Tiếp tục" để quét tiếp.`;
+                        await new Promise(r => setTimeout(r, 350));
+                    }
+                    if (kocScanAborted) break;
+
+                    batchIdx += 1;
+                    if (progText) {
+                        progText.textContent = `Đang quét [${src.name}] lô #${batchIdx}: đã xử lý ${totalScanned}/${estTotal || '?'} video · Cập nhật: ${totalUpdated} · Đạt KPI: ${totalQual}`;
+                    }
+
+                    let data = null;
+                    let lastErr = null;
+                    for (let retry = 0; retry < 3; retry++) {
+                        try {
+                            const url = `/api/marketplace/koc/sources/${src.id}/refresh-views?mode=${scanMode}&after_id=${afterId}&limit=8`;
+                            const res = await fetch(url, { method: 'POST' });
+                            data = await safeKocJson(res);
+                            if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+                            lastErr = null;
+                            break;
+                        } catch (err) {
+                            lastErr = err;
+                            if (retry < 2 && !kocScanAborted) {
+                                if (progText) progText.textContent = `Mạng chập chờn (${err.message}), đang tự thử lại lô #${batchIdx}...`;
+                                await new Promise(r => setTimeout(r, 2000));
+                            }
+                        }
+                    }
+                    if (lastErr) throw lastErr;
+
+                    const scanned = Number(data.scanned || 0);
+                    if (scanned === 0) {
+                        hasMore = false;
+                        break;
+                    }
+                    totalScanned += scanned;
+                    totalUpdated += Number(data.updated || 0);
+                    totalQual += Number(data.qualified_in_batch || 0);
+                    totalErr += Number(data.errors || 0);
+                    afterId = Number(data.last_id || afterId);
+                    hasMore = Boolean(data.has_more);
+
+                    const dynTotal = Math.max(estTotal, totalScanned + Number(data.remaining || 0));
+                    estTotal = dynTotal;
+                    const pct = dynTotal > 0 ? Math.min(100, Math.round((totalScanned * 100) / dynTotal)) : 100;
+                    if (progFill) progFill.style.width = `${pct}%`;
+                    if (progText) {
+                        progText.textContent = `Đã quét ${totalScanned}/${dynTotal} video (${pct}%) · Lấy view OK: ${totalUpdated} · Đạt KPI: ${totalQual} · Lỗi/Riêng tư: ${totalErr}`;
+                    }
+
+                    if (batchIdx % 2 === 0) {
+                        await loadKocTab();
+                    }
+                }
+                if (kocScanAborted) break;
+            }
+
             await loadKocTab();
+            if (kocScanAborted) {
+                pcToast(`Đã dừng quét theo yêu cầu (đã lưu ${totalUpdated}/${totalScanned} video vừa quét).`, 'info');
+            } else if (totalScanned === 0) {
+                pcToast('Tất cả video đều đã có lượt xem, không còn video chờ quét! Bấm "Quét Lại Tất Cả" nếu muốn làm mới.', 'info');
+            } else {
+                if (progFill) progFill.style.width = '100%';
+                pcToast(`Hoàn tất quét ${totalScanned} video TikTok (thành công ${totalUpdated} video, đạt KPI ${totalQual} video)!`, 'success');
+            }
         } catch (e) {
-            pcToast('Lỗi: ' + e.message, 'error');
+            await loadKocTab();
+            pcToast('Lỗi khi quét view: ' + e.message + ' (các lô trước đã được lưu an toàn)', 'error');
         } finally {
-            if (btn) { btn.disabled = false; btn.textContent = '👁️ Quét View TikTok'; }
+            kocScanRunning = false;
+            kocScanPaused = false;
+            if (btnPending) btnPending.disabled = false;
+            if (btnAll) btnAll.disabled = false;
+            if (spinner) spinner.classList.remove('animate-spin');
+            updateKocTopKpiCards();
+            setTimeout(() => {
+                if (!kocScanRunning && progWrap) progWrap.classList.add('hidden');
+            }, 3500);
         }
     }
     window.scanCurrentKocViews = scanCurrentKocViews;

@@ -10,6 +10,7 @@ import datetime
 import io
 import json
 import re
+import time
 import urllib.request
 from typing import Dict, List, Optional, Tuple
 
@@ -146,6 +147,7 @@ def calc_koc_commission(videos: List[dict], rules: dict) -> dict:
     total_videos = len(videos)
     active_videos = 0
     error_videos = 0
+    pending_videos = 0
     qualified_videos = 0
     under_kpi_videos = 0
     viral_videos = 0
@@ -156,6 +158,10 @@ def calc_koc_commission(videos: List[dict], rules: dict) -> dict:
         views = int(v.get("views") or 0)
         status_str = str(v.get("status") or "OK").strip().lower()
         is_err = any(x in status_str for x in ("lỗi", "error", "riêng tư", "private", "xóa", "dead", "không tồn tại"))
+        if (views <= 0 and status_str != "thành công") or any(
+            k in status_str for k in ("chưa quét", "lỗi", "không lấy", "free api limit")
+        ):
+            pending_videos += 1
         total_views += max(0, views)
         uname = (v.get("koc_username") or "").strip().lstrip("@/").lower()
         if uname:
@@ -180,6 +186,7 @@ def calc_koc_commission(videos: List[dict], rules: dict) -> dict:
         "total_videos": total_videos,
         "active_videos": active_videos,
         "error_videos": error_videos,
+        "pending_videos": pending_videos,
         "qualified_videos": qualified_videos,
         "under_kpi_videos": under_kpi_videos,
         "viral_videos": viral_videos,
@@ -678,35 +685,101 @@ def sync_source_from_xlsx_bytes(cur, source_id: int, xlsx_bytes: bytes) -> dict:
     return {"profiles_synced": len(profiles_list), "videos_synced": len(merged_videos)}
 
 
+_TIKWM_LOCKS: Dict[int, asyncio.Lock] = {}
+_LAST_TIKWM_TS: float = 0.0
+_TIKTOK_WEB_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+}
+
+
+async def _wait_tikwm_rate_slot(min_interval: float = 1.08) -> None:
+    global _LAST_TIKWM_TS
+    loop_id = id(asyncio.get_running_loop())
+    lock = _TIKWM_LOCKS.get(loop_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _TIKWM_LOCKS[loop_id] = lock
+    async with lock:
+        gap = min_interval - (time.monotonic() - _LAST_TIKWM_TS)
+        if gap > 0:
+            await asyncio.sleep(gap)
+        _LAST_TIKWM_TS = time.monotonic()
+
+
+async def _fetch_tiktok_html_fallback(clean_u: str, orig_url: str, now_str: str, client: httpx.AsyncClient) -> Optional[dict]:
+    try:
+        r = await client.get(clean_u, headers=_TIKTOK_WEB_HEADERS, follow_redirects=True, timeout=10.0)
+        if r.status_code != 200:
+            return None
+        m = re.search(r'<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>(.*?)</script>', r.text)
+        if not m:
+            return None
+        data = json.loads(m.group(1))
+        detail = (data.get("__DEFAULT_SCOPE__") or {}).get("webapp.video-detail") or {}
+        item = (detail.get("itemInfo") or {}).get("itemStruct")
+        if not item:
+            return None
+        st = item.get("stats") or {}
+        author = ((item.get("author") or {}).get("uniqueId")) or extract_username(orig_url)
+        pub_ts = item.get("createTime")
+        pub_str = datetime.datetime.fromtimestamp(int(pub_ts)).strftime("%Y-%m-%d %H:%M") if pub_ts else ""
+        return {
+            "ok": True,
+            "views": int(st.get("playCount") or 0),
+            "likes": int(st.get("diggCount") or 0),
+            "comments": int(st.get("commentCount") or 0),
+            "shares": int(st.get("shareCount") or 0),
+            "title": str(item.get("desc") or "").strip(),
+            "koc_username": author,
+            "published_at": pub_str,
+            "status": "Thành công",
+            "updated_at": now_str,
+        }
+    except Exception:
+        return None
+
+
 async def fetch_tiktok_video_metrics(video_url: str, client: httpx.AsyncClient) -> dict:
     clean_u = video_url.split("?")[0].strip()
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    try:
-        res = await client.post("https://www.tikwm.com/api/", data={"url": clean_u}, timeout=12.0)
-        if res.status_code == 200:
-            payload = res.json()
-            if payload.get("code") == 0 and payload.get("data"):
-                d = payload["data"]
-                author = (d.get("author") or {}).get("unique_id") or extract_username(video_url)
-                pub_ts = d.get("create_time")
-                pub_str = datetime.datetime.fromtimestamp(int(pub_ts)).strftime("%Y-%m-%d %H:%M") if pub_ts else ""
-                return {
-                    "ok": True,
-                    "views": int(d.get("play_count") or 0),
-                    "likes": int(d.get("digg_count") or 0),
-                    "comments": int(d.get("comment_count") or 0),
-                    "shares": int(d.get("share_count") or 0),
-                    "title": str(d.get("title") or "").strip(),
-                    "koc_username": author,
-                    "published_at": pub_str,
-                    "status": "Thành công",
-                    "updated_at": now_str,
-                }
-            msg = str(payload.get("msg") or "Lỗi hoặc riêng tư")
-            return {"ok": False, "status": f"Lỗi: {msg[:40]}", "updated_at": now_str}
-    except Exception as e:
-        return {"ok": False, "status": f"Lỗi mạng: {str(e)[:30]}", "updated_at": now_str}
-    return {"ok": False, "status": "Không lấy được view", "updated_at": now_str}
+    last_err = "Không lấy được view"
+    for attempt in range(2):
+        try:
+            await _wait_tikwm_rate_slot(1.08 if attempt == 0 else 1.25)
+            res = await client.post("https://www.tikwm.com/api/", data={"url": clean_u}, timeout=12.0)
+            if res.status_code == 200:
+                payload = res.json()
+                if payload.get("code") == 0 and payload.get("data"):
+                    d = payload["data"]
+                    author = (d.get("author") or {}).get("unique_id") or extract_username(video_url)
+                    pub_ts = d.get("create_time")
+                    pub_str = datetime.datetime.fromtimestamp(int(pub_ts)).strftime("%Y-%m-%d %H:%M") if pub_ts else ""
+                    return {
+                        "ok": True,
+                        "views": int(d.get("play_count") or 0),
+                        "likes": int(d.get("digg_count") or 0),
+                        "comments": int(d.get("comment_count") or 0),
+                        "shares": int(d.get("share_count") or 0),
+                        "title": str(d.get("title") or "").strip(),
+                        "koc_username": author,
+                        "published_at": pub_str,
+                        "status": "Thành công",
+                        "updated_at": now_str,
+                    }
+                msg = str(payload.get("msg") or "Lỗi hoặc riêng tư")
+                last_err = f"Lỗi: {msg[:40]}"
+                if "limit" in msg.lower() and attempt == 0:
+                    continue
+                break
+        except Exception as e:
+            last_err = f"Lỗi mạng: {str(e)[:30]}"
+            break
+
+    fb = await _fetch_tiktok_html_fallback(clean_u, video_url, now_str, client)
+    if fb:
+        return fb
+    return {"ok": False, "status": last_err, "updated_at": now_str}
 
 
 def source_rules(cur, src_row, default_rules: dict = None) -> dict:

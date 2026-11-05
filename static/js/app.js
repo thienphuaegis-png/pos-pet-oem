@@ -6218,6 +6218,151 @@
             }
         };
 
+        // ── Bộ Chọn Tháng Dùng Chung (Chống lỗi <input type="month"> trắng trơn trên Firefox) ──
+        const _posMonthPopYear = {};
+
+        function _posNowYm() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        }
+
+        function _posPrevYm() {
+            const d = new Date();
+            let y = d.getFullYear(), m = d.getMonth();
+            if (m === 0) { m = 12; y -= 1; }
+            return `${y}-${String(m).padStart(2, '0')}`;
+        }
+
+        window.syncPosMonthWidget = function(inputId) {
+            const inp = document.getElementById(inputId);
+            if (!inp) return;
+            const widget = inp.closest('.pos-month-widget');
+            const allowAll = widget && widget.dataset.allowAll === 'true';
+            const val = (inp.value || '').trim();
+            const lbl = document.getElementById('pos-mlabel-' + inputId);
+            if (lbl) {
+                if (!val && allowAll) {
+                    lbl.textContent = 'Tất cả tháng';
+                } else if (/^\d{4}-\d{2}$/.test(val)) {
+                    lbl.textContent = `Tháng ${val.slice(5, 7)}/${val.slice(0, 4)}`;
+                } else {
+                    lbl.textContent = 'Chọn tháng';
+                }
+            }
+            if (widget) {
+                const thisYm = _posNowYm();
+                const prevYm = _posPrevYm();
+                let activeKey = '';
+                if (!val && allowAll) activeKey = 'all';
+                else if (val === thisYm) activeKey = 'this';
+                else if (val === prevYm) activeKey = 'prev';
+                widget.querySelectorAll('[data-mp-preset]').forEach(btn => {
+                    const isAct = btn.dataset.mpPreset === activeKey;
+                    btn.className = isAct
+                        ? 'px-2 py-1 rounded-md bg-sky-600 text-white cursor-pointer transition-all'
+                        : 'px-2 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition-all';
+                });
+            }
+        };
+
+        window.setPosMonthPicker = function(inputId, ym, triggerChange = true) {
+            const inp = document.getElementById(inputId);
+            if (!inp) return;
+            inp.value = ym || '';
+            window.syncPosMonthWidget(inputId);
+            const pop = document.getElementById('pos-mpop-' + inputId);
+            if (pop) pop.classList.add('hidden');
+            if (triggerChange) {
+                inp.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        };
+
+        window.presetPosMonthPicker = function(inputId, preset) {
+            if (preset === 'all') return window.setPosMonthPicker(inputId, '', true);
+            if (preset === 'prev') return window.setPosMonthPicker(inputId, _posPrevYm(), true);
+            return window.setPosMonthPicker(inputId, _posNowYm(), true);
+        };
+
+        window.stepPosMonthPicker = function(inputId, delta) {
+            const inp = document.getElementById(inputId);
+            if (!inp) return;
+            let base = (inp.value || '').trim();
+            if (!/^\d{4}-\d{2}$/.test(base)) base = _posNowYm();
+            let y = parseInt(base.slice(0, 4), 10);
+            let m = parseInt(base.slice(5, 7), 10) + delta;
+            if (m < 1) { m = 12; y -= 1; }
+            if (m > 12) { m = 1; y += 1; }
+            window.setPosMonthPicker(inputId, `${y}-${String(m).padStart(2, '0')}`, true);
+        };
+
+        function _renderPosMonthPopover(inputId) {
+            const inp = document.getElementById(inputId);
+            const pop = document.getElementById('pos-mpop-' + inputId);
+            if (!inp || !pop) return;
+            const widget = inp.closest('.pos-month-widget');
+            const allowAll = widget && widget.dataset.allowAll === 'true';
+            const curVal = (inp.value || '').trim();
+            const year = _posMonthPopYear[inputId] || (curVal ? parseInt(curVal.slice(0, 4), 10) : new Date().getFullYear());
+            _posMonthPopYear[inputId] = year;
+
+            const gridHtml = Array.from({ length: 12 }, (_, idx) => {
+                const m = idx + 1;
+                const ym = `${year}-${String(m).padStart(2, '0')}`;
+                const isSel = curVal === ym;
+                const cls = isSel
+                    ? 'py-1.5 rounded-lg font-bold bg-sky-600 text-white cursor-pointer transition'
+                    : 'py-1.5 rounded-lg font-bold bg-slate-50 hover:bg-sky-50 text-slate-700 hover:text-sky-700 border border-slate-200 cursor-pointer transition';
+                return `<button type="button" onclick="setPosMonthPicker('${inputId}', '${ym}', true)" class="${cls}">Thg ${String(m).padStart(2, '0')}</button>`;
+            }).join('');
+
+            pop.innerHTML = `
+                <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                    <button type="button" onclick="shiftPosMonthPopoverYear('${inputId}', -1, event)" class="px-2 py-1 rounded hover:bg-slate-100 font-bold text-slate-600 cursor-pointer"><i class="ph ph-caret-left"></i></button>
+                    <span class="font-bold text-slate-800">Năm ${year}</span>
+                    <button type="button" onclick="shiftPosMonthPopoverYear('${inputId}', 1, event)" class="px-2 py-1 rounded hover:bg-slate-100 font-bold text-slate-600 cursor-pointer"><i class="ph ph-caret-right"></i></button>
+                </div>
+                <div class="grid grid-cols-3 gap-1.5">${gridHtml}</div>
+                <div class="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-100">
+                    ${allowAll ? `<button type="button" onclick="presetPosMonthPicker('${inputId}', 'all')" class="flex-1 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer">Tất cả</button>` : ''}
+                    <button type="button" onclick="presetPosMonthPicker('${inputId}', 'prev')" class="flex-1 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer">Tháng trước</button>
+                    <button type="button" onclick="presetPosMonthPicker('${inputId}', 'this')" class="flex-1 py-1 rounded bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold cursor-pointer">Tháng này</button>
+                </div>
+            `;
+        }
+
+        window.shiftPosMonthPopoverYear = function(inputId, delta, ev) {
+            if (ev) ev.stopPropagation();
+            const cur = _posMonthPopYear[inputId] || new Date().getFullYear();
+            _posMonthPopYear[inputId] = cur + delta;
+            _renderPosMonthPopover(inputId);
+        };
+
+        window.togglePosMonthPopover = function(inputId, ev) {
+            if (ev) ev.stopPropagation();
+            const pop = document.getElementById('pos-mpop-' + inputId);
+            if (!pop) return;
+            const willOpen = pop.classList.contains('hidden');
+            document.querySelectorAll('.pos-month-popover').forEach(el => el.classList.add('hidden'));
+            if (willOpen) {
+                const inp = document.getElementById(inputId);
+                const curVal = (inp?.value || '').trim();
+                _posMonthPopYear[inputId] = /^\d{4}-\d{2}$/.test(curVal) ? parseInt(curVal.slice(0, 4), 10) : new Date().getFullYear();
+                _renderPosMonthPopover(inputId);
+                pop.classList.remove('hidden');
+            }
+        };
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.pos-month-widget')) {
+                document.querySelectorAll('.pos-month-popover').forEach(el => el.classList.add('hidden'));
+            }
+        });
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.pos-month-widget[data-month-input]').forEach(w => {
+                window.syncPosMonthWidget(w.dataset.monthInput);
+            });
+        });
+
         window.onload = init;
         if (document.readyState === 'complete' || document.readyState === 'interactive') {
             setTimeout(init, 50);

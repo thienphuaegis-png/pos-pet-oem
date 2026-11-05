@@ -1,40 +1,39 @@
 # PROJECT STATE — POS Petcare & Retail (Cloud D1 + Vercel + Local dual-server)
 
-**Checkpoint:** 2026-11-05 — Hoàn thành trọn gói Plan đồng bộ HRM & Hoa hồng Pancake (`hrm-ux-sync-grouping-and-commissions`)
+**Checkpoint:** 2026-11-05 — Chi tiết khoản Thưởng/Phụ cấp Bảng Lương + Quét View TikTok theo lô chống nghẽn + Bộ chọn Tháng Firefox/Chrome
 **Lịch sử checkpoint:** `.ai/checkpoints/CHECKPOINT_2026_10_25.md` (trước đó `CHECKPOINT_2026_10_23.md`)
-**Archived Plan:** `.ai/plans/archive/2026-11-04-hrm-ux-sync-grouping-and-commissions.md` (Mockup: `.ai/sketches/2026-11-04-hrm-ux-overhaul-and-commissions.html` — ĐÃ CODE & VERIFY)
+**Archived Plan:** `.ai/plans/archive/2026-11-05-payroll-items-koc-tiktok-scan-and-month-picker.md` (Mockup: `.ai/sketches/2026-11-05-payroll-adjust-and-koc-tiktok-ux.html`)
 **Server:** Local `http://127.0.0.1:8998` (MCare, `data/pos.db`) + `:8997` (PetNT, `data/pos_instance2.db`) — `CHAY_2_MAY_CHU.bat` → `scripts/share_online.py --dual`
 **Cloud:** `https://mcarepet.vercel.app` & `https://petnt.vercel.app` (Cloudflare D1); deploy `scripts/deploy_2_vercel.py`
 **Working dir:** `D:/Projects_Hermes/pos-petcare2`
-**Remote:** `https://github.com/thienphuaegis-png/pos-pet-oem.git` (Branch: `main`)
-**Version:** `v3.6.85` (`version_helper.py` + git, HEAD `758f282`)
+**Remote:** `https://github.com/thienphuaegis-png/pos-pet-oem.git` (Branch: `main`, HEAD `267beb9`)
+**Version:** `v3.6.110+` (`version_helper.py` + git)
 
 ---
 
-## 1. Phiên Hiện Tại ✅ (2026-11-05)
-- **Engine Chấm Công & Lưới Tháng (`services/payroll_engine.py`, `services/payroll_service.py`, `static/js/modules/hrm.js`):** Không trừ phạt Vắng `-500.000 đ/ngày` cho NV cả kỳ chưa có lượt quẹt vân tay (`0 công, 0 phạt`, bỏ gạch đỏ); Lưới Chấm Công chỉ đọc, 2 hàng tiêu đề (`01..31` + `T2..T7, CN`), tô nền hồng cột `CN`, ghim `Mã NV + Họ và Tên`.
-- **Ghim Cột Bảng Lương & Mở Đủ 29 Cột `Nhân Sự` (`routers/hrm.py`, `static/js/modules/hrm.js`, `templates/index.html`):** `sticky left` cụm `⚠ + Mã NV + Họ và Tên` (kể cả dòng `Tổng cộng`); tab `Nhân Sự` mở 29 cột kèm Popover `Cột hiển thị` (`GET/PUT /api/hrm/staff-columns`) và ghi chú nền 85% KPI (`5.525.000 đ` → `6.500.000 đ`).
-- **Thanh Thời Gian Dùng Chung + Sửa Mất Tên + Gom Nhóm Tổng Theo NV:** Nút `Tháng này | Tháng trước | Khoảng ngày` đồng bộ 2 chiều HRM & Sàn Pancake; sửa mất tên NV ở `Tăng Ca` & `Tạm Ứng` + sửa `pa.account_type`; ngày `DD/MM/YYYY (Thứ)`; gom nhóm theo NV kèm tổng từng người + `<tfoot>` tổng kỳ ở `Xin Off`, `Tăng Ca`, `Tạm Ứng`, `Điều Chỉnh Lương`.
-- **Hoa Hồng POS & Tiến Độ Đủ/Thiếu Pancake (`services/commission.py`, `services/pancake.py`, `routers/hrm.py`, `static/js/modules/hrm.js`):** Chế độ `dept` tự hưởng `% Bán POS` của Bộ phận (tách rõ đơn TK `Admin`); thưởng đạt mốc `120tr` của `NV17` về `+975.000 đ` (lên đúng `6.500.000 đ`), bỏ ẩn NV `0 đ` mặc định, luôn hiện tiến độ `Thực đạt / Mốc (Đạt / Thiếu ... đ)`.
+## 1. Phiên Hiện Tại ✅ (2026-11-05 — Đợt 2)
+- **Chi Tiết Khoản Thưởng / Phụ Cấp / Giảm Trừ Bảng Lương (`services/hrm_schema.py`, `services/payroll_service.py`, `routers/hrm.py`, `static/js/modules/hrm.js`):** Thêm `manual_items_json` vào `payroll_lines`; bấm trực tiếp ô `PC Xăng/Khác`, `Thưởng khác`, `Trừ khác` trên Bảng Lương hoặc nút `Điều chỉnh Thưởng/PC` trong Phiếu Lương để nhập nhiều dòng khoản mục lẻ (`loại + tên khoản + số tiền`), tự cộng tổng, giữ bền vững qua `Tính Lương` và in tường minh lên Phiếu Lương.
+- **Sửa Dứt Điểm Quét View TikTok 461+ Video (`routers/marketplace.py`, `services/koc_service.py`, `static/js/modules/marketplace.js`):** Bổ sung `import asyncio` bị thiếu (gốc lỗi 500 làm nổ `JSON.parse`), bọc `safeKocJson`, điều tiết `tikwm.com` `1.08s/video` + fallback đọc HTML TikTok (`__UNIVERSAL_DATA_FOR_REHYDRATION__`), tách 2 nút `Quét View Chưa Có (N)` / `Quét Lại Tất Cả` chạy từng lô `8 video` kèm thanh tiến trình + `Tạm dừng` / `Dừng hẳn`.
+- **Đồng Bộ Bộ Chọn Tháng Firefox/Chrome (`static/js/app.js`, `templates/index.html`, `static/js/modules/spa.js`):** Thay sạch cả 4 thẻ `<input type="month">` bị trắng trên Firefox (`#koc-month-filter`, `#koc-src-month`, `#my-payslip-month`, `#spa-staff-filter-month`) bằng Popover lưới 12 tháng + nút nhanh `Tất cả / Tháng này / Tháng trước`.
 
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
-- 2026-11-05 `pytest` trên `test_hrm_ux_sync_grouping_and_commissions.py` + 13 bộ test HRM / Commission / Pancake / D1 / HTML / Elaya / Query Guard / Checkpoint: **80 passed, 0 failed** (34.5s).
-- `pyflakes` (6 file Python) = 0 lỗi; `node --check` (`hrm.js`, `marketplace.js`, `app.js`) = exit 0.
+- 2026-11-05 `pytest` trên `test_payroll_manual_items_and_koc_scan.py` + 9 bộ test KOC / HRM / Pancake / Elaya / HTML / D1 / Query Guard / Checkpoint / Git Hygiene: **66 passed, 0 failed**.
+- `pyflakes` (6 file Python) = 0 undefined names; `node --check` (`app.js`, `hrm.js`, `marketplace.js`, `spa.js`) = exit 0.
 
 ---
 
 ## 3. Files Thay Đổi Chính
-- Backend: `services/payroll_engine.py`, `services/payroll_service.py`, `services/commission.py`, `services/pancake.py`, `routers/hrm.py`.
-- Frontend: `templates/index.html`, `static/js/modules/hrm.js`, `static/js/modules/marketplace.js`, `static/js/app.js`.
-- Tests: `tests/test_hrm_ux_sync_grouping_and_commissions.py`, `tests/test_marketplace_pancake.py`, `tests/test_hrm_attendance_detail_sort_sum_and_50k_fix.py`.
+- Backend: `services/hrm_schema.py`, `services/payroll_service.py`, `routers/hrm.py`, `services/koc_service.py`, `routers/marketplace.py`.
+- Frontend: `templates/index.html`, `static/js/app.js`, `static/js/modules/hrm.js`, `static/js/modules/marketplace.js`, `static/js/modules/spa.js`.
+- Tests: `tests/test_payroll_manual_items_and_koc_scan.py`.
 
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
-- [ ] Kiểm tra trực quan trên trình duyệt & commit toàn bộ đợt nâng cấp HRM + Hoa hồng Pancake (`feat(hrm,pancake): sync period bar, sticky columns, staff grouping, and KPI progress`).
-- [ ] Đồng bộ đơn thực tế Tháng 10/2026 trên `Bán Hàng Sàn TMĐT → Pancake` (chọn `Tháng trước`) và gán nick `Thùy Dương -> NV17` để lên số thật.
+- [ ] Commit & push bản sửa lỗi để máy tiệm bấm **Cập Nhật Ngay**, sau đó bấm `Quét View Chưa Có (461)` cho chiến dịch `THANH 10/2026`.
+- [ ] Đồng bộ đơn thực tế Tháng 10/2026 trên `Bán Hàng Sàn TMĐT → Pancake` và đối soát bảng lương tháng 10.
 - [ ] Xác nhận & sửa phân hạng KH bị nhảy sang LAZADA do bug cũ (#1, #29313 trên `pos_instance2.db`; #22256).
 
 ---

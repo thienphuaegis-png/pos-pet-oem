@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, Depends, UploadFile, File, Form
 from typing import Optional, List, Dict, Any
+import asyncio
 import datetime
 import json
 import re
@@ -1877,34 +1878,67 @@ def delete_koc_video(video_id: int, user=Depends(get_optional_user)):
 
 
 @router.post("/koc/sources/{source_id}/refresh-views")
-async def refresh_koc_source_views(source_id: int, only_zero: bool = False, limit: int = 80):
+async def refresh_koc_source_views(
+    source_id: int,
+    only_zero: bool = False,
+    mode: Optional[str] = None,
+    after_id: int = 0,
+    limit: int = 8,
+):
+    eff_mode = (mode or ("pending" if only_zero else "all")).strip().lower()
+    pending_clause = (
+        " AND ( (COALESCE(views, 0) <= 0 AND COALESCE(status, '') != 'Thành công')"
+        " OR status LIKE 'Chưa quét%' OR status LIKE 'Lỗi%' OR status LIKE 'Không lấy%' )"
+    )
+    cond = pending_clause if eff_mode == "pending" else ""
+    batch_limit = max(1, min(limit, 80))
+
     conn = get_db()
     cur = conn.cursor()
     try:
         koc_svc.ensure_koc_schema(cur)
-        sql = "SELECT id, video_url, views FROM koc_videos WHERE source_id = ?"
-        if only_zero:
-            sql += " AND COALESCE(views, 0) = 0"
-        sql += " ORDER BY views ASC, id ASC LIMIT ?"
-        cur.execute(sql, (source_id, max(1, min(limit, 300))))
+        cur.execute("SELECT * FROM koc_sources WHERE id = ?", (source_id,))
+        src_row = cur.fetchone()
+        rules = koc_svc.source_rules(cur, dict(src_row) if src_row else None)
+        min_views = int(rules.get("min_views") if rules.get("min_views") is not None else 200)
+
+        cur.execute(
+            f"SELECT COUNT(*) FROM koc_videos WHERE source_id = ? AND id > ?{cond}",
+            (source_id, max(0, after_id)),
+        )
+        total_from_cursor = int(cur.fetchone()[0] or 0)
+
+        cur.execute(
+            f"SELECT id, video_url, views FROM koc_videos WHERE source_id = ? AND id > ?{cond} ORDER BY id ASC LIMIT ?",
+            (source_id, max(0, after_id), batch_limit),
+        )
         targets = [dict(r) for r in cur.fetchall()]
     finally:
         conn.close()
 
     if not targets:
-        return {"status": "ok", "updated": 0, "message": "Không có video nào cần quét view"}
+        return {
+            "status": "ok",
+            "scanned": 0,
+            "updated": 0,
+            "errors": 0,
+            "qualified_in_batch": 0,
+            "last_id": after_id,
+            "remaining": 0,
+            "has_more": False,
+            "message": "Không còn video nào cần quét view",
+        }
 
-    sem = asyncio.Semaphore(5)
-    updated_count = 0
-
+    results = []
     async with httpx.AsyncClient() as client:
-        async def _worker(item):
-            async with sem:
-                res = await koc_svc.fetch_tiktok_video_metrics(item["video_url"], client)
-                await asyncio.sleep(0.35)
-                return item["id"], res
+        for item in targets:
+            res = await koc_svc.fetch_tiktok_video_metrics(item["video_url"], client)
+            results.append((item["id"], res))
 
-        results = await asyncio.gather(*[_worker(t) for t in targets])
+    updated_count = 0
+    error_count = 0
+    qualified_in_batch = 0
+    last_id = max(t["id"] for t in targets)
 
     conn = get_db()
     cur = conn.cursor()
@@ -1912,6 +1946,8 @@ async def refresh_koc_source_views(source_id: int, only_zero: bool = False, limi
         for vid_id, m in results:
             if m.get("ok"):
                 updated_count += 1
+                if int(m.get("views") or 0) >= min_views:
+                    qualified_in_batch += 1
                 cur.execute("""
                     UPDATE koc_videos
                     SET views = ?, likes = ?, comments = ?, shares = ?,
@@ -1926,16 +1962,23 @@ async def refresh_koc_source_views(source_id: int, only_zero: bool = False, limi
                     m["published_at"], m["published_at"], m["status"], m["updated_at"], vid_id
                 ))
             else:
+                error_count += 1
                 cur.execute("UPDATE koc_videos SET status = ?, updated_at = ? WHERE id = ?",
                             (m.get("status", "Lỗi"), m.get("updated_at", ""), vid_id))
         conn.commit()
     finally:
         conn.close()
 
+    remaining = max(0, total_from_cursor - len(targets))
     return {
         "status": "ok",
         "scanned": len(targets),
         "updated": updated_count,
+        "errors": error_count,
+        "qualified_in_batch": qualified_in_batch,
+        "last_id": last_id,
+        "remaining": remaining,
+        "has_more": remaining > 0,
         "message": f"Đã quét {len(targets)} video TikTok (cập nhật thành công {updated_count} video)",
     }
 

@@ -2023,11 +2023,18 @@ def calculate_payroll(month: str, user=Depends(require_permission(PERM))):
         conn.close()
 
 
+class ManualItemIn(BaseModel):
+    type: str
+    label: str = ""
+    amount: float = 0
+
+
 class ManualIn(BaseModel):
     bonus_other: Optional[float] = None
     fuel_other: Optional[float] = None
     deduction_other: Optional[float] = None
     manual_note: Optional[str] = None
+    manual_items: Optional[List[ManualItemIn]] = None
 
 
 @router.put("/payroll/{month}/lines/{staff_id}")
@@ -2036,6 +2043,12 @@ def update_payroll_line(month: str, staff_id: int, body: ManualIn, user=Depends(
         v = getattr(body, k)
         if v is not None and v < 0:
             raise HTTPException(400, f"{k} không được âm")
+    if body.manual_items is not None:
+        for it in body.manual_items:
+            if it.type not in ("fuel", "bonus", "deduction", "deduct"):
+                raise HTTPException(400, "Loại khoản điều chỉnh không hợp lệ")
+            if it.amount < 0:
+                raise HTTPException(400, "Số tiền khoản điều chỉnh không được âm")
     conn = get_db(); cur = conn.cursor()
     try:
         res = ps.update_manual(cur, month, staff_id, body.model_dump())
@@ -2196,13 +2209,15 @@ def get_my_payslip(month: Optional[str] = None, staff_id: Optional[int] = None, 
             "message": f"Chưa có dòng lương cho nhân viên {staff['name']} trong tháng {month[5:]}/{month[:4]}"
         }
 
-    data = json.loads(line["data_json"] or "{}")
+    line_dict = dict(line)
+    data = json.loads(line_dict.get("data_json") or "{}")
     for k in ps.MANUAL_FIELDS:
-        data[k] = float(line[k] or 0)
-    data["net_pay"] = float(line["net_pay"] or 0)
-    data["manual_note"] = line["manual_note"] or ""
-    data["cashbook_code"] = line["cashbook_code"] or ""
-    data["paid_at"] = line["paid_at"]
+        data[k] = float(line_dict.get(k) or 0)
+    data["net_pay"] = float(line_dict.get("net_pay") or 0)
+    data["manual_note"] = line_dict.get("manual_note") or ""
+    data["manual_items"] = ps.parse_manual_items(line_dict.get("manual_items_json"), line_dict)
+    data["cashbook_code"] = line_dict.get("cashbook_code") or ""
+    data["paid_at"] = line_dict.get("paid_at")
 
     return {
         "status": "ok",

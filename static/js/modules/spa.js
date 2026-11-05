@@ -3861,6 +3861,7 @@
                 const now = new Date();
                 monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
             }
+            if (typeof window.syncPosMonthWidget === 'function') window.syncPosMonthWidget('spa-staff-filter-month');
             const monthVal = monthInput ? monthInput.value : '';
             try {
                 if (tbody) {

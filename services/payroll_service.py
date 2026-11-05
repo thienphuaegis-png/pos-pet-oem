@@ -13,6 +13,63 @@ from services.commission import sales_commission_by_staff, spa_commission_by_nam
 PAYROLL_CATEGORY = "Chi lương & hoa hồng nhân viên"
 ADVANCE_CATEGORY = "Tạm ứng lương"
 MANUAL_FIELDS = ("bonus_other", "fuel_other", "deduction_other")
+MANUAL_TYPE_DEFAULTS = {
+    "fuel": "Phụ cấp xăng xe / khác",
+    "bonus": "Thưởng khác",
+    "deduction": "Giảm trừ khác",
+}
+
+
+def normalize_manual_items(items) -> list:
+    out = []
+    for raw in (items or []):
+        if not isinstance(raw, dict):
+            continue
+        t = str(raw.get("type") or "").strip().lower()
+        if t == "deduct":
+            t = "deduction"
+        if t not in MANUAL_TYPE_DEFAULTS:
+            continue
+        amt = round(max(0.0, float(raw.get("amount") or 0)))
+        if amt <= 0:
+            continue
+        lbl = str(raw.get("label") or "").strip() or MANUAL_TYPE_DEFAULTS[t]
+        out.append({"type": t, "label": lbl, "amount": amt})
+    return out
+
+
+def parse_manual_items(raw_json, row_dict: dict = None) -> list:
+    items = []
+    if raw_json:
+        try:
+            parsed = json.loads(raw_json) if isinstance(raw_json, str) else raw_json
+            items = normalize_manual_items(parsed)
+        except Exception:
+            items = []
+    if items or not row_dict:
+        return items
+    # Tương thích dữ liệu cũ chỉ lưu 3 cột tổng mà chưa có manual_items_json
+    fuel = round(max(0.0, float(row_dict.get("fuel_other") or 0)))
+    bonus = round(max(0.0, float(row_dict.get("bonus_other") or 0)))
+    deduct = round(max(0.0, float(row_dict.get("deduction_other") or 0)))
+    note = str(row_dict.get("manual_note") or "").strip()
+    non_zero = sum(1 for v in (fuel, bonus, deduct) if v > 0)
+    if fuel > 0:
+        items.append({"type": "fuel", "label": note if (note and non_zero == 1) else MANUAL_TYPE_DEFAULTS["fuel"], "amount": fuel})
+    if bonus > 0:
+        items.append({"type": "bonus", "label": note if (note and non_zero == 1) else MANUAL_TYPE_DEFAULTS["bonus"], "amount": bonus})
+    if deduct > 0:
+        items.append({"type": "deduction", "label": note if (note and non_zero == 1) else MANUAL_TYPE_DEFAULTS["deduction"], "amount": deduct})
+    return items
+
+
+def summarize_manual_items(items: list) -> str:
+    parts = []
+    for it in (items or []):
+        sign = "-" if it["type"] == "deduction" else "+"
+        amt_str = f"{int(round(it['amount'])):,}".replace(",", ".")
+        parts.append(f"{it['label']}: {sign}{amt_str}đ")
+    return "; ".join(parts)
 
 
 def calculate_tenure(hire_date, end_date=None) -> str:
@@ -331,8 +388,11 @@ def calculate_period(cur, month: str, today: date = None) -> dict:
     seen = set()
     for s in payroll_staff(cur, first):
         ex = existing.get(s["id"])
-        manual = {k: float(ex[k] or 0) for k in MANUAL_FIELDS} if ex else {}
+        ex_dict = dict(ex) if ex else {}
+        manual = {k: float(ex_dict.get(k) or 0) for k in MANUAL_FIELDS} if ex_dict else {}
         line = compute_line(cur, s, y, m, first, last, today, rules, blocks, sales, spa, manual, prev_net.get(s["id"]))
+        if ex_dict:
+            line["manual_items"] = parse_manual_items(ex_dict.get("manual_items_json"), ex_dict)
         seen.add(s["id"])
         cur.execute("""INSERT INTO payroll_lines (period_id, staff_id, data_json, net_pay) VALUES (?, ?, ?, ?)
                        ON CONFLICT(period_id, staff_id) DO UPDATE SET data_json = excluded.data_json, net_pay = excluded.net_pay""",
@@ -352,12 +412,16 @@ def get_period(cur, month: str) -> dict:
                    LEFT JOIN cashbook c ON c.id = pl.cashbook_id WHERE pl.period_id = ? ORDER BY pl.id""", (period["id"],))
     lines = []
     for r in cur.fetchall():
-        data = json.loads(r["data_json"] or "{}")
-        data.update({k: float(r[k] or 0) for k in MANUAL_FIELDS})
+        r_dict = dict(r)
+        data = json.loads(r_dict.get("data_json") or "{}")
+        data.update({k: float(r_dict.get(k) or 0) for k in MANUAL_FIELDS})
         if "total_days" not in data:
             data["total_days"] = round(float(data.get("days_official") or 0) + float(data.get("days_probation") or 0), 2)
-        data.update({"line_id": r["id"], "net_pay": float(r["net_pay"] or 0), "manual_note": r["manual_note"] or "",
-                     "cashbook_id": r["cashbook_id"], "cashbook_code": r["cashbook_code"], "paid_at": r["paid_at"]})
+        manual_items = parse_manual_items(r_dict.get("manual_items_json"), r_dict)
+        data.update({"line_id": r_dict["id"], "net_pay": float(r_dict.get("net_pay") or 0),
+                     "manual_note": r_dict.get("manual_note") or "", "manual_items": manual_items,
+                     "cashbook_id": r_dict.get("cashbook_id"), "cashbook_code": r_dict.get("cashbook_code"),
+                     "paid_at": r_dict.get("paid_at")})
         lines.append(data)
     keys = ("days_official", "days_probation", "total_days", "base_salary", "probation_salary",
             "pay_official", "pay_probation", "pay_days", "allowance", "fuel_other", "holiday_pay",
@@ -369,21 +433,44 @@ def get_period(cur, month: str) -> dict:
 
 
 def update_manual(cur, month: str, staff_id: int, fields: dict, today: date = None) -> dict:
-    y, m, first, last = parse_month(month)
+    parse_month(month)
     period = _period(cur, month)
     if not period or period["status"] != "draft":
         raise HTTPException(400, "Chỉ sửa được khi bảng lương đang ở trạng thái tạm tính")
     cur.execute("SELECT * FROM payroll_lines WHERE period_id = ? AND staff_id = ?", (period["id"], staff_id))
-    if not cur.fetchone():
+    row = cur.fetchone()
+    if not row:
         raise HTTPException(404, "Nhân viên không có trong bảng lương tháng này")
+    row_dict = dict(row)
+    cur.execute("PRAGMA table_info(payroll_lines)")
+    if "manual_items_json" not in {c[1] for c in cur.fetchall()}:
+        cur.execute("ALTER TABLE payroll_lines ADD COLUMN manual_items_json TEXT DEFAULT '[]'")
+
     sets, vals = [], []
-    for k in MANUAL_FIELDS:
-        if fields.get(k) is not None:
-            sets.append(f"{k} = ?")
-            vals.append(float(fields[k]))
-    if fields.get("manual_note") is not None:
-        sets.append("manual_note = ?")
-        vals.append(fields["manual_note"])
+    if fields.get("manual_items") is not None:
+        items = normalize_manual_items(fields["manual_items"])
+        fuel_sum = float(sum(it["amount"] for it in items if it["type"] == "fuel"))
+        bonus_sum = float(sum(it["amount"] for it in items if it["type"] == "bonus"))
+        deduct_sum = float(sum(it["amount"] for it in items if it["type"] == "deduction"))
+        note_in = str(fields.get("manual_note") or "").strip()
+        final_note = note_in if note_in else summarize_manual_items(items)
+        sets.extend(["fuel_other = ?", "bonus_other = ?", "deduction_other = ?", "manual_note = ?", "manual_items_json = ?"])
+        vals.extend([fuel_sum, bonus_sum, deduct_sum, final_note, json.dumps(items, ensure_ascii=False)])
+    else:
+        updated_row = dict(row_dict)
+        for k in MANUAL_FIELDS:
+            if fields.get(k) is not None:
+                sets.append(f"{k} = ?")
+                vals.append(float(fields[k]))
+                updated_row[k] = float(fields[k])
+        if fields.get("manual_note") is not None:
+            sets.append("manual_note = ?")
+            vals.append(fields["manual_note"])
+            updated_row["manual_note"] = fields["manual_note"]
+        synced_items = parse_manual_items(None, updated_row)
+        sets.append("manual_items_json = ?")
+        vals.append(json.dumps(synced_items, ensure_ascii=False))
+
     if sets:
         cur.execute(f"UPDATE payroll_lines SET {', '.join(sets)} WHERE period_id = ? AND staff_id = ?", (*vals, period["id"], staff_id))
     return calculate_period(cur, month, today)

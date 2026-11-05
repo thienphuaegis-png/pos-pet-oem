@@ -197,11 +197,16 @@ def ensure_hrm_schema(cur):
         fuel_other REAL NOT NULL DEFAULT 0,
         deduction_other REAL NOT NULL DEFAULT 0,
         manual_note TEXT,
+        manual_items_json TEXT DEFAULT '[]',
         net_pay REAL NOT NULL DEFAULT 0,
         cashbook_id INTEGER REFERENCES cashbook(id) ON DELETE SET NULL,
         paid_at DATETIME,
         UNIQUE(period_id, staff_id)
     )""")
+    cur.execute("PRAGMA table_info(payroll_lines)")
+    pl_cols = {r[1] for r in cur.fetchall()}
+    if "manual_items_json" not in pl_cols:
+        cur.execute("ALTER TABLE payroll_lines ADD COLUMN manual_items_json TEXT DEFAULT '[]'")
 
     cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('hrm_rules', ?)", (json.dumps(HRM_DEFAULT_RULES),))
     # Sửa lỗi gõ dư số 0 ở máy tiệm (late_per_min = 50.000 thay vì 5.000 làm trễ 16p phạt 800k > trần 200k)

@@ -566,6 +566,7 @@
         }
         const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
         const fmtN = v => Number(v || 0).toLocaleString('vi-VN');
+        const isDraft = (data.status || 'draft') === 'draft';
 
         const renderCell = (col, l, issCell, stickyBgCls) => {
             const totalDays = Number((Number(l.days_official || 0) + Number(l.days_probation || 0)).toFixed(2));
@@ -599,7 +600,9 @@
                 case 'allowance':
                     return `<td class="p-2.5 text-right font-mono">${fmtN(l.allowance)}</td>`;
                 case 'fuel_other':
-                    return `<td class="p-2.5 text-right font-mono">${fmtN(l.fuel_other)}</td>`;
+                    return isDraft
+                        ? `<td onclick="openHrmManualItemsModal(${l.staff_id}, 'fuel')" class="p-2.5 text-right font-mono text-sky-700 cursor-pointer hover:bg-sky-50 hover:underline whitespace-nowrap" title="Bấm để thêm / sửa các khoản Phụ cấp xăng xe, điện thoại, khác">${fmtN(l.fuel_other)} <i class="ph ph-pencil-simple text-slate-400"></i></td>`
+                        : `<td class="p-2.5 text-right font-mono">${fmtN(l.fuel_other)}</td>`;
                 case 'holiday_pay':
                     return `<td class="p-2.5 text-right font-mono">${fmtN(l.holiday_pay)}</td>`;
                 case 'commission':
@@ -613,7 +616,9 @@
                 case 'birthday_bonus':
                     return `<td class="p-2.5 text-right font-mono">${fmtN(l.birthday_bonus)}</td>`;
                 case 'bonus_other':
-                    return `<td class="p-2.5 text-right font-mono text-emerald-700">${fmtN(l.bonus_other)}</td>`;
+                    return isDraft
+                        ? `<td onclick="openHrmManualItemsModal(${l.staff_id}, 'bonus')" class="p-2.5 text-right font-mono font-bold text-emerald-700 cursor-pointer hover:bg-emerald-50 hover:underline whitespace-nowrap" title="Bấm để thêm / sửa các khoản Thưởng nóng, thưởng khác">${fmtN(l.bonus_other)} <i class="ph ph-pencil-simple text-slate-400"></i></td>`
+                        : `<td class="p-2.5 text-right font-mono text-emerald-700">${fmtN(l.bonus_other)}</td>`;
                 case 'ot_pay':
                     return `<td class="p-2.5 text-right font-mono font-bold text-amber-700">${fmtN(l.ot_pay)}</td>`;
                 case 'gross':
@@ -623,7 +628,9 @@
                 case 'advances':
                     return `<td class="p-2.5 text-right font-mono font-bold text-rose-600">-${fmtN(l.advances)}</td>`;
                 case 'deduction_other':
-                    return `<td class="p-2.5 text-right font-mono font-bold text-rose-600">-${fmtN(l.deduction_other)}</td>`;
+                    return isDraft
+                        ? `<td onclick="openHrmManualItemsModal(${l.staff_id}, 'deduction')" class="p-2.5 text-right font-mono font-bold text-rose-600 cursor-pointer hover:bg-rose-50 hover:underline whitespace-nowrap" title="Bấm để thêm / sửa các khoản Giảm trừ khác">-${fmtN(l.deduction_other)} <i class="ph ph-pencil-simple text-slate-400"></i></td>`
+                        : `<td class="p-2.5 text-right font-mono font-bold text-rose-600">-${fmtN(l.deduction_other)}</td>`;
                 case 'insurance':
                     return `<td class="p-2.5 text-right font-mono font-bold text-sky-700">${l.insurance ? '-' + fmtN(l.insurance) : '—'}</td>`;
                 case 'pit':
@@ -2477,22 +2484,129 @@
         }
     };
 
-    // ── Sửa Dòng Bảng Lương (Payroll Line Adjustment) ──
-    window.editHrmLine = function(staffId, bonusOther, fuelOther, deductionOther, note) {
-        document.getElementById('hrm-line-staff-id').value = staffId;
-        let staffName = 'Nhân viên';
-        if (payrollData && payrollData.lines) {
-            const line = payrollData.lines.find(l => l.staff_id === staffId);
-            if (line) staffName = `${line.name} (${line.employee_code || 'NV' + line.staff_id})`;
+    // ── Sửa Dòng Bảng Lương Chi Tiết Nhiều Khoản Mục (Payroll Manual Items) ──
+    let hrmEditLineTargetMonth = '';
+    let activePayslipContext = null;
+
+    function _parseMoneyRaw(val) {
+        if (typeof parseMoneyInput === 'function') return Math.max(0, Number(parseMoneyInput(val)) || 0);
+        return Math.max(0, parseFloat(String(val || '').replace(/\D/g, '')) || 0);
+    }
+
+    window.recalcHrmManualItemsTotals = function() {
+        let fuel = 0, bonus = 0, deduct = 0;
+        document.querySelectorAll('#hrm-line-items-list .hrm-manual-item-row').forEach(row => {
+            const t = row.querySelector('.hrm-mi-type')?.value || 'bonus';
+            const amt = _parseMoneyRaw(row.querySelector('.hrm-mi-amount')?.value);
+            if (t === 'fuel') fuel += amt;
+            else if (t === 'deduction') deduct += amt;
+            else bonus += amt;
+        });
+        const fEl = document.getElementById('hrm-line-sum-fuel');
+        const bEl = document.getElementById('hrm-line-sum-bonus');
+        const dEl = document.getElementById('hrm-line-sum-deduction');
+        if (fEl) fEl.textContent = `+${fuel.toLocaleString('vi-VN')} đ`;
+        if (bEl) bEl.textContent = `+${bonus.toLocaleString('vi-VN')} đ`;
+        if (dEl) dEl.textContent = `-${deduct.toLocaleString('vi-VN')} đ`;
+    };
+
+    window.addHrmManualItemRow = function(type = 'bonus', label = '', amount = 0, autoFocus = true) {
+        const listEl = document.getElementById('hrm-line-items-list');
+        if (!listEl) return;
+        const normType = type === 'deduct' ? 'deduction' : (['fuel', 'bonus', 'deduction'].includes(type) ? type : 'bonus');
+        const placeholders = {
+            fuel: 'VD: Phụ cấp xăng xe, gửi xe, điện thoại...',
+            bonus: 'VD: Thưởng nóng đạt KPI, hỗ trợ ca...',
+            deduction: 'VD: Khấu trừ làm hỏng đồ, ứng vật tư...'
+        };
+        const row = document.createElement('div');
+        row.className = 'hrm-manual-item-row grid grid-cols-12 gap-2 items-center';
+        row.innerHTML = `
+            <div class="col-span-4">
+                <select class="hrm-mi-type w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-800 bg-white" onchange="recalcHrmManualItemsTotals()">
+                    <option value="fuel" ${normType === 'fuel' ? 'selected' : ''}>PC Xăng / Khác (+)</option>
+                    <option value="bonus" ${normType === 'bonus' ? 'selected' : ''}>Thưởng Khác (+)</option>
+                    <option value="deduction" ${normType === 'deduction' ? 'selected' : ''}>Giảm Trừ Khác (-)</option>
+                </select>
+            </div>
+            <div class="col-span-5">
+                <input type="text" class="hrm-mi-label w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800" placeholder="${placeholders[normType]}" value="${escHrmHtml(label)}">
+            </div>
+            <div class="col-span-3 flex items-center gap-1">
+                <input type="text" class="hrm-mi-amount w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-mono font-bold text-right text-slate-900" placeholder="0" value="${amount > 0 ? Number(amount).toLocaleString('vi-VN') : ''}" oninput="if(typeof formatCurrencyInputRealtime==='function') formatCurrencyInputRealtime(this); recalcHrmManualItemsTotals();">
+                <button type="button" onclick="this.closest('.hrm-manual-item-row').remove(); recalcHrmManualItemsTotals();" class="text-slate-400 hover:text-rose-600 font-bold px-1.5 py-1 cursor-pointer" title="Xóa dòng">&times;</button>
+            </div>
+        `;
+        listEl.appendChild(row);
+        recalcHrmManualItemsTotals();
+        if (autoFocus) {
+            const inp = label ? row.querySelector('.hrm-mi-amount') : row.querySelector('.hrm-mi-label');
+            if (inp) setTimeout(() => inp.focus(), 30);
         }
+    };
+
+    window.openHrmManualItemsModal = async function(staffId, focusType = 'bonus', explicitMonth = '') {
+        const month = explicitMonth || getSelectedMonth();
+        hrmEditLineTargetMonth = month;
+        document.getElementById('hrm-line-staff-id').value = staffId;
+
+        let line = null;
+        if (payrollData && payrollData.month === month && Array.isArray(payrollData.lines)) {
+            line = payrollData.lines.find(l => Number(l.staff_id) === Number(staffId));
+        }
+        if (!line && activePayslipContext && activePayslipContext.month === month && Number(activePayslipContext.staffId) === Number(staffId)) {
+            line = activePayslipContext.payslip;
+        }
+        if (!line) {
+            try {
+                const r = await fetch(`/api/hrm/payroll/${month}`);
+                if (r.ok) {
+                    const pData = await r.json();
+                    if (Array.isArray(pData.lines)) {
+                        line = pData.lines.find(l => Number(l.staff_id) === Number(staffId));
+                    }
+                }
+            } catch (e) {}
+        }
+
+        const staffName = line
+            ? `${line.name || activePayslipContext?.staffName || 'Nhân viên'} (${line.employee_code || activePayslipContext?.staffCode || '#' + staffId}) — Kỳ ${month.slice(5)}/${month.slice(0, 4)}`
+            : `Nhân viên #${staffId} — Kỳ ${month.slice(5)}/${month.slice(0, 4)}`;
         document.getElementById('hrm-line-staff-name').textContent = staffName;
-        document.getElementById('hrm-line-bonus-other').value = bonusOther ? Number(bonusOther).toLocaleString('vi-VN') : '';
-        document.getElementById('hrm-line-fuel-other').value = fuelOther ? Number(fuelOther).toLocaleString('vi-VN') : '';
-        document.getElementById('hrm-line-deduction-other').value = deductionOther ? Number(deductionOther).toLocaleString('vi-VN') : '';
-        document.getElementById('hrm-line-manual-note').value = note || '';
+
+        const listEl = document.getElementById('hrm-line-items-list');
+        if (listEl) listEl.innerHTML = '';
+
+        const existingItems = (line && Array.isArray(line.manual_items)) ? line.manual_items : [];
+        if (existingItems.length > 0) {
+            existingItems.forEach(it => addHrmManualItemRow(it.type, it.label || '', Number(it.amount) || 0, false));
+        }
+        // Nếu loại khoản người dùng vừa bấm vào chưa có dòng trống nào thì tạo sẵn 1 dòng mới đúng loại đó để gõ ngay
+        if (!existingItems.some(it => it.type === focusType)) {
+            addHrmManualItemRow(focusType, '', 0, true);
+        } else {
+            recalcHrmManualItemsTotals();
+        }
+
+        // Chỉ điền sẵn ghi chú bổ sung nếu nó không phải chuỗi tự sinh từ các dòng khoản mục
+        const noteEl = document.getElementById('hrm-line-manual-note');
+        if (noteEl) {
+            const curNote = (line && line.manual_note) ? String(line.manual_note) : '';
+            const looksAuto = existingItems.length > 0 && existingItems.every(it => curNote.includes(it.label));
+            noteEl.value = looksAuto ? '' : curNote;
+        }
 
         const modal = document.getElementById('modal-hrm-edit-line');
         if (modal) modal.classList.remove('hidden');
+    };
+
+    window.openHrmManualItemsFromPayslip = function(defaultType = 'bonus') {
+        if (!activePayslipContext || !activePayslipContext.staffId) return;
+        window.openHrmManualItemsModal(activePayslipContext.staffId, defaultType, activePayslipContext.month);
+    };
+
+    window.editHrmLine = function(staffId, bonusOther, fuelOther, deductionOther, note) {
+        window.openHrmManualItemsModal(staffId, 'bonus');
     };
 
     window.closeHrmEditLineModal = function() {
@@ -2501,18 +2615,21 @@
     };
 
     window.submitHrmEditLine = async function() {
-        const staffId = parseInt(document.getElementById('hrm-line-staff-id')?.value);
-        const month = getSelectedMonth();
-        const parseVal = id => {
-            const val = document.getElementById(id)?.value;
-            return typeof parseMoneyInput === 'function' ? parseMoneyInput(val) : (parseFloat((val || '').replace(/\D/g, '')) || 0);
-        };
+        const staffId = parseInt(document.getElementById('hrm-line-staff-id')?.value, 10);
+        const month = hrmEditLineTargetMonth || getSelectedMonth();
+        const manual_items = [];
+        document.querySelectorAll('#hrm-line-items-list .hrm-manual-item-row').forEach(row => {
+            const type = row.querySelector('.hrm-mi-type')?.value || 'bonus';
+            const label = (row.querySelector('.hrm-mi-label')?.value || '').trim();
+            const amount = _parseMoneyRaw(row.querySelector('.hrm-mi-amount')?.value);
+            if (amount > 0) {
+                manual_items.push({ type, label, amount });
+            }
+        });
 
         const body = {
-            bonus_other: parseVal('hrm-line-bonus-other'),
-            fuel_other: parseVal('hrm-line-fuel-other'),
-            deduction_other: parseVal('hrm-line-deduction-other'),
-            manual_note: document.getElementById('hrm-line-manual-note')?.value.trim()
+            manual_items,
+            manual_note: (document.getElementById('hrm-line-manual-note')?.value || '').trim()
         };
 
         try {
@@ -2521,14 +2638,25 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
             if (!res.ok) {
-                alert(data.detail || "Lỗi cập nhật dòng lương");
+                if (window.showToast) window.showToast(data.detail || "Lỗi cập nhật dòng lương", "error");
+                else alert(data.detail || "Lỗi cập nhật dòng lương");
                 return;
             }
-            if (window.showToast) window.showToast("Đã lưu điều chỉnh dòng lương", "success");
+            if (window.showToast) window.showToast("Đã lưu chi tiết thưởng / phụ cấp / giảm trừ & tính lại lương!", "success");
             closeHrmEditLineModal();
-            loadHrmPayroll(month);
+            if (month === getSelectedMonth()) {
+                loadHrmPayroll(month);
+            }
+            const payslipModal = document.getElementById('modal-hrm-payslip');
+            if (payslipModal && !payslipModal.classList.contains('hidden')) {
+                openHrmPayslipModal(staffId);
+            }
+            const myPayslipTab = document.getElementById('tab-my-payslip');
+            if (myPayslipTab && !myPayslipTab.classList.contains('hidden')) {
+                loadMyPayslip();
+            }
         } catch (e) {
             console.error(e);
         }
@@ -2792,6 +2920,9 @@
             }
         }
 
+        const editBtn = document.getElementById('btn-hrm-payslip-edit-manual');
+        if (editBtn) { editBtn.classList.add('hidden'); editBtn.classList.remove('flex'); }
+
         try {
             const res = await fetch(`/api/hrm/my-payslip?month=${month}&staff_id=${staffId}`);
             const data = await res.json();
@@ -2801,6 +2932,18 @@
                     : '';
                 if (bodyEl) bodyEl.innerHTML = `<div class="p-6 text-center text-rose-600 font-medium">${escHrmHtml(data.message || 'Không tìm thấy phiếu lương')}${calcBtn}</div>`;
                 return;
+            }
+            activePayslipContext = {
+                month,
+                staffId: data.staff?.id || Number(staffId),
+                staffName: data.staff?.name || '',
+                staffCode: data.staff?.employee_code || '',
+                periodStatus: data.period_status,
+                payslip: data.payslip || {}
+            };
+            if (editBtn && canManageAllPayslips() && data.period_status === 'draft') {
+                editBtn.classList.remove('hidden');
+                editBtn.classList.add('flex');
             }
             if (bodyEl) bodyEl.innerHTML = renderPayslipCardHTML(data, month);
         } catch (e) {
@@ -2850,6 +2993,7 @@
             const now = new Date();
             picker.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         }
+        if (typeof window.syncPosMonthWidget === 'function') window.syncPosMonthWidget('my-payslip-month');
         const adminBox = document.getElementById('my-payslip-admin-staff-box');
         const titleEl = document.getElementById('my-payslip-header-title');
         const staffSel = document.getElementById('my-payslip-staff-id');
@@ -2903,6 +3047,14 @@
                 `;
                 return;
             }
+            activePayslipContext = {
+                month,
+                staffId: data.staff?.id || Number(selectedStaffId || Auth.getUser()?.id || 0),
+                staffName: data.staff?.name || '',
+                staffCode: data.staff?.employee_code || '',
+                periodStatus: data.period_status,
+                payslip: data.payslip || {}
+            };
             contentEl.innerHTML = renderPayslipCardHTML(data, month);
         } catch (e) {
             console.error(e);
@@ -2963,6 +3115,22 @@
             `;
         }).join('');
 
+        const mItems = Array.isArray(p.manual_items) ? p.manual_items : [];
+        const fuelItems = mItems.filter(it => it.type === 'fuel' && Number(it.amount) > 0);
+        const bonusItems = mItems.filter(it => it.type === 'bonus' && Number(it.amount) > 0);
+        const deductItems = mItems.filter(it => it.type === 'deduction' && Number(it.amount) > 0);
+        const canEditDraft = canManageAllPayslips() && data.period_status === 'draft';
+
+        const fuelHtml = fuelItems.length
+            ? fuelItems.map(it => `<div class="flex justify-between text-slate-600"><span>+ ${escHrmHtml(it.label)}:</span><span class="font-mono font-bold text-sky-700">${f(it.amount)}</span></div>`).join('')
+            : (p.fuel_other ? `<div class="flex justify-between text-slate-600"><span>Phụ cấp khác:</span><span class="font-mono font-bold text-slate-800">${f(p.fuel_other)}</span></div>` : '');
+        const bonusHtml = bonusItems.length
+            ? bonusItems.map(it => `<div class="flex justify-between text-slate-600"><span>+ ${escHrmHtml(it.label)}:</span><span class="font-mono font-bold text-emerald-700">+${f(it.amount)}</span></div>`).join('')
+            : (p.bonus_other ? `<div class="flex justify-between text-slate-600"><span>Thưởng khác:</span><span class="font-mono font-bold text-emerald-700">${f(p.bonus_other)}</span></div>` : '');
+        const deductHtml = deductItems.length
+            ? deductItems.map(it => `<div class="flex justify-between text-slate-600"><span>- ${escHrmHtml(it.label)}:</span><span class="font-mono font-bold text-rose-600">-${f(it.amount)}</span></div>`).join('')
+            : (p.deduction_other ? `<div class="flex justify-between text-slate-600"><span>Giảm trừ khác:</span><span class="font-mono font-bold text-rose-600">-${f(p.deduction_other)}</span></div>` : '');
+
         return `
             <div class="space-y-3 text-xs">
                 <!-- Thẻ Thông Tin Nhân Viên -->
@@ -2982,35 +3150,41 @@
 
                 <!-- Thẻ Thu Nhập -->
                 <div class="bg-white p-4 rounded-2xl shadow-xs border border-slate-200/80 space-y-2">
-                    <h4 class="font-bold text-emerald-800 uppercase text-xs flex items-center gap-1 border-b pb-1">
-                        <span>💰</span> I. Các Khoản Thu Nhập
-                    </h4>
+                    <div class="flex items-center justify-between border-b pb-1">
+                        <h4 class="font-bold text-emerald-800 uppercase text-xs flex items-center gap-1">
+                            <span>💰</span> I. Các Khoản Thu Nhập
+                        </h4>
+                        ${canEditDraft ? `<button type="button" onclick="openHrmManualItemsModal(${Number(s.id)}, 'bonus', '${month}')" class="px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs cursor-pointer">+ Thưởng / Phụ cấp khác</button>` : ''}
+                    </div>
                     <div class="space-y-1.5 pt-1">
                         <div class="flex justify-between text-slate-600"><span>Lương cơ bản:</span><span class="font-mono font-bold text-slate-800">${f(p.base_salary)}</span></div>
                         <div class="flex justify-between text-slate-600"><span>Công chuẩn / Ngày làm việc:</span><span class="font-bold text-slate-800">${p.days_official || 0} CT + ${p.days_probation || 0} TV / ${p.std_days || 0} chuẩn</span></div>
                         <div class="flex justify-between text-slate-600"><span>Lương theo ngày công:</span><span class="font-mono font-bold text-slate-800">${f(p.pay_days)}</span></div>
                         <div class="flex justify-between text-slate-600"><span>Phụ cấp ăn trưa / xăng:</span><span class="font-mono font-bold text-slate-800">${f(p.allowance)}</span></div>
-                        ${p.fuel_other ? `<div class="flex justify-between text-slate-600"><span>Phụ cấp khác:</span><span class="font-mono font-bold text-slate-800">${f(p.fuel_other)}</span></div>` : ''}
+                        ${fuelHtml}
                         ${p.holiday_pay ? `<div class="flex justify-between text-slate-600"><span>Lương ngày lễ:</span><span class="font-mono font-bold text-slate-800">${f(p.holiday_pay)}</span></div>` : ''}
                         ${p.commission ? `<div class="flex justify-between text-slate-600"><span>Hoa hồng bán lẻ:</span><span class="font-mono font-bold text-sky-700">${f(p.commission)}</span></div>` : ''}
                         ${p.spa_commission ? `<div class="flex justify-between text-slate-600"><span>Hoa hồng Spa / Dịch vụ:</span><span class="font-mono font-bold text-sky-700">${f(p.spa_commission)}</span></div>` : ''}
                         ${p.tips ? `<div class="flex justify-between text-slate-600"><span>Tiền Tip khách cho:</span><span class="font-mono font-bold text-sky-700">${f(p.tips)}</span></div>` : ''}
                         ${p.attendance_bonus ? `<div class="flex justify-between text-slate-600"><span>Thưởng chuyên cần:</span><span class="font-mono font-bold text-emerald-700">${f(p.attendance_bonus)}</span></div>` : ''}
                         ${p.birthday_bonus ? `<div class="flex justify-between text-slate-600"><span>Thưởng sinh nhật:</span><span class="font-mono font-bold text-emerald-700">${f(p.birthday_bonus)}</span></div>` : ''}
-                        ${p.bonus_other ? `<div class="flex justify-between text-slate-600"><span>Thưởng khác:</span><span class="font-mono font-bold text-emerald-700">${f(p.bonus_other)}</span></div>` : ''}
+                        ${bonusHtml}
                         ${p.ot_pay ? `<div class="flex justify-between text-slate-600"><span>Tiền tăng ca OT:</span><span class="font-mono font-bold text-amber-700">${f(p.ot_pay)}</span></div>` : ''}
                     </div>
                 </div>
 
                 <!-- Thẻ Giảm Trừ -->
                 <div class="bg-white p-4 rounded-2xl shadow-xs border border-slate-200/80 space-y-2">
-                    <h4 class="font-bold text-rose-800 uppercase text-xs flex items-center gap-1 border-b pb-1">
-                        <span>🔻</span> II. Các Khoản Giảm Trừ
-                    </h4>
+                    <div class="flex items-center justify-between border-b pb-1">
+                        <h4 class="font-bold text-rose-800 uppercase text-xs flex items-center gap-1">
+                            <span>🔻</span> II. Các Khoản Giảm Trừ
+                        </h4>
+                        ${canEditDraft ? `<button type="button" onclick="openHrmManualItemsModal(${Number(s.id)}, 'deduction', '${month}')" class="px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs cursor-pointer">+ Giảm trừ khác</button>` : ''}
+                    </div>
                     <div class="space-y-1.5 pt-1">
                         <div class="flex justify-between text-slate-600"><span>Phạt trễ & quên quẹt:</span><span class="font-mono font-bold text-rose-600">-${f(p.penalties)}</span></div>
                         <div class="flex justify-between text-slate-600"><span>Tạm ứng trong tháng:</span><span class="font-mono font-bold text-rose-600">-${f(p.advances)}</span></div>
-                        ${p.deduction_other ? `<div class="flex justify-between text-slate-600"><span>Giảm trừ khác:</span><span class="font-mono font-bold text-rose-600">-${f(p.deduction_other)}</span></div>` : ''}
+                        ${deductHtml}
                     </div>
                 </div>
 

@@ -2449,10 +2449,24 @@
                                     <div class="font-bold text-xs text-sky-800">Quản Lý KOC / KOL &amp; Hoa Hồng Video</div>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2.5 py-1">
-                                <span class="text-xs text-slate-500 font-bold">Tháng:</span>
-                                <input type="month" id="koc-month-filter" onchange="loadKocTab()" class="text-xs font-bold text-slate-800 focus:outline-none">
-                                <button type="button" onclick="document.getElementById('koc-month-filter').value=''; loadKocTab()" class="text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer ml-1" title="Xem tất cả tháng">&times;</button>
+                            <!-- Bộ Chọn Tháng KOC (Tương thích 100% Firefox & Chrome) -->
+                            <div class="pos-month-widget flex flex-wrap items-center gap-1.5" data-month-input="koc-month-filter" data-allow-all="true">
+                                <input type="hidden" id="koc-month-filter" onchange="loadKocTab()">
+                                <div class="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-300 text-xs font-bold shadow-2xs">
+                                    <button type="button" data-mp-preset="all" onclick="presetPosMonthPicker('koc-month-filter', 'all')" class="px-2 py-1 rounded-md bg-sky-600 text-white cursor-pointer transition-all">Tất cả</button>
+                                    <button type="button" data-mp-preset="this" onclick="presetPosMonthPicker('koc-month-filter', 'this')" class="px-2 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition-all">Tháng này</button>
+                                    <button type="button" data-mp-preset="prev" onclick="presetPosMonthPicker('koc-month-filter', 'prev')" class="px-2 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition-all">Tháng trước</button>
+                                </div>
+                                <div class="relative inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-300 shadow-2xs">
+                                    <button type="button" onclick="stepPosMonthPicker('koc-month-filter', -1)" class="px-2 py-1 hover:bg-white hover:text-sky-700 text-slate-700 rounded-md text-xs font-bold cursor-pointer transition-all" title="Lùi 1 tháng"><i class="ph ph-caret-left"></i></button>
+                                    <button type="button" onclick="togglePosMonthPopover('koc-month-filter', event)" class="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-800 hover:text-sky-700 hover:bg-white rounded-md cursor-pointer transition-all">
+                                        <i class="ph ph-calendar-blank text-sky-600"></i>
+                                        <span id="pos-mlabel-koc-month-filter">Tất cả tháng</span>
+                                        <i class="ph ph-caret-down text-slate-400"></i>
+                                    </button>
+                                    <button type="button" onclick="stepPosMonthPicker('koc-month-filter', 1)" class="px-2 py-1 hover:bg-white hover:text-sky-700 text-slate-700 rounded-md text-xs font-bold cursor-pointer transition-all" title="Tiến 1 tháng"><i class="ph ph-caret-right"></i></button>
+                                    <div id="pos-mpop-koc-month-filter" class="pos-month-popover hidden absolute left-0 top-full mt-1.5 w-60 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2.5 text-xs"></div>
+                                </div>
                             </div>
                             <select id="koc-source-select" onchange="onSelectKocSource(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 bg-white focus:outline-none">
                                 <option value="">-- Tất cả nguồn / chiến dịch --</option>
@@ -2465,13 +2479,34 @@
                             <button type="button" id="btn-koc-sync-sheet" onclick="syncCurrentKocSheet()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5">
                                 <span><i class="ph ph-arrows-clockwise"></i> Đồng Bộ Từ Sheet</span>
                             </button>
-                            <button type="button" id="btn-koc-scan-views" onclick="scanCurrentKocViews()" class="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5" title="Quét lượt xem TikTok thực tế cho các video">
-                                <span><i class="ph ph-eye"></i> Quét View TikTok</span>
+                            <button type="button" id="btn-koc-scan-views" onclick="scanCurrentKocViews('pending')" class="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5" title="Chỉ quét các video 0 view / chưa quét / lỗi (tự chạy tiếp nếu đang dở)">
+                                <i class="ph ph-eye"></i> <span id="lbl-koc-scan-pending">Quét View Chưa Có</span>
+                            </button>
+                            <button type="button" id="btn-koc-rescan-all" onclick="scanCurrentKocViews('all')" class="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold shadow-2xs transition cursor-pointer flex items-center gap-1.5" title="Quét cập nhật lại lượt xem mới nhất cho toàn bộ video trong chiến dịch">
+                                <i class="ph ph-arrows-counter-clockwise"></i> <span>Quét Lại Tất Cả</span>
                             </button>
                             <button type="button" onclick="openKocRulesModal(null)" class="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-bold transition cursor-pointer">
                                 <span><i class="ph ph-gear"></i> Công Thức Hoa Hồng</span>
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Thanh Tiến Trình Quét View TikTok Theo Lô -->
+                    <div id="koc-scan-progress-wrap" class="hidden bg-slate-900 text-white p-3.5 rounded-xl border border-slate-700 shadow-md space-y-2 text-xs">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <i class="ph ph-spinner animate-spin text-sky-400 text-sm" id="koc-scan-spinner"></i>
+                                <span id="koc-scan-progress-text" class="font-semibold text-slate-100">Đang chuẩn bị quét view TikTok...</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" id="btn-koc-scan-pause" onclick="togglePauseKocScan()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 font-bold cursor-pointer transition">Tạm dừng</button>
+                                <button type="button" id="btn-koc-scan-stop" onclick="stopKocScan()" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer transition">Dừng hẳn</button>
+                            </div>
+                        </div>
+                        <div class="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div id="koc-scan-progress-fill" class="h-full bg-emerald-500 transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                        <div class="text-slate-400">Hệ thống tự lưu kết quả vào CSDL sau mỗi lô 8 video (tránh nghẽn mạng &amp; chạy tiếp ngay từ chỗ dở nếu đóng trình duyệt).</div>
                     </div>
 
                     <!-- KPI Cards -->
@@ -4168,10 +4203,23 @@
                                 <span class="font-bold text-xs text-sky-900"><i class="ph ph-users"></i> Danh Sách Nhân Viên & Thợ Spa (Đồng bộ HRM)</span>
                                 <p class="text-xs text-slate-500">Đồng bộ 2 chiều với bảng Nhân Sự & Lương (HRM) — thống kê số ca Nhận, Tắm, Cắt, Nhuộm & Tiền Tip theo tháng</p>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <div class="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
-                                    <span class="font-semibold text-slate-600"><i class="ph ph-calendar-blank"></i> Tháng:</span>
-                                    <input type="month" id="spa-staff-filter-month" onchange="loadSpaStaffList()" class="bg-transparent font-mono font-bold text-sky-700 outline-none">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <div class="pos-month-widget flex items-center gap-1.5" data-month-input="spa-staff-filter-month" data-allow-all="false">
+                                    <input type="hidden" id="spa-staff-filter-month" onchange="loadSpaStaffList()">
+                                    <div class="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-300 text-xs font-bold shadow-2xs">
+                                        <button type="button" data-mp-preset="this" onclick="presetPosMonthPicker('spa-staff-filter-month', 'this')" class="px-2 py-1 rounded-md bg-sky-600 text-white cursor-pointer transition-all">Tháng này</button>
+                                        <button type="button" data-mp-preset="prev" onclick="presetPosMonthPicker('spa-staff-filter-month', 'prev')" class="px-2 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition-all">Tháng trước</button>
+                                    </div>
+                                    <div class="relative inline-flex items-center bg-white p-0.5 rounded-lg border border-slate-300 shadow-2xs">
+                                        <button type="button" onclick="stepPosMonthPicker('spa-staff-filter-month', -1)" class="px-2 py-1 hover:bg-slate-100 hover:text-sky-700 text-slate-700 rounded-md text-xs font-bold cursor-pointer transition-all"><i class="ph ph-caret-left"></i></button>
+                                        <button type="button" onclick="togglePosMonthPopover('spa-staff-filter-month', event)" class="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-800 hover:text-sky-700 rounded-md cursor-pointer transition-all">
+                                            <i class="ph ph-calendar-blank text-sky-600"></i>
+                                            <span id="pos-mlabel-spa-staff-filter-month">Tháng --/----</span>
+                                            <i class="ph ph-caret-down text-slate-400"></i>
+                                        </button>
+                                        <button type="button" onclick="stepPosMonthPicker('spa-staff-filter-month', 1)" class="px-2 py-1 hover:bg-slate-100 hover:text-sky-700 text-slate-700 rounded-md text-xs font-bold cursor-pointer transition-all"><i class="ph ph-caret-right"></i></button>
+                                        <div id="pos-mpop-spa-staff-filter-month" class="pos-month-popover hidden absolute right-0 top-full mt-1.5 w-60 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2.5 text-xs"></div>
+                                    </div>
                                 </div>
                                 <button onclick="openSpaStaffModal()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1">
                                     <span><i class="ph ph-plus"></i> Thêm Thợ Spa Mới</span>
@@ -8094,7 +8142,23 @@
                             </div>
                             <div id="my-payslip-staff-id-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-2xl z-50 max-h-60 overflow-y-auto divide-y divide-slate-100 text-xs"></div>
                         </div>
-                        <input type="month" id="my-payslip-month" onchange="loadMyPayslip()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-sky-500">
+                        <div class="pos-month-widget flex items-center gap-1.5" data-month-input="my-payslip-month" data-allow-all="false">
+                            <input type="hidden" id="my-payslip-month" onchange="loadMyPayslip()">
+                            <div class="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-300 text-xs font-bold shadow-2xs">
+                                <button type="button" data-mp-preset="this" onclick="presetPosMonthPicker('my-payslip-month', 'this')" class="px-2 py-1 rounded-md bg-sky-600 text-white cursor-pointer transition-all">Tháng này</button>
+                                <button type="button" data-mp-preset="prev" onclick="presetPosMonthPicker('my-payslip-month', 'prev')" class="px-2 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition-all">Tháng trước</button>
+                            </div>
+                            <div class="relative inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-300 shadow-2xs">
+                                <button type="button" onclick="stepPosMonthPicker('my-payslip-month', -1)" class="px-2 py-1 hover:bg-white hover:text-sky-700 text-slate-700 rounded-md text-xs font-bold cursor-pointer transition-all"><i class="ph ph-caret-left"></i></button>
+                                <button type="button" onclick="togglePosMonthPopover('my-payslip-month', event)" class="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-800 hover:text-sky-700 hover:bg-white rounded-md cursor-pointer transition-all">
+                                    <i class="ph ph-calendar-blank text-sky-600"></i>
+                                    <span id="pos-mlabel-my-payslip-month">Tháng --/----</span>
+                                    <i class="ph ph-caret-down text-slate-400"></i>
+                                </button>
+                                <button type="button" onclick="stepPosMonthPicker('my-payslip-month', 1)" class="px-2 py-1 hover:bg-white hover:text-sky-700 text-slate-700 rounded-md text-xs font-bold cursor-pointer transition-all"><i class="ph ph-caret-right"></i></button>
+                                <div id="pos-mpop-my-payslip-month" class="pos-month-popover hidden absolute right-0 top-full mt-1.5 w-60 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2.5 text-xs"></div>
+                            </div>
+                        </div>
                         <button onclick="printMyPayslip()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"><i class="ph ph-printer"></i> In Phiếu</button>
                     </div>
                 </div>
@@ -11761,38 +11825,61 @@
         </div>
     </div>
 
-    <!-- MODAL: SỬA SỐ DÒNG LƯƠNG (HRM) -->
-    <div id="modal-hrm-edit-line" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 my-auto text-xs">
+    <!-- MODAL: SỬA SỐ DÒNG LƯƠNG CHI TIẾT NHIỀU KHOẢN MỤC (HRM) -->
+    <div id="modal-hrm-edit-line" onclick="if(event.target === this) closeHrmEditLineModal()" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 my-auto text-xs">
             <div class="flex items-center justify-between border-b pb-3">
                 <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
-                    <span><i class="ph ph-pencil-simple"></i></span> <span>Điều Chỉnh Số Bảng Lương</span>
+                    <span><i class="ph ph-pencil-simple"></i></span> <span>Điều Chỉnh Khoản Thưởng / Phụ Cấp / Giảm Trừ</span>
                 </h3>
-                <button type="button" onclick="closeHrmEditLineModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center"><i class="ph ph-dot-outline"></i></button>
+                <button type="button" onclick="closeHrmEditLineModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center cursor-pointer"><i class="ph ph-x"></i></button>
             </div>
             <input type="hidden" id="hrm-line-staff-id">
-            <div class="p-2.5 bg-slate-50 border rounded-lg font-bold text-slate-800" id="hrm-line-staff-name">Nhân viên: -</div>
-            <div class="space-y-3">
-                <div>
-                    <label class="font-bold text-slate-700">Thưởng khác (VNĐ)</label>
-                    <input id="hrm-line-bonus-other" type="text" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold text-emerald-700" placeholder="VD: 500.000">
-                </div>
-                <div>
-                    <label class="font-bold text-slate-700">Phụ cấp khác / Xăng xe (VNĐ)</label>
-                    <input id="hrm-line-fuel-other" type="text" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold text-sky-700" placeholder="VD: 300.000">
-                </div>
-                <div>
-                    <label class="font-bold text-slate-700">Giảm trừ khác (VNĐ)</label>
-                    <input id="hrm-line-deduction-other" type="text" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold text-rose-600" placeholder="VD: 100.000">
-                </div>
-                <div>
-                    <label class="font-bold text-slate-700">Ghi chú điều chỉnh</label>
-                    <input id="hrm-line-manual-note" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1" placeholder="VD: Thưởng hoàn thành xuất sắc">
+            <input type="hidden" id="hrm-line-bonus-other">
+            <input type="hidden" id="hrm-line-fuel-other">
+            <input type="hidden" id="hrm-line-deduction-other">
+
+            <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                <div class="font-bold text-slate-800" id="hrm-line-staff-name">Nhân viên: -</div>
+                <div class="flex flex-wrap gap-1.5">
+                    <button type="button" onclick="addHrmManualItemRow('fuel')" class="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 font-bold cursor-pointer">+ PC Xăng/Khác</button>
+                    <button type="button" onclick="addHrmManualItemRow('bonus')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold cursor-pointer">+ Thưởng khác</button>
+                    <button type="button" onclick="addHrmManualItemRow('deduction')" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold cursor-pointer">+ Giảm trừ</button>
                 </div>
             </div>
+
+            <div class="space-y-2">
+                <div class="grid grid-cols-12 gap-2 px-1 text-slate-500 font-bold uppercase">
+                    <div class="col-span-4">Loại khoản</div>
+                    <div class="col-span-5">Tên khoản / Lý do (in lên Phiếu Lương)</div>
+                    <div class="col-span-3 text-right pr-6">Số tiền (VNĐ)</div>
+                </div>
+                <div id="hrm-line-items-list" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                <div>
+                    <div class="text-slate-500 font-semibold">PC Xăng / Khác</div>
+                    <div id="hrm-line-sum-fuel" class="font-mono font-bold text-sky-700 text-sm mt-0.5">+0 đ</div>
+                </div>
+                <div>
+                    <div class="text-slate-500 font-semibold">Thưởng Khác</div>
+                    <div id="hrm-line-sum-bonus" class="font-mono font-bold text-emerald-700 text-sm mt-0.5">+0 đ</div>
+                </div>
+                <div>
+                    <div class="text-slate-500 font-semibold">Giảm Trừ Khác</div>
+                    <div id="hrm-line-sum-deduction" class="font-mono font-bold text-rose-600 text-sm mt-0.5">-0 đ</div>
+                </div>
+            </div>
+
+            <div>
+                <label class="font-bold text-slate-700">Ghi chú bổ sung (tùy chọn — để trống sẽ tự ghép từ các dòng trên)</label>
+                <input id="hrm-line-manual-note" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1" placeholder="VD: Đã duyệt bởi Quản lý ngày 05/11">
+            </div>
+
             <div class="flex gap-2 pt-3 border-t">
-                <button type="button" onclick="closeHrmEditLineModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold">Hủy</button>
-                <button type="button" onclick="submitHrmEditLine()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold shadow-xs">Lưu Thay Đổi</button>
+                <button type="button" onclick="closeHrmEditLineModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold cursor-pointer">Hủy</button>
+                <button type="button" onclick="submitHrmEditLine()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold shadow-xs cursor-pointer">Lưu &amp; Tính Lại Lương</button>
             </div>
         </div>
     </div>
@@ -11896,6 +11983,7 @@
                 </h3>
                 <div class="flex flex-wrap items-center gap-2">
                     <select id="hrm-payslip-modal-staff" onchange="openHrmPayslipModal(this.value)" class="hidden border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 bg-white max-w-[230px]"></select>
+                    <button type="button" id="btn-hrm-payslip-edit-manual" onclick="openHrmManualItemsFromPayslip()" class="hidden bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold px-3 py-1 rounded-lg text-xs items-center gap-1 cursor-pointer"><i class="ph ph-pencil-simple"></i> Điều chỉnh Thưởng/PC</button>
                     <button type="button" onclick="printHrmPayslip()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3 py-1 rounded-lg text-xs flex items-center gap-1 cursor-pointer"><i class="ph ph-printer"></i> In</button>
                     <button type="button" onclick="closeHrmPayslipModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center cursor-pointer"><i class="ph ph-dot-outline"></i></button>
                 </div>
@@ -17449,9 +17537,19 @@
                         <label class="block font-bold text-slate-700 mb-1">Tên chiến dịch / Nguồn <span class="text-rose-500">*</span></label>
                         <input id="koc-src-name" type="text" placeholder="VD: KOC Thanh Tháng 10/2026" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 focus:outline-none focus:border-sky-500">
                     </div>
-                    <div>
+                    <div class="pos-month-widget" data-month-input="koc-src-month" data-allow-all="false">
                         <label class="block font-bold text-slate-700 mb-1">Tháng tính lương <span class="text-rose-500">*</span></label>
-                        <input id="koc-src-month" type="month" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 focus:outline-none focus:border-sky-500">
+                        <input id="koc-src-month" type="hidden">
+                        <div class="relative flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-300">
+                            <button type="button" onclick="stepPosMonthPicker('koc-src-month', -1)" class="px-2.5 py-1.5 hover:bg-white hover:text-sky-700 text-slate-700 rounded-md text-xs font-bold cursor-pointer transition-all"><i class="ph ph-caret-left"></i></button>
+                            <button type="button" onclick="togglePosMonthPopover('koc-src-month', event)" class="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-bold text-slate-800 bg-white rounded-md shadow-2xs cursor-pointer transition-all">
+                                <i class="ph ph-calendar-blank text-sky-600"></i>
+                                <span id="pos-mlabel-koc-src-month">Tháng --/----</span>
+                                <i class="ph ph-caret-down text-slate-400"></i>
+                            </button>
+                            <button type="button" onclick="stepPosMonthPicker('koc-src-month', 1)" class="px-2.5 py-1.5 hover:bg-white hover:text-sky-700 text-slate-700 rounded-md text-xs font-bold cursor-pointer transition-all"><i class="ph ph-caret-right"></i></button>
+                            <div id="pos-mpop-koc-src-month" class="pos-month-popover hidden absolute right-0 top-full mt-1.5 w-60 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2.5 text-xs"></div>
+                        </div>
                     </div>
                 </div>
                 <div>

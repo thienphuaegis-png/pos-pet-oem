@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Mockup: Điều Chỉnh Thưởng/Phụ Cấp Lương & Quét View TikTok + Chọn Tháng KOC</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f1f5f9;
+    color: #0f172a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 12px;
+    line-height: 1.45;
+    padding: 12px;
+  }
+  .wrap { max-width: 980px; display: flex; flex-direction: column; gap: 10px; }
+  .nav-tabs { display: flex; gap: 6px; }
+  .nav-tab {
+    flex: 1; border: 1px solid #cbd5e1; background: #ffffff; color: #334155;
+    padding: 8px 10px; border-radius: 9px; font-weight: 700; font-size: 12px; cursor: pointer; text-align: left;
+  }
+  .nav-tab.active { border-color: #0284c7; background: #e0f2fe; color: #0369a1; box-shadow: 0 0 0 1px #0284c7 inset; }
+  .nav-sub { display: block; font-size: 10.5px; font-weight: 500; color: #64748b; margin-top: 2px; }
+  .pane { display: none; flex-direction: column; gap: 10px; }
+  .pane.active { display: flex; }
+
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+  .badge-root { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+  .badge-bug { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+  .badge-fix { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  th { background: #f8fafc; color: #475569; font-weight: 700; padding: 7px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; }
+  td { padding: 7px 8px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .edit-cell {
+    cursor: pointer; border-radius: 6px; transition: all 0.15s; position: relative;
+    border: 1px dashed #cbd5e1; background: #f8fafc; padding: 3px 7px; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .edit-cell:hover { border-color: #0284c7; background: #e0f2fe; color: #0369a1; }
+
+  /* Month picker KOC */
+  .pill-group { display: inline-flex; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 2px; gap: 2px; }
+  .pill-btn { border: none; background: transparent; color: #475569; font-weight: 700; font-size: 11px; padding: 4px 9px; border-radius: 6px; cursor: pointer; }
+  .pill-btn.active { background: #0284c7; color: #fff; }
+  .stepper { display: inline-flex; align-items: center; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 2px; gap: 2px; position: relative; }
+  .step-btn { border: none; background: transparent; padding: 4px 7px; border-radius: 6px; cursor: pointer; font-weight: 700; color: #334155; font-size: 11px; }
+  .step-btn:hover { background: #fff; color: #0284c7; }
+  .month-pop {
+    position: absolute; top: calc(100% + 6px); left: 0; width: 220px; background: #fff;
+    border: 1px solid #cbd5e1; border-radius: 10px; box-shadow: 0 10px 25px rgba(15,23,42,0.12);
+    padding: 8px; z-index: 30; display: none;
+  }
+  .month-pop.open { display: block; }
+  .m-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 6px; }
+  .m-item { border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 6px; padding: 5px 0; text-align: center; font-weight: 700; font-size: 11px; cursor: pointer; }
+  .m-item.active { background: #0284c7; color: #fff; border-color: #0284c7; }
+  .m-item:hover:not(.active) { background: #e0f2fe; border-color: #7dd3fc; }
+
+  /* Progress bar TikTok */
+  .prog-box { background: #0f172a; color: #f8fafc; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .prog-track { height: 8px; background: #334155; border-radius: 999px; overflow: hidden; }
+  .prog-fill { height: 100%; background: linear-gradient(90deg, #10b981, #38bdf8); width: 34%; transition: width 0.3s; }
+
+  /* Modal demo */
+  .modal-demo { background: #f8fafc; border: 2px solid #0284c7; border-radius: 12px; padding: 12px; display: grid; grid-template-columns: 1.25fr 1fr; gap: 12px; }
+  @media (max-width: 720px) { .modal-demo { grid-template-columns: 1fr; } }
+  .item-row { display: grid; grid-template-columns: 110px 1fr 110px 26px; gap: 5px; align-items: center; margin-bottom: 5px; }
+  .inp { border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 7px; font-size: 11.5px; background: #fff; width: 100%; }
+  .btn { border: none; border-radius: 7px; padding: 6px 10px; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+  .btn-primary { background: #0284c7; color: #fff; }
+  .btn-dark { background: #111827; color: #fff; }
+  .btn-green { background: #059669; color: #fff; }
+  .btn-outline { background: #fff; border: 1px solid #cbd5e1; color: #334155; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchPane('p1', this)">
+      1. Bảng Lương: Sửa Thưởng Khác / Phụ Cấp Khác / Trừ Khác
+      <span class="nav-sub">Click thẳng ô trên Bảng Lương hoặc nút trên Phiếu Lương → cộng nhiều khoản chi tiết</span>
+    </button>
+    <button class="nav-tab" onclick="switchPane('p2', this)">
+      2. KOC TikTok: Chọn Tháng Firefox + Quét 461 Video Theo Lô
+      <span class="nav-sub">Sửa lỗi NameError asyncio + Rate-limit 1s/video + Thanh tiến trình chống timeout</span>
+    </button>
+  </div>
+
+  <!-- PANE 1: PAYROLL ADJUSTMENTS -->
+  <div id="p1" class="pane active">
+    <div class="card" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;">
+      <div>
+        <span class="badge-root badge-bug">Nguyên nhân cũ</span>
+        <span style="margin-left:6px;color:#475569;">3 cột <b>PC Xăng/Khác</b>, <b>Thưởng khác</b>, <b>Trừ khác</b> chỉ hiển thị số tĩnh, không gắn sự kiện click mở Modal sửa.</span>
+      </div>
+      <span class="badge-root badge-fix">Giải pháp: Click trực tiếp vào ô số để nhập ngay</span>
+    </div>
+
+    <div class="card" style="overflow-x:auto;">
+      <div style="font-weight:700;margin-bottom:6px;color:#0f172a;">Bảng Lương Tạm Tính — Tháng 10/2026 (Bấm thử vào các ô có viền nét đứt ✏️)</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Mã NV</th>
+            <th>Họ và Tên</th>
+            <th style="text-align:right;">Lương Ngày Công</th>
+            <th style="text-align:right;">Phụ Cấp Cố Định</th>
+            <th style="text-align:right;color:#0369a1;">PC Xăng / Khác ✏️</th>
+            <th style="text-align:right;color:#047857;">Thưởng Khác ✏️</th>
+            <th style="text-align:right;color:#e11d48;">Trừ Khác ✏️</th>
+            <th style="text-align:right;">Thực Lãnh</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono"><b>NV13</b></td>
+            <td><b>Hà Đặng Phương Thanh</b></td>
+            <td class="mono" style="text-align:right;">6.500.000</td>
+            <td class="mono" style="text-align:right;">500.000</td>
+            <td style="text-align:right;"><span class="edit-cell mono" onclick="focusType('fuel')"><span id="cell-fuel">450.000</span> ✏️</span></td>
+            <td style="text-align:right;"><span class="edit-cell mono" style="color:#047857;font-weight:700;" onclick="focusType('bonus')"><span id="cell-bonus">700.000</span> ✏️</span></td>
+            <td style="text-align:right;"><span class="edit-cell mono" style="color:#e11d48;font-weight:700;" onclick="focusType('deduct')">-<span id="cell-deduct">100.000</span> ✏️</span></td>
+            <td class="mono" style="text-align:right;font-weight:800;color:#047857;" id="cell-net">8.050.000đ</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Interactive Demo Modal -->
+    <div class="modal-demo">
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <b>✏️ Điều Chỉnh Khoản Cộng / Trừ Lương — NV13 Hà Đặng Phương Thanh (10/2026)</b>
+          <button class="btn btn-outline" style="padding:3px 8px;font-size:11px;" onclick="addDemoRow()">+ Thêm dòng</button>
+        </div>
+        <div id="demo-rows">
+          <div class="item-row">
+            <select class="inp" onchange="recalcDemo()"><option value="fuel" selected>PC Xăng/Khác (+)</option><option value="bonus">Thưởng khác (+)</option><option value="deduct">Giảm trừ (-)</option></select>
+            <input class="inp" value="Phụ cấp xăng xe đi quay KOC" oninput="recalcDemo()">
+            <input class="inp mono" style="text-align:right;font-weight:700;" value="300000" oninput="recalcDemo()">
+            <button class="btn btn-outline" style="padding:2px 6px;color:#e11d48;" onclick="this.parentElement.remove();recalcDemo()">×</button>
+          </div>
+          <div class="item-row">
+            <select class="inp" onchange="recalcDemo()"><option value="fuel" selected>PC Xăng/Khác (+)</option><option value="bonus">Thưởng khác (+)</option><option value="deduct">Giảm trừ (-)</option></select>
+            <input class="inp" value="Phụ cấp gửi xe & điện thoại" oninput="recalcDemo()">
+            <input class="inp mono" style="text-align:right;font-weight:700;" value="150000" oninput="recalcDemo()">
+            <button class="btn btn-outline" style="padding:2px 6px;color:#e11d48;" onclick="this.parentElement.remove();recalcDemo()">×</button>
+          </div>
+          <div class="item-row">
+            <select class="inp" onchange="recalcDemo()"><option value="fuel">PC Xăng/Khác (+)</option><option value="bonus" selected>Thưởng khác (+)</option><option value="deduct">Giảm trừ (-)</option></select>
+            <input class="inp" value="Thưởng nóng đạt 165 KOC tháng 10" oninput="recalcDemo()">
+            <input class="inp mono" style="text-align:right;font-weight:700;color:#047857;" value="700000" oninput="recalcDemo()">
+            <button class="btn btn-outline" style="padding:2px 6px;color:#e11d48;" onclick="this.parentElement.remove();recalcDemo()">×</button>
+          </div>
+          <div class="item-row">
+            <select class="inp" onchange="recalcDemo()"><option value="fuel">PC Xăng/Khác (+)</option><option value="bonus">Thưởng khác (+)</option><option value="deduct" selected>Giảm trừ (-)</option></select>
+            <input class="inp" value="Làm mất thẻ gửi xe kho" oninput="recalcDemo()">
+            <input class="inp mono" style="text-align:right;font-weight:700;color:#e11d48;" value="100000" oninput="recalcDemo()">
+            <button class="btn btn-outline" style="padding:2px 6px;color:#e11d48;" onclick="this.parentElement.remove();recalcDemo()">×</button>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid #f1f5f9;">
+          <span style="font-size:11px;color:#64748b;">Vẫn lưu bền vững khi bấm "Tính Lương" lại</span>
+          <button class="btn btn-primary">💾 Lưu & Tính Lại Lương</button>
+        </div>
+      </div>
+
+      <!-- Preview on Payslip -->
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <b>📄 Hiển thị trực tiếp trên Phiếu Lương NV</b>
+          <span style="font-size:10.5px;color:#0284c7;font-weight:700;">Có nút [✏️ Sửa thưởng/PC] cho Admin</span>
+        </div>
+        <div id="payslip-preview" style="font-size:11.5px;display:flex;flex-direction:column;gap:4px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE 2: KOC MONTH PICKER + TIKTOK BATCH SCAN -->
+  <div id="p2" class="pane">
+    <div class="card" style="display:flex;flex-direction:column;gap:6px;">
+      <div>
+        <span class="badge-root badge-bug">3 Lỗi Đã Bắt Tận Gốc</span>
+        <span style="margin-left:6px;color:#475569;">
+          (1) Thiếu <code>import asyncio</code> gây lỗi 500 text thô → <code>JSON.parse</code> ·
+          (2) TikWM giới hạn <b>1 video/giây</b> (bắn 5 luồng làm xịt 4/5) ·
+          (3) Quét <b>461 video</b> 1 cục vượt 25s timeout của Vercel Proxy + Firefox không hiện lịch cho <code>&lt;input type="month"&gt;</code>.
+        </span>
+      </div>
+    </div>
+
+    <!-- Redesigned KOC Filter & Action Bar -->
+    <div class="card" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
+        <!-- Bộ chọn tháng chuẩn Firefox/Chrome -->
+        <div class="pill-group">
+          <button class="pill-btn" onclick="setKocPreset('all', this)">Tất cả</button>
+          <button class="pill-btn" onclick="setKocPreset('2026-11', this)">Tháng này</button>
+          <button class="pill-btn active" onclick="setKocPreset('2026-10', this)">Tháng trước</button>
+        </div>
+        <div class="stepper">
+          <button class="step-btn" onclick="stepMonth(-1)">◀</button>
+          <button class="step-btn" style="background:#fff;box-shadow:0 1px 2px rgba(0,0,0,0.05);" onclick="document.getElementById('koc-mpop').classList.toggle('open')">
+            📅 <span id="koc-m-label">Tháng 10/2026</span> ▾
+          </button>
+          <button class="step-btn" onclick="stepMonth(1)">▶</button>
+          <div id="koc-mpop" class="month-pop">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-weight:700;">
+              <button class="step-btn" onclick="chgYear(-1)">◀</button>
+              <span id="koc-y-label">Năm 2026</span>
+              <button class="step-btn" onclick="chgYear(1)">▶</button>
+            </div>
+            <div class="m-grid" id="koc-m-grid"></div>
+          </div>
+        </div>
+
+        <select class="inp" style="width:auto;font-weight:700;">
+          <option>[2026-10] THANH 10/2026 — Hà Đặng Phương Thanh (461 video)</option>
+        </select>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        <button class="btn btn-green">🔄 Đồng Bộ Sheet</button>
+        <button class="btn btn-dark" onclick="simScan()">👁️ Quét View Chưa Có (461)</button>
+        <button class="btn btn-outline" onclick="simScan()" title="Quét cập nhật lại toàn bộ video trong chiến dịch">🔁 Quét Lại Tất Cả</button>
+      </div>
+    </div>
+
+    <!-- Live Batch Progress Bar -->
+    <div class="prog-box" id="scan-prog">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <b style="color:#38bdf8;">⏳ Đang quét theo lô chống nghẽn (Lô 16/47 — 10 video/lần):</b>
+          <span style="margin-left:6px;" id="scan-stat">Đã quét <b>158 / 461</b> video (34%) · Đạt ≥200 view: <b style="color:#34d399;">112 video</b> · Lỗi/Riêng tư: <b style="color:#fbbf24;">3</b></span>
+        </div>
+        <button class="btn btn-outline" style="padding:3px 9px;font-size:11px;background:#1e293b;color:#f8fafc;border-color:#475569;" onclick="togglePause(this)">⏸ Tạm dừng</button>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="scan-bar"></div></div>
+      <div style="font-size:10.5px;color:#94a3b8;">Tự lưu DB sau mỗi 10 video — lỡ đóng trình duyệt mở lại bấm "Quét View Chưa Có" sẽ chạy tiếp từ video thứ 159, không mất dữ liệu.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchPane(id, btn) {
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+function fmt(n) { return (Number(n)||0).toLocaleString('vi-VN'); }
+function recalcDemo() {
+  let fuel = 0, bonus = 0, deduct = 0;
+  let linesHtml = [];
+  document.querySelectorAll('#demo-rows .item-row').forEach(r => {
+    const t = r.querySelector('select').value;
+    const inputs = r.querySelectorAll('input');
+    const label = inputs[0].value || 'Khoản điều chỉnh';
+    const amt = parseInt((inputs[1].value||'0').replace(/\D/g,''), 10) || 0;
+    if (t === 'fuel') { fuel += amt; linesHtml.push(`<div style="display:flex;justify-content:space-between;color:#334155;"><span>+ ${label}:</span><b class="mono">${fmt(amt)}đ</b></div>`); }
+    if (t === 'bonus') { bonus += amt; linesHtml.push(`<div style="display:flex;justify-content:space-between;color:#047857;"><span>+ ${label}:</span><b class="mono">+${fmt(amt)}đ</b></div>`); }
+    if (t === 'deduct') { deduct += amt; linesHtml.push(`<div style="display:flex;justify-content:space-between;color:#e11d48;"><span>- ${label}:</span><b class="mono">-${fmt(amt)}đ</b></div>`); }
+  });
+  document.getElementById('cell-fuel').textContent = fmt(fuel);
+  document.getElementById('cell-bonus').textContent = fmt(bonus);
+  document.getElementById('cell-deduct').textContent = fmt(deduct);
+  const net = 6500000 + 500000 + fuel + bonus - deduct;
+  document.getElementById('cell-net').textContent = fmt(net) + 'đ';
+  document.getElementById('payslip-preview').innerHTML = `
+    <div style="display:flex;justify-content:space-between;color:#64748b;"><span>Lương ngày công + PC cố định:</span><b class="mono">7.000.000đ</b></div>
+    <div style="border-top:1px dashed #e2e8f0;margin:3px 0;padding-top:4px;font-weight:700;color:#475569;">Chi tiết Phụ cấp / Thưởng / Trừ khác:</div>
+    ${linesHtml.join('')}
+    <div style="border-top:2px solid #cbd5e1;margin-top:4px;padding-top:5px;display:flex;justify-content:space-between;font-size:13px;font-weight:800;color:#047857;">
+      <span>THỰC LÃNH:</span><span class="mono">${fmt(net)}đ</span>
+    </div>
+  `;
+}
+function addDemoRow(type='bonus') {
+  const div = document.createElement('div');
+  div.className = 'item-row';
+  div.innerHTML = `
+    <select class="inp" onchange="recalcDemo()">
+      <option value="fuel" ${type==='fuel'?'selected':''}>PC Xăng/Khác (+)</option>
+      <option value="bonus" ${type==='bonus'?'selected':''}>Thưởng khác (+)</option>
+      <option value="deduct" ${type==='deduct'?'selected':''}>Giảm trừ (-)</option>
+    </select>
+    <input class="inp" placeholder="Nhập lý do / tên khoản..." value="Thưởng hỗ trợ thêm" oninput="recalcDemo()">
+    <input class="inp mono" style="text-align:right;font-weight:700;" value="200000" oninput="recalcDemo()">
+    <button class="btn btn-outline" style="padding:2px 6px;color:#e11d48;" onclick="this.parentElement.remove();recalcDemo()">×</button>
+  `;
+  document.getElementById('demo-rows').appendChild(div);
+  recalcDemo();
+}
+function focusType(t) { addDemoRow(t); }
+recalcDemo();
+
+let curY = 2026, curM = 10;
+function renderMGrid() {
+  document.getElementById('koc-y-label').textContent = 'Năm ' + curY;
+  const g = document.getElementById('koc-m-grid');
+  g.innerHTML = Array.from({length:12}, (_,i) => {
+    const m = i + 1;
+    const cls = (m === curM) ? 'm-item active' : 'm-item';
+    return `<div class="${cls}" onclick="pickM(${m})">Thg ${String(m).padStart(2,'0')}</div>`;
+  }).join('');
+}
+function pickM(m) {
+  curM = m;
+  document.getElementById('koc-m-label').textContent = m === 0 ? 'Tất cả tháng' : `Tháng ${String(m).padStart(2,'0')}/${curY}`;
+  document.getElementById('koc-mpop').classList.remove('open');
+  renderMGrid();
+}
+function stepMonth(d) {
+  if (curM === 0) curM = 10;
+  curM += d;
+  if (curM < 1) { curM = 12; curY--; }
+  if (curM > 12) { curM = 1; curY++; }
+  pickM(curM);
+}
+function chgYear(d) { curY += d; renderMGrid(); }
+function setKocPreset(val, btn) {
+  document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (val === 'all') { curM = 0; document.getElementById('koc-m-label').textContent = 'Tất cả tháng'; renderMGrid(); }
+  if (val === '2026-11') { curY = 2026; pickM(11); }
+  if (val === '2026-10') { curY = 2026; pickM(10); }
+}
+renderMGrid();
+
+let timer = null, paused = false, done = 158;
+function simScan() {
+  clearInterval(timer); paused = false;
+  timer = setInterval(() => {
+    if (paused) return;
+    done = Math.min(461, done + 10);
+    const pct = Math.round(done * 100 / 461);
+    document.getElementById('scan-bar').style.width = pct + '%';
+    document.getElementById('scan-stat').innerHTML = `Đã quét <b>${done} / 461</b> video (${pct}%) · Đạt ≥200 view: <b style="color:#34d399;">${Math.round(done*0.71)} video</b> · Lỗi/Riêng tư: <b style="color:#fbbf24;">3</b>`;
+    if (done >= 461) clearInterval(timer);
+  }, 550);
+}
+function togglePause(btn) {
+  paused = !paused;
+  btn.textContent = paused ? '▶ Tiếp tục' : '⏸ Tạm dừng';
+}
+</script>
+</body>
+</html>
