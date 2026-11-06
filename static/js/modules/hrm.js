@@ -4523,6 +4523,21 @@
     }
     window.loadHrmCommissions = loadHrmCommissions;
 
+    function exportHrmCommissionsExcel() {
+        const p = getHrmQueryPeriodParams();
+        const m = p.month;
+        const url = (hrmPeriodMode === 'range' && p.dateFrom && p.dateTo)
+            ? `/api/hrm/commissions/${m}/export-excel?date_from=${encodeURIComponent(p.dateFrom)}&date_to=${encodeURIComponent(p.dateTo)}`
+            : `/api/hrm/commissions/${m}/export-excel`;
+        const fname = `Bang_Hoa_Hong_HRM_${String(m || '').replace('-', '_')}.xlsx`;
+        if (typeof window.downloadWithAuth === 'function') {
+            window.downloadWithAuth(url, fname);
+        } else {
+            window.open(url, '_blank');
+        }
+    }
+    window.exportHrmCommissionsExcel = exportHrmCommissionsExcel;
+
     let commView = 'result';
     window.setCommView = function(view) {
         commView = view === 'config' ? 'config' : 'result';

@@ -117,8 +117,33 @@ def get_activity_log(
     params.append(limit)
     cur.execute(sql, params)
     rows = [dict(r) for r in cur.fetchall()]
+
+    # Danh sách nhân viên đầy đủ cho dropdown lọc (gồm cả Chủ shop / Admin + NV cũ còn log)
+    staff_map = {}
+    cur.execute("SELECT id, name, username, role, is_active FROM staff ORDER BY id ASC")
+    for s in cur.fetchall():
+        sid = s["id"]
+        staff_map[sid] = {
+            "id": sid,
+            "name": s["name"] or s["username"] or f"NV #{sid}",
+            "role": s["role"] or "staff",
+            "is_active": int(s["is_active"]) if s["is_active"] is not None else 1,
+        }
+    cur.execute(
+        f"SELECT DISTINCT staff_id, staff_name, role FROM activity_log "
+        f"WHERE staff_id IS NOT NULL AND created_at >= datetime('now', '-{safe_days} days')"
+    )
+    for lg in cur.fetchall():
+        sid = lg["staff_id"]
+        if sid and sid not in staff_map:
+            staff_map[sid] = {
+                "id": sid,
+                "name": lg["staff_name"] or f"NV #{sid}",
+                "role": lg["role"] or "staff",
+                "is_active": 0,
+            }
     conn.close()
-    return {"logs": rows}
+    return {"logs": rows, "staff_options": list(staff_map.values())}
 
 @router.get("/modules")
 def get_modules():

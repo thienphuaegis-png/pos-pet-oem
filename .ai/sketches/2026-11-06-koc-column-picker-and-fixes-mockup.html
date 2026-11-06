@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Đối Chiếu & Đề Xuất Sửa 4 Mục (KOC, Excel, Nhật Ký, Nhập Hàng)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 18px;
+    background: #f1f5f9;
+    color: #0f172a;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  h1 { margin: 0 0 6px; font-size: 17px; color: #0f172a; }
+  .sub { color: #475569; margin-bottom: 14px; font-size: 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.05);
+  }
+  .card-bad { border-top: 4px solid #e11d48; }
+  .card-good { border-top: 4px solid #0284c7; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .b-red { background: #ffe4e6; color: #9f1239; }
+  .b-blue { background: #e0f2fe; color: #075985; }
+  .b-green { background: #dcfce7; color: #166534; }
+  .b-amber { background: #fde68a; color: #78350f; }
+  .title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .title-row h2 { margin: 0; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+  th { background: #f8fafc; color: #334155; font-weight: 700; }
+  .field-box {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-top: 8px;
+  }
+  .label { font-weight: 700; font-size: 11px; color: #334155; margin-bottom: 4px; display: block; }
+  .select-mock {
+    background: #ffffff;
+    border: 1px solid #0284c7;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-weight: 600;
+    color: #0f172a;
+    font-size: 12px;
+  }
+  .btn-mock {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 11px;
+  }
+  .btn-excel { background: #059669; color: #ffffff; }
+  .btn-del { background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; }
+  ul { margin: 6px 0 0 18px; padding: 0; }
+  li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+  <h1>Đối Chiếu Số Liệu Thật & Thiết Kế Sửa 4 Vấn Đề Anh Phú Vừa Gửi</h1>
+  <div class="sub">Dữ liệu kiểm tra trực tiếp trên Google Sheet <b>THANH 102026</b>, màn <b>Nhật Ký Hoạt Động</b> và <b>Tạo Đơn Nhập Hàng</b></div>
+
+  <div class="grid2">
+    <div class="card card-bad">
+      <div class="title-row">
+        <h2>HIỆN TẠI (Đang gặp lỗi)</h2>
+        <span class="badge b-red">Vì sao trùng & lệch số?</span>
+      </div>
+      <ul>
+        <li><b>Dòng 1 bị 0 video:</b> Bấm <i>+ Thêm / Đổi Link</i> luôn đẻ dòng mới; chọn <code>THANH 102026</code> vào ô <i>Tab Link &amp; View</i> chỉ đọc cứng <b>Cột A (STT)</b> nên ra <b>0 video</b>, lại thiếu nút Xóa ngay trên bảng.</li>
+        <li><b>Dòng 2 hiện 461 video vs Sheet ghi 559:</b>
+          <ul>
+            <li>Dòng 2 mới Sync tới ngày <b>04/11</b> (461 bài).</li>
+            <li>Hôm nay Cột S (<code>Link Air</code>) có <b>558 link</b> (ô D7 ghi 559 do cộng cột R gõ tay; dòng 96 gõ 21 nhưng chỉ dán 19 link).</li>
+            <li>Code cũ quét mù cả dòng nên hút nhầm cả <b>2 link giới thiệu kênh ở Cột D (LINK KOC)</b>; riêng Cột S có <b>16 link dán trùng</b> &rarr; chuẩn phải là <b>542 video duy nhất</b> (558 &minus; 16 = 542).</li>
+          </ul>
+        </li>
+      </ul>
+      <table>
+        <thead>
+          <tr><th>Chiến dịch</th><th>Tab đọc</th><th>Tổng Video</th><th>Thao tác</th></tr>
+        </thead>
+        <tbody>
+          <tr style="background:#fff1f2">
+            <td><b>THANH 10/2026</b> (Trùng)</td>
+            <td>View: THANH 102026 (đọc nhầm Cột A)</td>
+            <td><b style="color:#be123c">0</b></td>
+            <td>Sync | Chung | Sửa (thiếu nút Xóa)</td>
+          </tr>
+          <tr>
+            <td><b>THANH 10/2026</b></td>
+            <td>KOC: THANH 102026 (Sync cũ 04/11)</td>
+            <td><b>461</b></td>
+            <td>Sync | Riêng | Sửa</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card card-good">
+      <div class="title-row">
+        <h2>ĐỀ XUẤT MỚI (Chọn Cột + Khử Trùng + Xuất Excel)</h2>
+        <span class="badge b-blue">Chính xác 100%</span>
+      </div>
+      <div class="field-box">
+        <span class="label">1. Chọn Tab &amp; Chọn Đúng Cột Lấy Link (Tự đếm link từng cột):</span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <span class="label">Tab trong Google Sheet:</span>
+            <div class="select-mock">THANH 102026 (696 dòng)</div>
+          </div>
+          <div>
+            <span class="label">Cột chứa Link Video TikTok (*):</span>
+            <div class="select-mock" style="border-color:#059669;background:#f0fdf4">Cột S — Link Air (558 link phát hiện)</div>
+          </div>
+          <div>
+            <span class="label">Cột Tên / ID KOC:</span>
+            <div class="select-mock">Cột C — KOC (252 dòng)</div>
+          </div>
+          <div>
+            <span class="label">Cột Sản phẩm mẫu / Lượt xem:</span>
+            <div class="select-mock">Cột F — Mẫu đề xuất | View: Tự quét</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
+        <span class="badge b-green">Sync xong báo rõ: 558 link Cột S &rarr; 542 video duy nhất (gộp 16 link trùng)</span>
+        <span class="btn-mock btn-excel">Xuất Excel Hoa Hồng (.xlsx)</span>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Chiến dịch</th><th>Cột đang lấy</th><th>Video duy nhất</th><th>Thao tác</th></tr>
+        </thead>
+        <tbody>
+          <tr style="background:#f0f9ff">
+            <td><b>THANH 10/2026</b></td>
+            <td>Tab <code>THANH 102026</code> &middot; <b>Cột S (Link Air)</b></td>
+            <td><b style="color:#075985">542</b> <span style="color:#334155">(từ 558 link Cột S)</span></td>
+            <td><span style="color:#166534;font-weight:700">Sync</span> | <span style="color:#075985;font-weight:700">Riêng</span> | <span style="color:#334155;font-weight:700">Sửa</span> | <span class="btn-mock btn-del">Xóa</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="title-row">
+        <h2>3. Nhật Ký Hoạt Động: Lọc Đủ Nhân Viên Ngay Khi Mở</h2>
+        <span class="badge b-green">Sửa gốc 0ms</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field-box">
+          <span class="label" style="color:#be123c">Hiện tại:</span>
+          <div>Mở thẳng tab <i>Nhật Ký Hoạt Động</i> chưa gọi API nhân viên &rarr; chỉ có 1 dòng <code>Tất cả nhân viên</code>.</div>
+        </div>
+        <div class="field-box" style="border-color:#86efac;background:#f0fdf4">
+          <span class="label" style="color:#15803d">Sau khi sửa:</span>
+          <div class="select-mock" style="border-color:#16a34a">
+            Tất cả nhân viên | admin (Chủ shop) | Hoàng Phi Phụng (Thủ kho) | Hà Đặng Phương Thanh...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="title-row">
+        <h2>4. Tạo Đơn Nhập Hàng: Hiện Nhà Cung Cấp Tức Thì (&lt;0.1s)</h2>
+        <span class="badge b-amber">Bỏ nghẽn 15-25s</span>
+      </div>
+      <ul>
+        <li><b>Gốc lỗi chậm:</b> Danh sách NCC đang bị nhốt chung trong <code>Promise.all</code> chờ tải xong toàn bộ <b>hàng ngàn Sản phẩm (<code>/api/products</code>)</b> + câu SQL quét thừa 6.100 dòng bảng <code>pets</code> &amp; 4 subquery lặp.</li>
+        <li><b>Cách sửa:</b> Tách nạp riêng <code>NCC + Kho</code> ngay lập tức (&lt;0.1s), dùng lại cache sản phẩm sẵn có của POS, bỏ quét bảng <code>pets</code> và gom công nợ NCC bằng 1 câu <code>GROUP BY</code>.</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

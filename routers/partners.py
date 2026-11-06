@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from database import get_db, execute_batch
 from logger_config import get_module_logger
 from routers.cashbook import generate_cashbook_code
-from dependencies import require_role, require_permission, require_any_permission, resolve_payment_account
+from dependencies import require_role, require_permission, require_any_permission, resolve_payment_account, get_optional_user
 
 logger = get_module_logger("partners")
 
@@ -133,6 +133,55 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None, comp
             params.append(int(limit))
         cur.execute(query, tuple(params))
         rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        return rows
+
+    if type == "supplier":
+        # Đường dẫn siêu tốc cho Nhà Cung Cấp: bỏ quét bảng pets (>6.100 dòng) và gộp 4 subquery công nợ thành 2 CTE GROUP BY
+        supp_query = """
+            WITH po_debt AS (
+                SELECT supplier_id,
+                       SUM(CASE WHEN vat_rate > 0 OR vat_amount > 0 THEN debt_amount ELSE 0 END) AS po_comp,
+                       SUM(CASE WHEN (vat_rate = 0 OR vat_rate IS NULL) AND (vat_amount = 0 OR vat_amount IS NULL) THEN debt_amount ELSE 0 END) AS po_pers
+                FROM purchases
+                WHERE debt_amount > 0 AND status != 'cancelled'
+                GROUP BY supplier_id
+            ),
+            oem_debt AS (
+                SELECT partner_id,
+                       SUM(CASE WHEN vat_percent > 0 OR fund_source = 'COMPANY' THEN remaining_payment ELSE 0 END) AS oem_comp,
+                       SUM(CASE WHEN (vat_percent = 0 OR vat_percent IS NULL) AND (fund_source != 'COMPANY' OR fund_source IS NULL) THEN remaining_payment ELSE 0 END) AS oem_pers
+                FROM oem_orders
+                WHERE remaining_payment > 0 AND status != 'CANCELLED'
+                GROUP BY partner_id
+            )
+            SELECT c.*, st.name AS creator_name, 0 AS pets_count,
+                   (COALESCE(c.initial_debt_company, 0) + COALESCE(pd.po_comp, 0) + COALESCE(od.oem_comp, 0)) AS calc_debt_company,
+                   (COALESCE(c.initial_debt_personal, 0) + COALESCE(pd.po_pers, 0) + COALESCE(od.oem_pers, 0)) AS calc_debt_personal
+            FROM contacts c
+            LEFT JOIN staff st ON st.id = c.created_by
+            LEFT JOIN po_debt pd ON pd.supplier_id = c.id
+            LEFT JOIN oem_debt od ON od.partner_id = c.id
+            WHERE c.type = 'supplier'
+        """
+        supp_params = []
+        if search:
+            supp_query += " AND (c.name LIKE ? OR c.phone LIKE ?)"
+            s = f"%{search}%"
+            supp_params.extend([s, s])
+        supp_query += " ORDER BY c.id DESC"
+        if limit and int(limit) > 0:
+            supp_query += " LIMIT ?"
+            supp_params.append(int(limit))
+        cur.execute(supp_query, tuple(supp_params))
+        rows = []
+        for r in cur.fetchall():
+            d = dict(r)
+            d["debt_company"] = d.get("calc_debt_company", 0.0)
+            d["debt_personal"] = d.get("calc_debt_personal", 0.0)
+            d["total_debt"] = round(d["debt_company"] + d["debt_personal"], 2)
+            d["debt"] = d["total_debt"]
+            rows.append(d)
         conn.close()
         return rows
 
@@ -348,7 +397,7 @@ def download_contacts_template(type: str = "customer"):
     )
 
 @router.post("/import-excel")
-async def import_contacts_excel(file: UploadFile = File(...), type: str = "customer"):
+async def import_contacts_excel(file: UploadFile = File(...), type: str = "customer", user: Optional[dict] = Depends(get_optional_user)):
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="File tải lên rỗng!")

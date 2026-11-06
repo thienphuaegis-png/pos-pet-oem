@@ -2398,6 +2398,9 @@
         tbody.innerHTML = kocSources.map((s, idx) => {
             const st = s.stats || {};
             const r = s.rules || kocDefaultRules || {};
+            const sm = s.sync_meta || {};
+            const cm = s.column_mapping || {};
+            const vColUsed = sm.video_col || cm.video_col || '';
             const manualApproved = Number(st.manual_approved_videos || 0);
             const autoQual = Number(st.auto_qualified_videos ?? st.qualified_videos ?? 0);
             const excludedCnt = Number(st.excluded_videos || 0);
@@ -2405,9 +2408,14 @@
             const staffOpts = '<option value="">-- Chưa gán NV --</option>' +
                 pcStaff.map(u => `<option value="${u.id}" ${u.id === s.staff_id ? 'selected' : ''}>${escapeHtml(u.employee_code ? '[' + u.employee_code + '] ' : '')}${escapeHtml(u.name)}</option>`).join('');
             const tabsInfo = [
-                s.koc_tab_name ? `KOC: ${s.koc_tab_name}` : '',
-                s.video_tab_name ? `View: ${s.video_tab_name}` : ''
+                s.koc_tab_name ? `Tab: ${s.koc_tab_name.trim()}` : '',
+                s.video_tab_name && s.video_tab_name !== s.koc_tab_name ? `View: ${s.video_tab_name.trim()}` : '',
+                vColUsed ? `Cột ${vColUsed}` : ''
             ].filter(Boolean).join(' · ') || 'Chưa chọn tab';
+
+            const rawLinksSub = (sm.dup_in_sheet > 0 && sm.raw_links > (st.total_videos || 0))
+                ? `<div class="text-[11px] text-slate-400 font-normal whitespace-nowrap" title="Trên Sheet có ${sm.raw_links} link, đã tự gộp ${sm.dup_in_sheet} link dán trùng">${sm.raw_links} link thô</div>`
+                : '';
 
             const qualSub = manualApproved > 0
                 ? `<div class="text-[11px] text-sky-700 font-semibold">${autoQual} view + ${manualApproved} tay</div>`
@@ -2426,24 +2434,25 @@
                     </div>
                     <div class="text-xs text-slate-500">${escapeHtml(tabsInfo)}${s.last_sync_at ? ' · Sync: ' + escapeHtml(s.last_sync_at.slice(5, 16)) : ''}</div>
                 </td>
-                <td class="p-2.5 font-mono font-bold text-slate-700">${escapeHtml(s.month)}</td>
+                <td class="p-2.5 font-mono font-bold text-slate-700 whitespace-nowrap">${escapeHtml(s.month)}</td>
                 <td class="p-2.5">
                     <select onchange="quickAssignKocStaff(${idx}, this.value)" class="border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-800 bg-white">
                         ${staffOpts}
                     </select>
                 </td>
                 <td class="p-2.5 text-center font-bold">${s.koc_count || 0}</td>
-                <td class="p-2.5 text-center font-mono font-bold">${st.total_videos || 0}</td>
+                <td class="p-2.5 text-center font-mono font-bold">${st.total_videos || 0}${rawLinksSub}</td>
                 <td class="p-2.5 text-center font-mono font-bold text-emerald-700">${st.qualified_videos || 0} ${qualSub}</td>
                 <td class="p-2.5 text-center font-mono text-amber-700">${st.under_kpi_videos || 0}${underSub}</td>
                 <td class="p-2.5 text-center font-mono text-slate-600">${r.kpi_deduct_videos || 0}${deductSub}</td>
                 <td class="p-2.5 text-center font-mono font-bold text-sky-700">${st.payable_videos || 0}</td>
-                <td class="p-2.5 text-right font-mono">${pcMoney(r.rate_per_video)}</td>
-                <td class="p-2.5 text-right font-mono font-bold text-sky-600">${pcMoney(st.commission)}</td>
+                <td class="p-2.5 text-right font-mono whitespace-nowrap">${pcMoney(r.rate_per_video)}</td>
+                <td class="p-2.5 text-right font-mono font-bold text-sky-600 whitespace-nowrap">${pcMoney(st.commission)}</td>
                 <td class="p-2.5 text-center whitespace-nowrap">
                     <button type="button" onclick="syncSingleKocSource(${s.id})" class="px-2 py-1 rounded text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 cursor-pointer" title="Đồng bộ lại từ Google Sheet">🔄 Sync</button>
                     <button type="button" onclick="openKocRulesModal(${idx})" class="px-2 py-1 rounded text-xs font-bold ${s.custom_rules ? 'bg-sky-100 text-sky-800' : 'bg-slate-100 text-slate-600'} hover:bg-sky-200 cursor-pointer" title="Chỉnh công thức tính">${s.custom_rules ? '⚙️ Riêng' : '⚙️ Chung'}</button>
-                    <button type="button" onclick="openKocSourceModal(${s.id})" class="px-2 py-1 rounded text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer" title="Đổi link / đổi tab">✏️ Sửa</button>
+                    <button type="button" onclick="openKocSourceModal(${s.id})" class="px-2 py-1 rounded text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer" title="Đổi link / đổi tab / chọn cột lấy link">✏️ Sửa</button>
+                    <button type="button" onclick="deleteKocSourceDirect(${s.id}, '${escapeHtml(s.name)}')" class="px-2 py-1 rounded text-xs font-bold bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 cursor-pointer" title="Xóa dòng chiến dịch này">🗑️</button>
                 </td>
             </tr>`;
         }).join('');
@@ -3025,6 +3034,97 @@
     }
     window.deleteSingleKocVideo = deleteSingleKocVideo;
 
+    function resetKocColumnSelectors(presetMap = null) {
+        const cm = presetMap || {};
+        const vSel = document.getElementById('koc-src-col-video');
+        const kSel = document.getElementById('koc-src-col-koc');
+        const pSel = document.getElementById('koc-src-col-product');
+        const wSel = document.getElementById('koc-src-col-views');
+        if (vSel) vSel.innerHTML = `<option value="${escapeHtml(cm.video_col || '')}">${cm.video_col ? 'Cột ' + escapeHtml(cm.video_col) + ' (đã lưu)' : '-- Tự động chọn cột Link Air / Link TikTok --'}</option>`;
+        if (kSel) kSel.innerHTML = `<option value="${escapeHtml(cm.koc_col || '')}">${cm.koc_col ? 'Cột ' + escapeHtml(cm.koc_col) : '-- Tự động / Tách từ link --'}</option>`;
+        if (pSel) pSel.innerHTML = `<option value="${escapeHtml(cm.product_col || '')}">${cm.product_col ? 'Cột ' + escapeHtml(cm.product_col) : '-- Tự động --'}</option>`;
+        if (wSel) wSel.innerHTML = `<option value="${escapeHtml(cm.views_col || '')}">${cm.views_col ? 'Cột ' + escapeHtml(cm.views_col) : '-- Không có sẵn (Quét trực tiếp từ TikTok) --'}</option>`;
+    }
+
+    async function inspectKocTabColumns(tabName, presetMap = null) {
+        const url = document.getElementById('koc-src-url')?.value.trim() || '';
+        const stEl = document.getElementById('koc-col-picker-status');
+        if (!url || !tabName) {
+            resetKocColumnSelectors(presetMap);
+            return;
+        }
+        if (stEl) stEl.textContent = '⏳ Đang đếm link từng cột...';
+        try {
+            const res = await fetch('/api/marketplace/koc/inspect-columns', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sheet_url: url, tab_name: tabName })
+            });
+            const data = await safeKocJson(res);
+            if (!res.ok) throw new Error(data.detail || 'Không đọc được cột');
+            const cols = data.columns || [];
+            const sug = data.suggested || {};
+            const cm = presetMap || {};
+
+            const vSel = document.getElementById('koc-src-col-video');
+            const kSel = document.getElementById('koc-src-col-koc');
+            const pSel = document.getElementById('koc-src-col-product');
+            const wSel = document.getElementById('koc-src-col-views');
+
+            if (vSel) {
+                vSel.innerHTML = '<option value="">-- Tự động chọn cột Link Air / Link TikTok --</option>' +
+                    cols.map(c => {
+                        let extra = '';
+                        if (c.video_links > 0) {
+                            extra = c.unique_videos < c.video_links
+                                ? ` (${c.video_links} link -> ${c.unique_videos} video duy nhất)`
+                                : ` (${c.video_links} link video)`;
+                        } else if (c.channel_links > 0) {
+                            extra = ` (${c.channel_links} link kênh — không phải video)`;
+                        } else {
+                            extra = ` (${c.non_empty} dòng)`;
+                        }
+                        return `<option value="${escapeHtml(c.col)}">Cột ${escapeHtml(c.col)} — ${escapeHtml(c.header)}${extra}</option>`;
+                    }).join('');
+                const targetV = cm.video_col || sug.video_col || '';
+                if (targetV && cols.some(c => c.col === targetV)) vSel.value = targetV;
+            }
+
+            const buildOptCols = (defaultText) => `<option value="">${defaultText}</option>` +
+                cols.map(c => `<option value="${escapeHtml(c.col)}">Cột ${escapeHtml(c.col)} — ${escapeHtml(c.header)} (${c.non_empty} dòng)</option>`).join('');
+
+            if (kSel) {
+                kSel.innerHTML = buildOptCols('-- Tự động / Tách từ link --');
+                const targetK = cm.koc_col !== undefined ? cm.koc_col : (sug.koc_col || '');
+                if (targetK && cols.some(c => c.col === targetK)) kSel.value = targetK;
+            }
+            if (pSel) {
+                pSel.innerHTML = buildOptCols('-- Tự động --');
+                const targetP = cm.product_col !== undefined ? cm.product_col : (sug.product_col || '');
+                if (targetP && cols.some(c => c.col === targetP)) pSel.value = targetP;
+            }
+            if (wSel) {
+                wSel.innerHTML = buildOptCols('-- Không có sẵn (Quét trực tiếp từ TikTok) --');
+                const targetW = cm.views_col !== undefined ? cm.views_col : (sug.views_col || '');
+                if (targetW && cols.some(c => c.col === targetW)) wSel.value = targetW;
+            }
+
+            const chosenV = cols.find(c => c.col === (vSel ? vSel.value : ''));
+            if (stEl) {
+                stEl.textContent = chosenV
+                    ? `Đã chọn Cột ${chosenV.col} (${chosenV.video_links} link -> ${chosenV.unique_videos} duy nhất)`
+                    : `Đã đọc ${cols.length} cột`;
+            }
+        } catch (e) {
+            if (stEl) stEl.textContent = 'Không đọc được cột: ' + e.message;
+        }
+    }
+    window.inspectKocTabColumns = inspectKocTabColumns;
+
+    function onChangeKocPrimaryTab(tabName) {
+        inspectKocTabColumns(tabName, null);
+    }
+    window.onChangeKocPrimaryTab = onChangeKocPrimaryTab;
+
     async function openKocSourceModal(sourceId = null) {
         await ensureKocStaffLoaded();
         const src = sourceId ? kocSources.find(s => s.id === sourceId) : null;
@@ -3039,14 +3139,19 @@
         document.getElementById('btn-koc-src-delete').classList.toggle('invisible', !src);
         document.getElementById('koc-src-inspect-msg').classList.add('hidden');
 
+        // Nếu nguồn cũ từng để trống koc_tab_name mà chỉ điền video_tab_name -> đưa lên Tab chính để sửa cột dễ dàng
+        const primaryTab = src ? (src.koc_tab_name || src.video_tab_name || '') : '';
+        const secondaryTab = src && src.koc_tab_name && src.video_tab_name && src.video_tab_name !== src.koc_tab_name ? src.video_tab_name : '';
+
         const kocTabSel = document.getElementById('koc-src-koc-tab');
         const vidTabSel = document.getElementById('koc-src-video-tab');
-        kocTabSel.innerHTML = `<option value="${escapeHtml(src?.koc_tab_name || '')}">${src?.koc_tab_name ? escapeHtml(src.koc_tab_name) : '-- Bấm "Tải DS Tab" để chọn --'}</option>`;
-        vidTabSel.innerHTML = `<option value="${escapeHtml(src?.video_tab_name || '')}">${src?.video_tab_name ? escapeHtml(src.video_tab_name) : '-- Bấm "Tải DS Tab" để chọn --'}</option>`;
+        kocTabSel.innerHTML = `<option value="${escapeHtml(primaryTab)}">${primaryTab ? escapeHtml(primaryTab) : '-- Bấm "1. Tải DS Tab" rồi chọn Tab --'}</option>`;
+        vidTabSel.innerHTML = `<option value="${escapeHtml(secondaryTab)}">${secondaryTab ? escapeHtml(secondaryTab) : '-- Không dùng Tab phụ --'}</option>`;
+        resetKocColumnSelectors(src ? src.column_mapping : null);
 
         document.getElementById('modal-koc-source').classList.remove('hidden');
         if (src && src.sheet_url) {
-            inspectKocSheetTabs(src.koc_tab_name, src.video_tab_name);
+            await inspectKocSheetTabs(primaryTab, secondaryTab, src.column_mapping || null);
         }
     }
     window.openKocSourceModal = openKocSourceModal;
@@ -3056,7 +3161,7 @@
     }
     window.closeKocSourceModal = closeKocSourceModal;
 
-    async function inspectKocSheetTabs(presetKocTab = null, presetVidTab = null) {
+    async function inspectKocSheetTabs(presetKocTab = null, presetVidTab = null, presetColMap = null) {
         const url = document.getElementById('koc-src-url').value.trim();
         const msgBox = document.getElementById('koc-src-inspect-msg');
         const btn = document.getElementById('btn-koc-inspect');
@@ -3081,16 +3186,26 @@
             const curKoc = presetKocTab !== null ? presetKocTab : kocTabSel.value;
             const curVid = presetVidTab !== null ? presetVidTab : vidTabSel.value;
 
-            kocTabSel.innerHTML = '<option value="">-- Không chọn / Tự trích từ video --</option>' +
-                tabs.map(t => `<option value="${escapeHtml(t.name)}">${t.kind === 'koc_booking' ? '👥 ' : ''}${escapeHtml(t.name)} (${t.rows} dòng)</option>`).join('');
-            vidTabSel.innerHTML = '<option value="">-- Không chọn --</option>' +
+            kocTabSel.innerHTML = '<option value="">-- Chọn Tab cần lấy dữ liệu --</option>' +
+                tabs.map(t => `<option value="${escapeHtml(t.name)}">${t.kind === 'koc_booking' ? '👥 ' : (t.kind === 'video_views' ? '📹 ' : '')}${escapeHtml(t.name)} (${t.rows} dòng)</option>`).join('');
+            vidTabSel.innerHTML = '<option value="">-- Không dùng Tab phụ --</option>' +
                 tabs.map(t => `<option value="${escapeHtml(t.name)}">${t.kind === 'video_views' ? '📹 ' : ''}${escapeHtml(t.name)} (${t.rows} dòng)</option>`).join('');
 
-            if (curKoc && tabs.some(t => t.name === curKoc)) kocTabSel.value = curKoc;
-            if (curVid && tabs.some(t => t.name === curVid)) vidTabSel.value = curVid;
+            if (curKoc && tabs.some(t => t.name.trim().toLowerCase() === curKoc.trim().toLowerCase())) {
+                const matchTab = tabs.find(t => t.name.trim().toLowerCase() === curKoc.trim().toLowerCase());
+                kocTabSel.value = matchTab.name;
+            }
+            if (curVid && tabs.some(t => t.name.trim().toLowerCase() === curVid.trim().toLowerCase())) {
+                const matchVid = tabs.find(t => t.name.trim().toLowerCase() === curVid.trim().toLowerCase());
+                vidTabSel.value = matchVid.name;
+            }
+
+            if (kocTabSel.value) {
+                await inspectKocTabColumns(kocTabSel.value, presetColMap);
+            }
 
             msgBox.className = 'p-2 rounded-lg text-xs bg-emerald-100 text-emerald-800 font-bold';
-            msgBox.textContent = `✅ Đã tìm thấy ${tabs.length} tab trong Google Sheet! Hãy chọn tab tương ứng bên trên.`;
+            msgBox.textContent = `✅ Đã tìm thấy ${tabs.length} tab! Hãy chọn Tab ở mục 2 để kiểm tra cột lấy Link Video.`;
         } catch (e) {
             msgBox.className = 'p-2 rounded-lg text-xs bg-rose-100 text-rose-800 font-bold';
             msgBox.textContent = '❌ ' + e.message;
@@ -3108,12 +3223,18 @@
         const koc_tab_name = document.getElementById('koc-src-koc-tab').value;
         const video_tab_name = document.getElementById('koc-src-video-tab').value;
         const staff_id = document.getElementById('koc-src-staff').value;
+        const column_mapping = {
+            video_col: document.getElementById('koc-src-col-video')?.value || '',
+            koc_col: document.getElementById('koc-src-col-koc')?.value || '',
+            product_col: document.getElementById('koc-src-col-product')?.value || '',
+            views_col: document.getElementById('koc-src-col-views')?.value || '',
+        };
 
         if (!name || !month || !sheet_url) {
             return pcToast('Vui lòng nhập Tên chiến dịch, Tháng và Link Google Sheet', 'warning');
         }
         if (!koc_tab_name && !video_tab_name) {
-            return pcToast('Hãy chọn ít nhất 1 Tab (Tab DS KOC hoặc Tab Link & View)', 'warning');
+            return pcToast('Hãy chọn Tab cần lấy dữ liệu ở mục 2', 'warning');
         }
 
         const btn = document.getElementById('btn-koc-src-save');
@@ -3128,6 +3249,7 @@
                     name, sheet_url, month,
                     staff_id: staff_id ? Number(staff_id) : null,
                     koc_tab_name, video_tab_name,
+                    column_mapping,
                     rules: existing && existing.custom_rules ? existing.rules : null
                 })
             });
@@ -3149,6 +3271,47 @@
         }
     }
     window.saveKocSourceAndSync = saveKocSourceAndSync;
+
+    async function deleteKocSourceDirect(sourceId, sourceName = '') {
+        if (!sourceId) return;
+        const ok = window.showConfirmModal
+            ? await window.showConfirmModal({
+                title: `Xóa chiến dịch "${sourceName || '#' + sourceId}"?`,
+                message: 'Dòng chiến dịch này và các video thuộc riêng dòng này sẽ bị xóa (các chiến dịch khác giữ nguyên).',
+                confirmText: 'Xóa dòng này',
+                type: 'danger'
+            })
+            : confirm(`Xóa chiến dịch ${sourceName}?`);
+        if (!ok) return;
+        try {
+            const res = await fetch(`/api/marketplace/koc/sources/${sourceId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Lỗi xóa nguồn');
+            closeKocSourceModal();
+            if (String(kocSelectedSourceId) === String(sourceId)) kocSelectedSourceId = '';
+            await loadKocTab();
+            pcToast('Đã xóa dòng chiến dịch KOC', 'success');
+        } catch (e) { pcToast(e.message, 'error'); }
+    }
+    window.deleteKocSourceDirect = deleteKocSourceDirect;
+
+    function exportKocCommissionExcel() {
+        const month = document.getElementById('koc-month-filter')?.value || '';
+        const kpiFilter = document.getElementById('koc-video-kpi-filter')?.value || 'all';
+        const q = document.getElementById('koc-search-input')?.value.trim() || '';
+        const params = new URLSearchParams();
+        if (month) params.append('month', month);
+        if (kocSelectedSourceId) params.append('source_id', kocSelectedSourceId);
+        if (kpiFilter && kpiFilter !== 'all') params.append('kpi_filter', kpiFilter);
+        if (q) params.append('q', q);
+        const tag = (month || 'TatCa').replace('-', '_');
+        const url = `/api/marketplace/koc/export-excel?${params.toString()}`;
+        if (typeof window.downloadWithAuth === 'function') {
+            window.downloadWithAuth(url, `HoaHong_KOC_${tag}.xlsx`);
+        } else {
+            window.open(url, '_blank');
+        }
+    }
+    window.exportKocCommissionExcel = exportKocCommissionExcel;
 
     async function deleteKocSourceModal() {
         const id = document.getElementById('koc-src-id').value;

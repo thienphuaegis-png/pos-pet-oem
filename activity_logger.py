@@ -84,6 +84,18 @@ ACTION_PATTERNS = [
     (r"^(POST|PUT|DELETE) /api/hrm/", "Thao tác Nhân sự (HRM)"),
     (r"^POST /api/oem/.*", "Thao tác Gia công OEM"),
     (r"^(POST|PUT|DELETE) /api/price-lists", "Thao tác Bảng giá"),
+    (r"^POST /api/suppliers/\d+/assign-items$", "Gán mặt hàng cho nhà cung cấp"),
+    (r"^POST /api/marketplace/koc/inspect-(sheet|columns)$", "Kiểm tra cấu trúc Google Sheet KOC"),
+    (r"^POST /api/marketplace/koc/sources/\d+/sync$", "Đồng bộ chiến dịch KOC từ Sheet"),
+    (r"^POST /api/marketplace/koc/sources/\d+/refresh-views$", "Quét lượt xem video TikTok KOC"),
+    (r"^POST /api/marketplace/koc/sources$", "Lưu chiến dịch Google Sheet KOC"),
+    (r"^DELETE /api/marketplace/koc/sources/\d+$", "Xóa chiến dịch KOC"),
+    (r"^POST /api/marketplace/koc/videos/bulk-kpi$", "Duyệt KPI video KOC hàng loạt"),
+    (r"^POST /api/marketplace/koc/videos$", "Dán thêm link video KOC"),
+    (r"^PUT /api/marketplace/koc/videos/\d+$", "Cập nhật lượt xem / KPI video KOC"),
+    (r"^DELETE /api/marketplace/koc/videos/\d+$", "Xóa link video KOC"),
+    (r"^PUT /api/marketplace/koc/rules$", "Cập nhật công thức hoa hồng KOC"),
+    (r"^(POST|PUT|DELETE) /api/marketplace/", "Thao tác Sàn TMĐT"),
 ]
 
 
@@ -100,6 +112,7 @@ def _describe(method: str, path: str) -> str:
 _IGNORED_ACTIVITY_PATHS = {
     "/api/client-log", "/api/pos/draft",
     "/api/pricing/calculate", "/api/pricing/calculate-spa", "/api/oem/calculate-bom-stock",
+    "/api/marketplace/koc/inspect-sheet", "/api/marketplace/koc/inspect-columns",
 }
 
 

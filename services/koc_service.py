@@ -28,9 +28,55 @@ DEFAULT_KOC_RULES = {
 }
 
 _VN_TZ = datetime.timezone(datetime.timedelta(hours=7))
-TIKTOK_URL_RE = re.compile(r"https?://(?:www\.|vm\.|vt\.)?tiktok\.com/[^\s,;\'\"><\)]+", re.I)
-VIDEO_ID_RE = re.compile(r"/video/(\d+)")
+TIKTOK_URL_RE = re.compile(r"https?://(?:www\.|vm\.|vt\.|m\.)?tiktok\.com/(?:(?!https?://)[^\s,;\'\"><\)])+", re.I)
+VIDEO_ID_RE = re.compile(r"/(?:video|photo)/(\d+)")
 USERNAME_RE = re.compile(r"/@([a-zA-Z0-9_.\-]+)")
+_SHEET_BYTES_CACHE: Dict[str, Tuple[float, bytes]] = {}
+
+
+def is_tiktok_video_url(url: str) -> bool:
+    low = (url or "").strip().lower()
+    if "/video/" in low or "/photo/" in low:
+        return True
+    if ("vt.tiktok.com/" in low or "vm.tiktok.com/" in low) and "/@" not in low:
+        return True
+    return False
+
+
+def extract_cell_video_urls(cell) -> List[str]:
+    if cell is None:
+        return []
+    val = cell.value
+    found: List[str] = []
+    if val and isinstance(val, str) and "tiktok.com" in val.lower():
+        found = [u for u in TIKTOK_URL_RE.findall(val) if is_tiktok_video_url(u)]
+    if not found and getattr(cell, "hyperlink", None) and getattr(cell.hyperlink, "target", None):
+        hl = str(cell.hyperlink.target or "")
+        if "tiktok.com" in hl.lower():
+            found = [u for u in TIKTOK_URL_RE.findall(hl) if is_tiktok_video_url(u)]
+    return found
+
+
+def _col_spec_to_indices(spec: Optional[str], max_c: int = 50) -> List[int]:
+    raw = str(spec or "").strip()
+    if not raw:
+        return []
+    out: List[int] = []
+    for tok in re.split(r"[,;\s+]+", raw):
+        t = tok.strip().upper()
+        if not t:
+            continue
+        idx = 0
+        if t.isdigit():
+            idx = int(t)
+        elif re.match(r"^[A-Z]{1,3}$", t):
+            try:
+                idx = openpyxl.utils.column_index_from_string(t)
+            except ValueError:
+                idx = 0
+        if 1 <= idx <= max_c and idx not in out:
+            out.append(idx)
+    return out
 
 
 def extract_tiktok_publish_time(url_or_key: str) -> str:
@@ -109,10 +155,19 @@ def ensure_koc_schema(cur) -> None:
         UNIQUE(source_id, video_key)
     )
     """)
+    cur.execute("PRAGMA table_info(koc_sources)")
+    ks_cols = {c[1] for c in cur.fetchall()}
+    if "column_mapping_json" not in ks_cols:
+        cur.execute("ALTER TABLE koc_sources ADD COLUMN column_mapping_json TEXT DEFAULT ''")
+    if "sync_meta_json" not in ks_cols:
+        cur.execute("ALTER TABLE koc_sources ADD COLUMN sync_meta_json TEXT DEFAULT ''")
+
     cur.execute("PRAGMA table_info(koc_videos)")
     kv_cols = {c[1] for c in cur.fetchall()}
     if "manual_kpi" not in kv_cols:
         cur.execute("ALTER TABLE koc_videos ADD COLUMN manual_kpi INTEGER DEFAULT 0")
+    if "is_manual_added" not in kv_cols:
+        cur.execute("ALTER TABLE koc_videos ADD COLUMN is_manual_added INTEGER DEFAULT 0")
 
     # Giải mã tức thì published_at từ Snowflake ID cho các video cũ chưa có giờ đăng chuẩn
     cur.execute(
@@ -394,12 +449,146 @@ def calc_koc_commission(
     }
 
 
-def download_sheet_xlsx_bytes(sheet_url_or_id: str) -> Tuple[str, bytes]:
+def download_sheet_xlsx_bytes(sheet_url_or_id: str, use_cache: bool = False) -> Tuple[str, bytes]:
     sheet_id = extract_sheet_id(sheet_url_or_id)
+    now = time.monotonic()
+    if use_cache and sheet_id in _SHEET_BYTES_CACHE:
+        ts, cached_bytes = _SHEET_BYTES_CACHE[sheet_id]
+        if now - ts <= 90.0:
+            return sheet_id, cached_bytes
     export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
     req = urllib.request.Request(export_url, headers={"User-Agent": "Mozilla/5.0"})
     data = urllib.request.urlopen(req, timeout=45).read()
+    _SHEET_BYTES_CACHE[sheet_id] = (now, data)
     return sheet_id, data
+
+
+def inspect_sheet_tab_columns(xlsx_bytes: bytes, tab_name: str) -> dict:
+    """Đọc cấu trúc các cột A..AZ của 1 tab trong Google Sheet, đếm số link video từng cột & gợi ý cột chuẩn."""
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes), data_only=True)
+    ws = _find_sheet_by_name(wb, tab_name)
+    if ws is None:
+        raise ValueError(f"Không tìm thấy tab '{tab_name}' trong Google Sheet")
+
+    max_r = ws.max_row or 0
+    max_c = min(ws.max_column or 0, 40)
+    header_row = None
+    sub_header_row = None
+
+    for r in range(1, min(25, max_r + 1)):
+        vals = [str(ws.cell(r, c).value or "").strip().lower() for c in range(1, max_c + 1)]
+        is_booking_hdr = any(x in ("koc", "id koc") for x in vals) and any("link" in x for x in vals)
+        is_views_hdr = any("link tiktok" in x for x in vals) and any("lượt xem" in x for x in vals)
+        if is_booking_hdr or is_views_hdr:
+            header_row = r
+            if is_booking_hdr and r + 1 <= max_r:
+                vals2 = [str(ws.cell(r + 1, c).value or "").strip().lower() for c in range(1, max_c + 1)]
+                if any(x in ("koc", "id koc", "link air") for x in vals2):
+                    sub_header_row = r + 1
+            break
+
+    eff_hdr_row = sub_header_row or header_row
+    data_start = (eff_hdr_row + 1) if eff_hdr_row else 2
+
+    columns = []
+    for c in range(1, max_c + 1):
+        col_letter = openpyxl.utils.get_column_letter(c)
+        h_parts = []
+        if header_row:
+            v1 = " ".join(str(ws.cell(header_row, c).value or "").split()).strip()
+            if v1:
+                h_parts.append(v1)
+        if sub_header_row:
+            v2 = " ".join(str(ws.cell(sub_header_row, c).value or "").split()).strip()
+            if v2 and v2.lower() not in {p.lower() for p in h_parts}:
+                h_parts.append(v2)
+        if not h_parts:
+            v_top = " ".join(str(ws.cell(1, c).value or "").split()).strip()
+            if v_top and not v_top.startswith("http"):
+                h_parts.append(v_top[:40])
+        header_label = " / ".join(h_parts)[:55] if h_parts else f"Cột {col_letter}"
+
+        vid_links = 0
+        uniq_vkeys = set()
+        chan_links = 0
+        non_empty = 0
+        sample_val = ""
+        for r in range(data_start, max_r + 1):
+            cell = ws.cell(r, c)
+            raw_v = cell.value
+            if raw_v is not None and str(raw_v).strip() != "":
+                non_empty += 1
+                if not sample_val:
+                    sample_val = " ".join(str(raw_v).split())[:45]
+            v_urls = extract_cell_video_urls(cell)
+            if v_urls:
+                vid_links += len(v_urls)
+                for u in v_urls:
+                    uniq_vkeys.add(extract_video_key(u))
+            elif raw_v and isinstance(raw_v, str) and "tiktok.com/@" in raw_v.lower():
+                chan_links += 1
+
+        if h_parts or non_empty > 0 or vid_links > 0:
+            columns.append({
+                "col": col_letter,
+                "index": c,
+                "header": header_label,
+                "video_links": vid_links,
+                "unique_videos": len(uniq_vkeys),
+                "channel_links": chan_links,
+                "non_empty": non_empty,
+                "sample": sample_val,
+            })
+
+    # Tự động gợi ý cột chuẩn nhất
+    sug_video = ""
+    sug_koc = ""
+    sug_prod = ""
+    sug_views = ""
+
+    # 1. Cột Link Video: ưu tiên cột có chữ "link air" / "link tiktok" / "link video", sau đó tới cột nhiều video_links nhất (tránh cột LINK KOC / Link nguồn)
+    preferred_vid = [
+        col for col in columns
+        if any(k in col["header"].lower() for k in ("link air", "link tiktok", "link video"))
+        and "link nguồn" not in col["header"].lower()
+    ]
+    if preferred_vid:
+        preferred_vid.sort(key=lambda x: (x["video_links"], -x["index"]), reverse=True)
+        sug_video = preferred_vid[0]["col"]
+    else:
+        with_vids = [
+            col for col in columns
+            if col["video_links"] > 0
+            and not any(k in col["header"].lower() for k in ("link koc", "link id", "link kênh", "link nguồn"))
+        ]
+        if with_vids:
+            with_vids.sort(key=lambda x: (x["video_links"], -x["index"]), reverse=True)
+            sug_video = with_vids[0]["col"]
+
+    for col in columns:
+        hl = col["header"].lower()
+        if not sug_koc and (hl in ("koc", "id koc", "tác giả", "tác giả (koc)") or hl.startswith("koc ") or "tác giả" in hl):
+            sug_koc = col["col"]
+        if not sug_prod and ("mẫu đề xuất" in hl or "sản phẩm" in hl):
+            sug_prod = col["col"]
+        if not sug_views and ("lượt xem" in hl or hl == "views" or hl == "view"):
+            sug_views = col["col"]
+
+    return {
+        "tab_name": ws.title,
+        "header_row": eff_hdr_row or 1,
+        "total_rows": max_r,
+        "columns": columns,
+        "suggested": {
+            "video_col": sug_video,
+            "koc_col": sug_koc,
+            "product_col": sug_prod,
+            "views_col": sug_views,
+        },
+    }
 
 
 def inspect_workbook_tabs(xlsx_bytes: bytes) -> List[dict]:
@@ -411,13 +600,15 @@ def inspect_workbook_tabs(xlsx_bytes: bytes) -> List[dict]:
     for name in wb.sheetnames:
         ws = wb[name]
         sample_text = ""
-        row_count = 0
-        for r_idx, row in enumerate(ws.iter_rows(values_only=True), start=1):
-            row_count = r_idx
-            if r_idx <= 16:
-                non_empty = [str(c).strip() for c in row[:25] if c is not None and str(c).strip()]
-                if non_empty:
-                    sample_text += " | ".join(non_empty[:8]) + "\n"
+        row_count = ws.max_row or 0
+        sampled_rows = 0
+        for row in ws.iter_rows(min_row=1, max_row=16, max_col=25, values_only=True):
+            sampled_rows += 1
+            non_empty = [str(c).strip() for c in row if c is not None and str(c).strip()]
+            if non_empty:
+                sample_text += " | ".join(non_empty[:8]) + "\n"
+        if not row_count:
+            row_count = sampled_rows
         low = sample_text.lower()
         tab_kind = "other"
         if "link tiktok" in low or "lượt xem" in low or "video trên 200" in low:
@@ -484,14 +675,20 @@ def _fmt_cell_dt(v) -> str:
     return str(v or "").strip()
 
 
-def parse_koc_booking_sheet(ws) -> Tuple[List[dict], List[dict]]:
+def parse_koc_booking_sheet(
+    ws,
+    column_mapping: Optional[dict] = None,
+    out_meta: Optional[dict] = None,
+) -> Tuple[List[dict], List[dict]]:
     """Đọc tab quản lý KOC của nhân sự (vd THANH 102026, Đôn 62026, Kho KOCKOL...).
+    Hỗ trợ chỉ định chính xác cột lấy Link Video / KOC / Sản phẩm / Lượt xem qua column_mapping.
     Trả về (danh_sách_koc_profiles, danh_sách_videos_tách_từ_link_air).
     """
     header_row = None
     col_map: Dict[str, int] = {}
     max_r = ws.max_row or 0
-    max_c = min(ws.max_column or 0, 40)
+    max_c = min(ws.max_column or 0, 45)
+    cmap_in = column_mapping or {}
 
     for r in range(1, min(25, max_r + 1)):
         vals = [str(ws.cell(r, c).value or "").strip().lower() for c in range(1, max_c + 1)]
@@ -519,16 +716,16 @@ def parse_koc_booking_sheet(ws) -> Tuple[List[dict], List[dict]]:
                 elif "số video" in h and "videos_committed" not in col_map:
                     col_map["videos_committed"] = c_idx
                 elif "link air" in h or h == "trả video":
-                    # Kiểm tra nếu cột tiếp theo là Link Air thì ưu tiên Link Air
                     if "link air" in h:
                         col_map["link_air"] = c_idx
                     elif "link_air" not in col_map:
                         col_map["link_air"] = c_idx
+                elif "lượt xem" in h and "views" not in col_map:
+                    col_map["views"] = c_idx
                 elif "ngày air" in h:
                     col_map["air_date"] = c_idx
                 elif h == "note" and "note" not in col_map:
                     col_map["note"] = c_idx
-            # Nếu dòng kế tiếp cũng là header phụ (như dòng 14 trong THANH 102026)
             if r + 1 <= max_r:
                 vals2 = [str(ws.cell(r + 1, c).value or "").strip().lower() for c in range(1, max_c + 1)]
                 if any(x in ("koc", "id koc", "link air") for x in vals2):
@@ -542,30 +739,58 @@ def parse_koc_booking_sheet(ws) -> Tuple[List[dict], List[dict]]:
                             col_map["note"] = c_idx
             break
 
+    custom_vid_cols = _col_spec_to_indices(cmap_in.get("video_col"), max_c)
+    custom_koc_cols = _col_spec_to_indices(cmap_in.get("koc_col"), max_c)
+    custom_prod_cols = _col_spec_to_indices(cmap_in.get("product_col"), max_c)
+    custom_view_cols = _col_spec_to_indices(cmap_in.get("views_col"), max_c)
+
     if not header_row:
-        return [], []
+        if not custom_vid_cols:
+            return [], []
+        # Nếu người dùng đã chỉ định cột lấy link trên một tab tùy ý -> tìm dòng bắt đầu có link TikTok
+        header_row = 1
+        for r in range(1, min(20, max_r + 1)):
+            if any(extract_cell_video_urls(ws.cell(r, vc)) for vc in custom_vid_cols):
+                header_row = max(0, r - 1)
+                break
+
+    if custom_koc_cols:
+        col_map["koc"] = custom_koc_cols[0]
+    if custom_prod_cols:
+        col_map["sample"] = custom_prod_cols[0]
+    if custom_view_cols:
+        col_map["views"] = custom_view_cols[0]
+
+    # Xác định chính xác cột lấy Link Video (KHÔNG quét nhầm cột D 'LINK KOC' giới thiệu kênh!)
+    if custom_vid_cols:
+        video_col_indices = custom_vid_cols
+    elif col_map.get("link_air"):
+        video_col_indices = [col_map["link_air"]]
+    else:
+        skip_koc_link_col = col_map.get("link")
+        video_col_indices = [c for c in range(1, max_c + 1) if c != skip_koc_link_col]
 
     profiles: Dict[str, dict] = {}
     videos: Dict[str, dict] = {}
+    raw_links_count = 0
 
     for r in range(header_row + 1, max_r + 1):
-        raw_koc = ws.cell(r, col_map.get("koc", 3)).value if col_map.get("koc") else None
-        raw_link = ws.cell(r, col_map.get("link", 4)).value if col_map.get("link") else None
-        # Quét toàn bộ dòng tìm các link TikTok video (phòng trường hợp cột Link Air bị dịch chuyển giữa các tháng)
-        row_video_urls = []
-        for c in range(1, max_c + 1):
-            cell_val = ws.cell(r, c).value
-            if cell_val and isinstance(cell_val, str) and "/video/" in cell_val:
-                row_video_urls.extend(TIKTOK_URL_RE.findall(cell_val))
+        raw_koc = ws.cell(r, col_map["koc"]).value if col_map.get("koc") else None
+        raw_link = ws.cell(r, col_map["link"]).value if col_map.get("link") else None
+
+        row_video_urls: List[str] = []
+        for c in video_col_indices:
+            row_video_urls.extend(extract_cell_video_urls(ws.cell(r, c)))
+        raw_links_count += len(row_video_urls)
 
         username, fl, gmv = _parse_koc_cell(raw_koc, raw_link)
         if not username and row_video_urls:
             username = extract_username(row_video_urls[0])
-        if not username or username.lower() in ("koc", "id koc", "stt", "tổng kết chiến dịch"):
+        if not username or username.lower() in ("koc", "id koc", "stt", "tổng kết chiến dịch", "tác giả", "tác giả (koc)"):
             continue
 
         ch_url = str(raw_link or "").strip()
-        if not ch_url or not ch_url.startswith("http"):
+        if not ch_url or not ch_url.startswith("http") or is_tiktok_video_url(ch_url):
             ch_url = f"https://www.tiktok.com/@{username}"
 
         if not fl and col_map.get("follow"):
@@ -580,7 +805,7 @@ def parse_koc_booking_sheet(ws) -> Tuple[List[dict], List[dict]]:
         cast_fee = _safe_float(ws.cell(r, col_map["cast_fee"]).value) if col_map.get("cast_fee") else 0.0
         v_ret = int(_safe_float(ws.cell(r, col_map["videos_returned"]).value)) if col_map.get("videos_returned") else len(row_video_urls)
         v_com = int(_safe_float(ws.cell(r, col_map["videos_committed"]).value)) if col_map.get("videos_committed") else 0
-        air_dt = _fmt_cell_dt(ws.cell(r, col_map["air_date"]).value) if col_map.get("air_date") else ""
+        row_views = int(_safe_float(ws.cell(r, col_map["views"]).value)) if col_map.get("views") else 0
 
         key_u = username.lower()
         if key_u in profiles:
@@ -610,31 +835,45 @@ def parse_koc_booking_sheet(ws) -> Tuple[List[dict], List[dict]]:
         for vu in row_video_urls:
             vkey = extract_video_key(vu)
             v_author = extract_username(vu) or username
+            init_views = row_views if len(row_video_urls) == 1 else 0
             videos[vkey] = {
                 "video_key": vkey,
                 "video_url": vu,
                 "koc_username": v_author,
-                "views": 0,
+                "views": init_views,
                 "likes": 0,
                 "comments": 0,
                 "shares": 0,
                 "title": "",
                 "product_note": sample,
-                "status": "Chưa quét view",
+                "status": "OK" if init_views > 0 else "Chưa quét view",
                 "published_at": extract_tiktok_publish_time(vu),
                 "updated_at": "",
             }
 
+    if isinstance(out_meta, dict):
+        used_cols_str = ",".join(openpyxl.utils.get_column_letter(i) for i in video_col_indices[:4])
+        out_meta.update({
+            "raw_links": raw_links_count,
+            "unique_videos": len(videos),
+            "dup_in_sheet": max(0, raw_links_count - len(videos)),
+            "video_col": used_cols_str,
+        })
     return list(profiles.values()), list(videos.values())
 
 
-def parse_video_views_sheet(ws) -> Tuple[List[dict], Optional[dict]]:
+def parse_video_views_sheet(
+    ws,
+    column_mapping: Optional[dict] = None,
+    out_meta: Optional[dict] = None,
+) -> Tuple[List[dict], Optional[dict]]:
     """Đọc tab tổng hợp Link TikTok & Lượt xem (vd tab '2', 'Tiktok', 'Bản sao của Tiktok', 'Tiktok_ChiTiet').
     Trả về (danh_sách_videos, rules_nếu_có_trong_sheet).
     """
     max_r = ws.max_row or 0
-    max_c = min(ws.max_column or 0, 20)
+    max_c = min(ws.max_column or 0, 40)
     detected_rules = {}
+    cmap_in = column_mapping or {}
 
     header_row = None
     col_url = 1
@@ -649,7 +888,7 @@ def parse_video_views_sheet(ws) -> Tuple[List[dict], Optional[dict]]:
     col_pub = None
     col_prod_note = None
 
-    for r in range(1, min(15, max_r + 1)):
+    for r in range(1, min(18, max_r + 1)):
         for c in range(1, min(10, max_c + 1)):
             v_str = str(ws.cell(r, c).value or "").strip().lower()
             if "mức view sàn" in v_str:
@@ -666,10 +905,10 @@ def parse_video_views_sheet(ws) -> Tuple[List[dict], Optional[dict]]:
                     detected_rules["viral_bonus"] = float(nv)
 
         row_vals = [str(ws.cell(r, c).value or "").strip().lower() for c in range(1, max_c + 1)]
-        if any("link tiktok" in x for x in row_vals) and any("lượt xem" in x for x in row_vals):
+        if any(("link tiktok" in x or "link air" in x) for x in row_vals) and any(("lượt xem" in x or "koc" in x) for x in row_vals):
             header_row = r
             for c_idx, h in enumerate(row_vals, start=1):
-                if "link tiktok" in h:
+                if "link tiktok" in h or "link air" in h:
                     col_url = c_idx
                 elif "lượt xem" in h:
                     col_views = c_idx
@@ -677,10 +916,12 @@ def parse_video_views_sheet(ws) -> Tuple[List[dict], Optional[dict]]:
                     col_updated = c_idx
                 elif "trạng thái" in h:
                     col_status = c_idx
-                elif "tác giả" in h:
+                elif "tác giả" in h or h in ("koc", "id koc"):
                     col_author = c_idx
                 elif "tiêu đề" in h:
                     col_title = c_idx
+                elif "mẫu đề xuất" in h or "sản phẩm" in h:
+                    col_prod_note = c_idx
                 elif "lượt thích" in h:
                     col_likes = c_idx
                 elif "bình luận" in h:
@@ -691,52 +932,77 @@ def parse_video_views_sheet(ws) -> Tuple[List[dict], Optional[dict]]:
                     col_pub = c_idx
             break
 
+    url_cols = _col_spec_to_indices(cmap_in.get("video_col"), max_c) or [col_url]
+    custom_view_cols = _col_spec_to_indices(cmap_in.get("views_col"), max_c)
+    custom_koc_cols = _col_spec_to_indices(cmap_in.get("koc_col"), max_c)
+    custom_prod_cols = _col_spec_to_indices(cmap_in.get("product_col"), max_c)
+    if custom_view_cols:
+        col_views = custom_view_cols[0]
+    elif not header_row and cmap_in.get("video_col"):
+        col_views = None
+    if custom_koc_cols:
+        col_author = custom_koc_cols[0]
+    if custom_prod_cols:
+        col_prod_note = custom_prod_cols[0]
+
     start_r = (header_row + 1) if header_row else 2
     videos: Dict[str, dict] = {}
+    raw_links_count = 0
 
     for r in range(start_r, max_r + 1):
-        raw_url = ws.cell(r, col_url).value
-        if not raw_url or not isinstance(raw_url, str) or "tiktok.com" not in raw_url.lower():
+        row_urls: List[str] = []
+        for uc in url_cols:
+            row_urls.extend(extract_cell_video_urls(ws.cell(r, uc)))
+        if not row_urls:
             continue
-        url = clean_tiktok_url(raw_url)
-        if "/video/" not in url:
-            continue
-        vkey = extract_video_key(url)
+        raw_links_count += len(row_urls)
+
         raw_views = ws.cell(r, col_views).value if col_views else 0
         views = int(_safe_float(raw_views)) if isinstance(raw_views, (int, float)) else 0
-        updated = _fmt_cell_dt(ws.cell(r, col_updated).value) if col_updated else ""
-        status = str(ws.cell(r, col_status).value or "OK").strip() if col_status else "OK"
-        author = str(ws.cell(r, col_author).value or "").strip().lstrip("@/") if col_author else ""
-        if not author:
-            author = extract_username(url)
+        updated = _fmt_cell_dt(ws.cell(r, col_updated).value) if (col_updated and header_row) else ""
+        status = str(ws.cell(r, col_status).value or ("OK" if views > 0 else "Chưa quét view")).strip() if (col_status and header_row) else ("OK" if views > 0 else "Chưa quét view")
+        raw_author_val = ws.cell(r, col_author).value if col_author else ""
+        author_parsed, _, _ = _parse_koc_cell(raw_author_val, "")
+        author = author_parsed or str(raw_author_val or "").strip().lstrip("@/")
         title = str(ws.cell(r, col_title).value or "").strip() if col_title else ""
         likes = int(_safe_float(ws.cell(r, col_likes).value)) if col_likes else 0
         comments = int(_safe_float(ws.cell(r, col_comments).value)) if col_comments else 0
         shares = int(_safe_float(ws.cell(r, col_shares).value)) if col_shares else 0
         pub = _fmt_cell_dt(ws.cell(r, col_pub).value) if col_pub else ""
 
-        # Ở tab '2' cột G (7) lưu tên sản phẩm (vd 'xương orgo', 'nước hoa juno')
-        prod_note = ""
-        if not col_likes and max_c >= 7:
+        prod_note = str(ws.cell(r, col_prod_note).value or "").strip() if col_prod_note else ""
+        if not prod_note and not col_likes and max_c >= 7 and 7 not in url_cols:
             g_val = ws.cell(r, 7).value
             if isinstance(g_val, str) and not g_val.startswith("http") and "video" not in g_val.lower():
                 prod_note = g_val.strip()
 
-        videos[vkey] = {
-            "video_key": vkey,
-            "video_url": url,
-            "koc_username": author,
-            "views": views,
-            "likes": likes,
-            "comments": comments,
-            "shares": shares,
-            "title": title,
-            "product_note": prod_note,
-            "status": status,
-            "published_at": extract_tiktok_publish_time(url) or pub,
-            "updated_at": updated,
-        }
+        for u in row_urls:
+            url = clean_tiktok_url(u)
+            vkey = extract_video_key(url)
+            u_author = extract_username(url) or author
+            videos[vkey] = {
+                "video_key": vkey,
+                "video_url": url,
+                "koc_username": u_author,
+                "views": views if len(row_urls) == 1 else 0,
+                "likes": likes if len(row_urls) == 1 else 0,
+                "comments": comments if len(row_urls) == 1 else 0,
+                "shares": shares if len(row_urls) == 1 else 0,
+                "title": title,
+                "product_note": prod_note,
+                "status": status if len(row_urls) == 1 else "Chưa quét view",
+                "published_at": extract_tiktok_publish_time(url) or pub,
+                "updated_at": updated,
+            }
 
+    if isinstance(out_meta, dict):
+        used_cols_str = ",".join(openpyxl.utils.get_column_letter(i) for i in url_cols[:4])
+        out_meta.update({
+            "raw_links": raw_links_count,
+            "unique_videos": len(videos),
+            "dup_in_sheet": max(0, raw_links_count - len(videos)),
+            "video_col": used_cols_str,
+        })
     return list(videos.values()), (detected_rules or None)
 
 
@@ -757,26 +1023,44 @@ def sync_source_from_xlsx_bytes(cur, source_id: int, xlsx_bytes: bytes) -> dict:
     src = cur.fetchone()
     if not src:
         raise ValueError("Không tìm thấy nguồn KOC")
+    src_dict = dict(src)
 
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes), data_only=True)
 
-    koc_tab = (src["koc_tab_name"] or "").strip()
-    video_tab = (src["video_tab_name"] or "").strip()
+    koc_tab = (src_dict.get("koc_tab_name") or "").strip()
+    video_tab = (src_dict.get("video_tab_name") or "").strip()
+    col_mapping: dict = {}
+    if src_dict.get("column_mapping_json"):
+        try:
+            col_mapping = json.loads(src_dict["column_mapping_json"]) or {}
+        except ValueError:
+            col_mapping = {}
 
     profiles_list: List[dict] = []
     booking_videos: List[dict] = []
     view_videos: List[dict] = []
+    meta_koc: dict = {}
+    meta_vid: dict = {}
 
     ws_koc = _find_sheet_by_name(wb, koc_tab)
     if ws_koc is not None:
-        profiles_list, booking_videos = parse_koc_booking_sheet(ws_koc)
+        profiles_list, booking_videos = parse_koc_booking_sheet(ws_koc, column_mapping=col_mapping, out_meta=meta_koc)
+        # Nếu người dùng chọn 1 tab danh sách Video thuần (vd 'Tiktok', 'Tiktok_ChiTiet', '2') vào ô Tab chính
+        if not profiles_list and not booking_videos:
+            booking_videos, _ = parse_video_views_sheet(ws_koc, column_mapping=col_mapping, out_meta=meta_koc)
 
     ws_vid = _find_sheet_by_name(wb, video_tab)
-    if ws_vid is not None:
-        view_videos, _ = parse_video_views_sheet(ws_vid)
+    if ws_vid is not None and (ws_koc is None or ws_vid.title != ws_koc.title):
+        # Chỉ áp column_mapping cho ws_vid nếu không có koc_tab riêng
+        vid_cmap = col_mapping if ws_koc is None else None
+        view_videos, _ = parse_video_views_sheet(ws_vid, column_mapping=vid_cmap, out_meta=meta_vid)
+        if not view_videos:
+            extra_prof, view_videos = parse_koc_booking_sheet(ws_vid, column_mapping=vid_cmap, out_meta=meta_vid)
+            if not profiles_list and extra_prof:
+                profiles_list = extra_prof
 
     # Merge videos: ưu tiên số view từ tab video_tab, giữ thêm thông tin mẫu SP từ tab booking
     merged_videos: Dict[str, dict] = {}
@@ -791,7 +1075,7 @@ def sync_source_from_xlsx_bytes(cur, source_id: int, xlsx_bytes: bytes) -> dict:
                 v["published_at"] = merged_videos[vk]["published_at"]
         merged_videos[vk] = v
 
-    # Nếu chỉ chọn tab video_tab mà không chọn koc_tab -> tự gom danh sách KOC từ danh sách video
+    # Nếu chỉ chọn tab video hoặc tab không có cột KOC riêng -> tự gom danh sách KOC từ danh sách video
     existing_profile_keys = {p["koc_username"].lower() for p in profiles_list}
     by_author_count: Dict[str, int] = {}
     for v in merged_videos.values():
@@ -845,6 +1129,19 @@ def sync_source_from_xlsx_bytes(cur, source_id: int, xlsx_bytes: bytes) -> dict:
             p["note"], now_str
         ))
 
+    # Dọn các link cũ từng hút nhầm cột (vd cột D LINK KOC) khi Sheet trả về danh sách hợp lệ:
+    # BẢO TOÀN 100% mọi video đã duyệt tay (manual_kpi != 0) và mọi video dán lẻ thủ công (is_manual_added = 1)
+    if merged_videos:
+        cur.execute(
+            "SELECT id, video_key FROM koc_videos "
+            "WHERE source_id = ? AND COALESCE(manual_kpi, 0) = 0 AND COALESCE(is_manual_added, 0) = 0",
+            (source_id,),
+        )
+        stale_ids = [r["id"] for r in cur.fetchall() if r["video_key"] not in merged_videos]
+        if stale_ids:
+            ph = ",".join("?" for _ in stale_ids)
+            cur.execute(f"DELETE FROM koc_videos WHERE id IN ({ph})", tuple(stale_ids))
+
     for v in merged_videos.values():
         cur.execute("""
             INSERT INTO koc_videos (
@@ -869,8 +1166,27 @@ def sync_source_from_xlsx_bytes(cur, source_id: int, xlsx_bytes: bytes) -> dict:
             v["title"], v["product_note"], v["status"], v["published_at"], v["updated_at"] or now_str
         ))
 
-    cur.execute("UPDATE koc_sources SET last_sync_at = ? WHERE id = ?", (now_str, source_id))
-    return {"profiles_synced": len(profiles_list), "videos_synced": len(merged_videos)}
+    primary_meta = meta_koc if meta_koc.get("raw_links") else (meta_vid if meta_vid.get("raw_links") else meta_koc)
+    raw_links_total = int(primary_meta.get("raw_links") or len(merged_videos))
+    dup_in_sheet = max(0, raw_links_total - len(merged_videos))
+    video_col_used = primary_meta.get("video_col") or (col_mapping.get("video_col") or "")
+    sync_meta = {
+        "raw_links": raw_links_total,
+        "dup_in_sheet": dup_in_sheet,
+        "unique_videos": len(merged_videos),
+        "video_col": video_col_used,
+    }
+    cur.execute(
+        "UPDATE koc_sources SET last_sync_at = ?, sync_meta_json = ? WHERE id = ?",
+        (now_str, json.dumps(sync_meta), source_id),
+    )
+    return {
+        "profiles_synced": len(profiles_list),
+        "videos_synced": len(merged_videos),
+        "raw_links_found": raw_links_total,
+        "dup_links_in_sheet": dup_in_sheet,
+        "video_col": video_col_used,
+    }
 
 
 _TIKWM_LOCKS: Dict[int, asyncio.Lock] = {}
@@ -1017,6 +1333,20 @@ def list_sources_summary(cur, month: Optional[str] = None) -> dict:
         src["custom_rules"] = bool(src.get("rules_json"))
         src["rules"] = rules
         src["stats"] = calc
+        col_map_parsed = {}
+        if src.get("column_mapping_json"):
+            try:
+                col_map_parsed = json.loads(src["column_mapping_json"]) or {}
+            except ValueError:
+                col_map_parsed = {}
+        sync_meta_parsed = {}
+        if src.get("sync_meta_json"):
+            try:
+                sync_meta_parsed = json.loads(src["sync_meta_json"]) or {}
+            except ValueError:
+                sync_meta_parsed = {}
+        src["column_mapping"] = col_map_parsed
+        src["sync_meta"] = sync_meta_parsed
         out_sources.append(src)
 
     return {"sources": out_sources, "default_rules": default_rules}

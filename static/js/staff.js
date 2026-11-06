@@ -626,6 +626,25 @@ async function renderActivityLog() {
     const res = await fetch(url);
     if (!res.ok) { box.innerHTML = '<tr><td colspan="5" class="text-rose-500 py-3 text-center">Lỗi tải nhật ký</td></tr>'; return; }
     const data = await res.json();
+    const filterSel = document.getElementById('activity-log-filter');
+    if (filterSel && Array.isArray(data.staff_options) && data.staff_options.length > 0) {
+      const roleLabels = {
+        owner: 'Chủ shop',
+        admin: 'Admin',
+        cashier: 'Thu ngân',
+        accountant: 'Kế toán',
+        warehouse: 'Thủ kho',
+        staff: 'Nhân viên',
+      };
+      const prevVal = staffId || filterSel.value || '';
+      filterSel.innerHTML = '<option value="">Tất cả nhân viên</option>' +
+        data.staff_options.map(s => {
+          const rLbl = roleLabels[s.role] || s.role || 'Nhân viên';
+          const safeName = String(s.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return `<option value="${s.id}">${safeName} (${rLbl})</option>`;
+        }).join('');
+      filterSel.value = prevVal;
+    }
     const countEl = document.getElementById('activity-log-count');
     if (countEl) countEl.textContent = `${data.logs?.length || 0} bản ghi`;
 

@@ -2506,6 +2506,9 @@
                             <button type="button" onclick="openKocRulesModal(null)" class="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-bold transition cursor-pointer">
                                 <span><i class="ph ph-gear"></i> Công Thức Hoa Hồng</span>
                             </button>
+                            <button type="button" id="btn-koc-export-excel" onclick="exportKocCommissionExcel()" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-300 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5" title="Xuất file Excel (.xlsx) 3 Sheet: Tổng hợp chiến dịch, Chi tiết link video & Theo KOC">
+                                <i class="ph ph-file-xls"></i> <span>Xuất Excel Hoa Hồng</span>
+                            </button>
                         </div>
                     </div>
 
@@ -2563,7 +2566,12 @@
                                 <div class="font-bold text-slate-800 text-xs"><i class="ph ph-chart-bar"></i> Bảng Tính Hoa Hồng Video KOC Theo Nguồn Sheet &amp; Nhân Viên Phụ Trách</div>
                                 <div class="text-xs text-slate-500 mt-0.5" id="koc-default-rules-text">—</div>
                             </div>
-                            <button type="button" onclick="openAddKocVideoModal()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer">+ Dán Thêm Link Video Lẻ</button>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button type="button" onclick="exportKocCommissionExcel()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs transition cursor-pointer flex items-center gap-1.5">
+                                    <i class="ph ph-file-xls"></i> Xuất Excel (.xlsx)
+                                </button>
+                                <button type="button" onclick="openAddKocVideoModal()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer">+ Dán Thêm Link Video Lẻ</button>
+                            </div>
                         </div>
                         <div class="overflow-x-auto border rounded-lg">
                             <table class="w-full text-left border-collapse text-xs">
@@ -7549,6 +7557,9 @@
                                     <input type="checkbox" id="hrm-comm-only-custom" onchange="renderCommTable()"> Chỉ NV mức riêng
                                 </label>
                                 <span id="hrm-comm-count" class="ml-auto text-slate-500"></span>
+                                <button type="button" id="btn-hrm-comm-export-excel" onclick="exportHrmCommissionsExcel()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-2xs transition cursor-pointer flex items-center gap-1.5" title="Xuất bảng tổng hợp Hoa Hồng & Tip ra file Excel (.xlsx)">
+                                    <i class="ph ph-file-xls"></i> Xuất Excel
+                                </button>
                             </div>
                             <table class="w-full text-left border-collapse text-xs">
                                 <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 text-xs">
@@ -8249,7 +8260,7 @@
                                     <input type="text" id="purchase-supplier-search" 
                                            placeholder="Click để chọn hoặc gõ tìm NCC..." 
                                            class="border p-2 pr-8 rounded w-full text-xs font-medium bg-white shadow-sm outline-none focus:border-sky-500 cursor-pointer"
-                                           onclick="filterSupplierSearch(this.value)"
+                                           onclick="if(document.getElementById('supplier-search-results')?.classList.contains('hidden')) filterSupplierSearch(this.value)"
                                            oninput="filterSupplierSearch(this.value)"
                                            onfocus="filterSupplierSearch(this.value)"
                                            autocomplete="off">
@@ -17586,9 +17597,9 @@
 
     <!-- ==================== MODAL: KẾT NỐI NGUỒN GOOGLE SHEET KOC / KOL ==================== -->
     <div id="modal-koc-source" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[85] p-4 backdrop-blur-xs" onclick="if(event.target === this) closeKocSourceModal()">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 text-xs">
-            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                <h3 class="font-bold text-slate-800 text-sm" id="koc-source-modal-title"> Kết Nối Google Sheet KOC / KOL (Không khóa cứng)</h3>
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-y-auto border border-slate-200 text-xs">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 sticky top-0 z-10">
+                <h3 class="font-bold text-slate-800 text-sm" id="koc-source-modal-title"> Kết Nối Google Sheet KOC / KOL &amp; Chọn Cột Lấy Link</h3>
                 <button type="button" onclick="closeKocSourceModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition cursor-pointer text-base">&times;</button>
             </div>
             <div class="p-5 space-y-3">
@@ -17596,7 +17607,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">Tên chiến dịch / Nguồn <span class="text-rose-500">*</span></label>
-                        <input id="koc-src-name" type="text" placeholder="VD: KOC Thanh Tháng 10/2026" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 focus:outline-none focus:border-sky-500">
+                        <input id="koc-src-name" type="text" placeholder="VD: THANH 10/2026" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 focus:outline-none focus:border-sky-500">
                     </div>
                     <div class="pos-month-widget" data-month-input="koc-src-month" data-allow-all="false">
                         <label class="block font-bold text-slate-700 mb-1">Tháng tính lương <span class="text-rose-500">*</span></label>
@@ -17617,25 +17628,61 @@
                     <label class="block font-bold text-slate-700 mb-1">Link Google Sheet (dán bất kỳ link Sheet nào chia sẻ quyền xem) <span class="text-rose-500">*</span></label>
                     <div class="flex gap-2">
                         <input id="koc-src-url" type="text" placeholder="https://docs.google.com/spreadsheets/d/..." class="flex-1 border border-slate-300 rounded-lg p-2 font-mono text-slate-800 focus:outline-none focus:border-sky-500">
-                        <button type="button" id="btn-koc-inspect" onclick="inspectKocSheetTabs()" class="px-3 py-2 bg-sky-100 hover:bg-sky-200 text-sky-800 rounded-lg font-bold transition cursor-pointer whitespace-nowrap"> Tải DS Tab</button>
+                        <button type="button" id="btn-koc-inspect" onclick="inspectKocSheetTabs()" class="px-3 py-2 bg-sky-100 hover:bg-sky-200 text-sky-800 rounded-lg font-bold transition cursor-pointer whitespace-nowrap">1. Tải DS Tab</button>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Tab DS KOC / Booking (tùy chọn)</label>
-                        <select id="koc-src-koc-tab" class="w-full border border-slate-300 rounded-lg p-2 font-semibold text-slate-800 bg-white focus:outline-none">
-                            <option value="">-- Không chọn / Tự trích từ video --</option>
-                        </select>
-                        <p class="text-xs text-slate-400 mt-0.5">VD: THANH 102026, Đôn 62026 (có cột Link Air)</p>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">2. Chọn Tab trong Google Sheet cần lấy dữ liệu <span class="text-rose-500">*</span></label>
+                    <select id="koc-src-koc-tab" onchange="onChangeKocPrimaryTab(this.value)" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 bg-white focus:outline-none focus:border-sky-500">
+                        <option value="">-- Bấm "1. Tải DS Tab" rồi chọn Tab --</option>
+                    </select>
+                </div>
+
+                <!-- Khung chọn Cột tự động đếm số link TikTok từng cột A..Z -->
+                <div id="koc-col-picker-box" class="p-3 rounded-xl bg-sky-50/60 border border-sky-200 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-sky-900">3. Chọn Cột Lấy Link Video (Tự đếm số link từng cột A..Z)</span>
+                        <span id="koc-col-picker-status" class="text-[11px] font-semibold text-sky-700">Tự động nhận diện</span>
                     </div>
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Tab Tổng Hợp Link &amp; View (tùy chọn)</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div class="sm:col-span-2">
+                            <label class="block font-bold text-slate-700 mb-1">Cột chứa Link Video TikTok <span class="text-rose-500">*</span></label>
+                            <select id="koc-src-col-video" class="w-full border border-emerald-400 rounded-lg p-2 font-bold text-emerald-900 bg-white focus:outline-none">
+                                <option value="">-- Tự động chọn cột Link Air / Link TikTok --</option>
+                            </select>
+                            <p class="text-[11px] text-slate-500 mt-0.5">Hệ thống chỉ lấy link đúng cột này (không hút nhầm cột LINK KOC giới thiệu kênh) và tự gộp các link dán trùng.</p>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Cột Tên / ID KOC (tùy chọn)</label>
+                            <select id="koc-src-col-koc" class="w-full border border-slate-300 rounded-lg p-1.5 font-semibold text-slate-800 bg-white focus:outline-none">
+                                <option value="">-- Tự động / Tách từ link --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Cột Sản phẩm mẫu (tùy chọn)</label>
+                            <select id="koc-src-col-product" class="w-full border border-slate-300 rounded-lg p-1.5 font-semibold text-slate-800 bg-white focus:outline-none">
+                                <option value="">-- Tự động --</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block font-semibold text-slate-700 mb-1">Cột Lượt xem có sẵn trên Sheet (nếu có)</label>
+                            <select id="koc-src-col-views" class="w-full border border-slate-300 rounded-lg p-1.5 font-semibold text-slate-800 bg-white focus:outline-none">
+                                <option value="">-- Không có sẵn (Quét trực tiếp từ TikTok) --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <details class="border border-slate-200 rounded-lg px-3 py-2 bg-slate-50/60">
+                    <summary class="font-semibold text-slate-600 cursor-pointer select-none">Nâng cao: Gộp thêm số Lượt Xem có sẵn từ 1 Tab phụ khác (tùy chọn)</summary>
+                    <div class="mt-2">
                         <select id="koc-src-video-tab" class="w-full border border-slate-300 rounded-lg p-2 font-semibold text-slate-800 bg-white focus:outline-none">
-                            <option value="">-- Không chọn --</option>
+                            <option value="">-- Không dùng Tab phụ --</option>
                         </select>
-                        <p class="text-xs text-slate-400 mt-0.5">VD: 2, Tiktok, Tiktok_ChiTiet (có cột Lượt xem)</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Chỉ chọn khi anh có 1 tab riêng khác (VD: Tiktok_ChiTiet) đã có sẵn cột Lượt xem cần ghép sang.</p>
                     </div>
-                </div>
+                </details>
+
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Nhân viên POS phụ trách (để cộng hoa hồng vào Bảng Lương HRM)</label>
                     <select id="koc-src-staff" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 bg-white focus:outline-none">

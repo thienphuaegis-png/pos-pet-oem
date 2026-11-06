@@ -1777,6 +1777,118 @@ def get_commissions_breakdown(
     }
 
 
+@router.get("/commissions/{month}/export-excel")
+def export_commissions_breakdown_excel(
+    month: str,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    user=Depends(require_permission(PERM)),
+):
+    import io
+    import openpyxl
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    data = get_commissions_breakdown(month=month, date_from=date_from, date_to=date_to, user=user)
+    items = data.get("items") or []
+    summ = data.get("summary") or {}
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Hoa Hồng & Tip"
+
+    ws.append([f"BẢNG TỔNG HỢP HOA HỒNG & TIP NHÂN VIÊN — KỲ {data['month']} ({data['date_from']} -> {data['date_to']})"])
+    ws["A1"].font = Font(bold=True, size=13, color="0F172A")
+    ws.append([])
+
+    headers = [
+        "STT", "Mã NV", "Họ Tên Nhân Viên", "Bộ Phận", "Chức Vụ",
+        "Đơn POS", "Doanh Số Thuần POS (đ)", "% POS", "Hoa Hồng POS (đ)",
+        "Đơn Pancake", "Doanh Thu Pancake (đ)", "Mốc KPI Pancake (đ)", "Thưởng + HH Pancake (đ)",
+        "Tổng Video KOC", "Video KOC Tính Thưởng", "Hoa Hồng Video KOC (đ)",
+        "Phiếu Spa", "Doanh Thu Spa (đ)", "Hoa Hồng Spa (đ)", "Tiền Tip Spa (đ)",
+        "TỔNG HOA HỒNG & TIP (đ)",
+    ]
+    ws.append(headers)
+    hdr_fill = PatternFill("solid", fgColor="0284C7")
+    hdr_font = Font(bold=True, color="FFFFFF")
+    for c_i in range(1, len(headers) + 1):
+        cell = ws.cell(3, c_i)
+        cell.fill = hdr_fill
+        cell.font = hdr_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    money_cols = (7, 9, 11, 12, 13, 16, 18, 19, 20, 21)
+    for idx, it in enumerate(items, start=1):
+        ws.append([
+            idx,
+            it.get("employee_code") or "",
+            it.get("name") or "",
+            it.get("department") or "",
+            it.get("position") or "",
+            int(it.get("pos_orders") or 0),
+            round(float(it.get("pos_net") or 0)),
+            float(it.get("commission_rate") or 0),
+            round(float(it.get("pos_commission") or 0)),
+            int(it.get("pancake_orders") or 0),
+            round(float(it.get("pancake_revenue") or 0)),
+            round(float(it.get("pancake_threshold") or 0)),
+            round(float(it.get("pancake_commission") or 0)),
+            int(it.get("koc_videos") or 0),
+            int(it.get("koc_payable_videos") or 0),
+            round(float(it.get("koc_commission") or 0)),
+            int(it.get("spa_tickets") or 0),
+            round(float(it.get("spa_revenue") or 0)),
+            round(float(it.get("spa_commission") or 0)),
+            round(float(it.get("spa_tips") or 0)),
+            round(float(it.get("total_commission") or 0)),
+        ])
+        r_i = ws.max_row
+        for mc in money_cols:
+            ws.cell(r_i, mc).number_format = "#,##0"
+
+    ws.append([
+        "", "", "TỔNG CỘNG TOÀN SHOP", "", "",
+        int(summ.get("pos_orders_total") or 0),
+        round(float(summ.get("pos_net_total") or 0)),
+        "",
+        round(float(summ.get("pos_commission_total") or 0)),
+        sum(int(x.get("pancake_orders") or 0) for x in items),
+        round(float(summ.get("pancake_revenue_total") or 0)),
+        "",
+        sum(round(float(x.get("pancake_commission") or 0)) for x in items),
+        sum(int(x.get("koc_videos") or 0) for x in items),
+        sum(int(x.get("koc_payable_videos") or 0) for x in items),
+        sum(round(float(x.get("koc_commission") or 0)) for x in items),
+        sum(int(x.get("spa_tickets") or 0) for x in items),
+        round(float(summ.get("spa_revenue_total") or 0)),
+        round(float(summ.get("spa_commission_total") or 0)),
+        round(float(summ.get("spa_tips_total") or 0)),
+        round(float(summ.get("grand_total") or 0)),
+    ])
+    tr = ws.max_row
+    tot_fill = PatternFill("solid", fgColor="DCFCE7")
+    tot_font = Font(bold=True, color="0F172A")
+    for c_i in range(1, len(headers) + 1):
+        ws.cell(tr, c_i).fill = tot_fill
+        ws.cell(tr, c_i).font = tot_font
+    for mc in money_cols:
+        ws.cell(tr, mc).number_format = "#,##0"
+
+    widths = [6, 10, 24, 20, 16, 10, 18, 9, 16, 12, 18, 18, 18, 13, 16, 18, 10, 16, 16, 15, 20]
+    for i_w, w_val in enumerate(widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i_w)].width = w_val
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f"Bang_Hoa_Hong_HRM_{data['month'].replace('-', '_')}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
 def _recalc_staff_orders_comm(cur, staff_id: int, rate: float, month: str | None):
     if not month:
         return

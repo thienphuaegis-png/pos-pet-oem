@@ -704,6 +704,16 @@ class PancakeSellerUpdate(BaseModel):
 class KocInspectSheetRequest(BaseModel):
     sheet_url: str
 
+class KocInspectColumnsRequest(BaseModel):
+    sheet_url: str
+    tab_name: str
+
+class KocColumnMappingIn(BaseModel):
+    video_col: Optional[str] = ""
+    koc_col: Optional[str] = ""
+    product_col: Optional[str] = ""
+    views_col: Optional[str] = ""
+
 class KocCommissionRulesIn(BaseModel):
     min_views: int = Field(default=200, ge=0)
     kpi_deduct_videos: int = Field(default=0, ge=0)
@@ -721,6 +731,7 @@ class KocSourceSaveRequest(BaseModel):
     staff_id: Optional[int] = None
     koc_tab_name: Optional[str] = ""
     video_tab_name: Optional[str] = ""
+    column_mapping: Optional[KocColumnMappingIn] = None
     rules: Optional[KocCommissionRulesIn] = None
 
 class KocManualVideoAddRequest(BaseModel):

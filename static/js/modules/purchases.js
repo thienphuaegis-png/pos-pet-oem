@@ -13,6 +13,38 @@
 
         let currentSupplierItems = []; // Danh sách mặt hàng của NCC đang chọn
         let allSuppliersList = []; // Cache danh sách NCC riêng cho nhập hàng
+        let suppliersFetchPromise = null;
+        let purchasesOutsideListenerBound = false;
+
+        async function ensureSuppliersLoaded(force = false) {
+            if (!force && allSuppliersList && allSuppliersList.length > 0) {
+                return allSuppliersList;
+            }
+            if (!force && typeof allContacts !== 'undefined' && Array.isArray(allContacts)) {
+                const cachedSupps = allContacts.filter(c => c.type === 'supplier');
+                if (cachedSupps.length > 0) {
+                    allSuppliersList = cachedSupps;
+                    return allSuppliersList;
+                }
+            }
+            if (suppliersFetchPromise) return suppliersFetchPromise;
+            suppliersFetchPromise = (async () => {
+                try {
+                    const res = await fetch('/api/contacts?type=supplier');
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (Array.isArray(data)) allSuppliersList = data;
+                    }
+                } catch (e) {
+                    console.error("fetch suppliers error:", e);
+                } finally {
+                    suppliersFetchPromise = null;
+                }
+                return allSuppliersList;
+            })();
+            return suppliersFetchPromise;
+        }
+        window.ensureSuppliersLoaded = ensureSuppliersLoaded;
 
         async function selectSupplier(id, name, phone) {
             const suppInput = document.getElementById('purchase-supplier');
@@ -37,19 +69,16 @@
             const resBox = document.getElementById('supplier-search-results');
             if (!resBox) return;
 
-            // Nếu chưa có danh sách thì fetch ngay
+            // Nếu chưa có danh sách thì hiện trạng thái đang tải ngay lập tức & dùng promise dedupe (không bắn đúp request)
             if (!allSuppliersList || allSuppliersList.length === 0) {
-                try {
-                    const res = await fetch('/api/contacts?type=supplier');
-                    allSuppliersList = await res.json();
-                } catch (e) {
-                    console.error("fetch suppliers error:", e);
-                }
+                resBox.innerHTML = '<div class="p-3 text-sky-600 text-center font-semibold">⏳ Đang tải danh sách nhà cung cấp...</div>';
+                resBox.classList.remove('hidden');
+                await ensureSuppliersLoaded();
             }
 
             const rawSupps = (allSuppliersList && allSuppliersList.length > 0)
                 ? allSuppliersList
-                : (allContacts || []).filter(c => c.type === 'supplier');
+                : ((typeof allContacts !== 'undefined' && Array.isArray(allContacts)) ? allContacts.filter(c => c.type === 'supplier') : []);
             const viSuppCollator = new Intl.Collator('vi', { sensitivity: 'base', numeric: true });
             const supps = rawSupps.slice().sort((a, b) => viSuppCollator.compare(a.name || '', b.name || ''));
 
@@ -86,45 +115,54 @@
 
         async function initPurchases() {
             try {
-                const [whRes, suppRes, ingRes, prodRes] = await Promise.all([
-                    fetch('/api/warehouses'),
-                    fetch('/api/contacts?type=supplier'),
-                    fetch('/api/ingredients'),
-                    fetch('/api/products')
-                ]);
-
-                if (!whRes.ok) return;
-                const whData = await whRes.json();
-                const suppData = await suppRes.json();
-                const ingData = await ingRes.json();
-                const prodData = await prodRes.json();
-                allWarehousesList = Array.isArray(whData) ? whData : [];
-                allSuppliersList = Array.isArray(suppData) ? suppData : [];
-                costIngredients = Array.isArray(ingData) ? ingData : [];
-                allProducts = Array.isArray(prodData) ? prodData : [];
-
-                const whSel = document.getElementById('purchase-warehouse');
-                if (whSel) {
-                    whSel.innerHTML = allWarehousesList.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
-                }
-
                 const expInput = document.getElementById('purchase-expected-date');
                 if (expInput && !expInput.value) {
                     const today = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
                     expInput.value = today;
                 }
 
-        // Close search dropdowns on outside click
-        document.addEventListener('pointerdown', (e) => {
-            if (!e.target.closest('#purchase-supplier-search') && !e.target.closest('#supplier-search-results')) {
-                const sb = document.getElementById('supplier-search-results');
-                if (sb) sb.classList.add('hidden');
-            }
-            if (!e.target.closest('#search-purchase-input') && !e.target.closest('#purchase-search-results')) {
-                const pb = document.getElementById('purchase-search-results');
-                if (pb) pb.classList.add('hidden');
-            }
-        });
+                if (!purchasesOutsideListenerBound) {
+                    purchasesOutsideListenerBound = true;
+                    document.addEventListener('pointerdown', (e) => {
+                        if (!e.target.closest('#purchase-supplier-search') && !e.target.closest('#supplier-search-results')) {
+                            const sb = document.getElementById('supplier-search-results');
+                            if (sb) sb.classList.add('hidden');
+                        }
+                        if (!e.target.closest('#search-purchase-input') && !e.target.closest('#purchase-search-results')) {
+                            const pb = document.getElementById('purchase-search-results');
+                            if (pb) pb.classList.add('hidden');
+                        }
+                    });
+                }
+
+                // 1. Ưu tiên nạp ngay NCC & Kho (nhẹ, <100ms) — KHÔNG chờ tải hàng ngàn sản phẩm /api/products
+                ensureSuppliersLoaded(true);
+                fetch('/api/warehouses').then(async (whRes) => {
+                    if (!whRes.ok) return;
+                    const whData = await whRes.json();
+                    allWarehousesList = Array.isArray(whData) ? whData : [];
+                    const whSel = document.getElementById('purchase-warehouse');
+                    if (whSel) {
+                        const prev = whSel.value;
+                        whSel.innerHTML = allWarehousesList.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+                        if (prev) whSel.value = prev;
+                    }
+                }).catch(e => console.error('warehouses load err:', e));
+
+                // 2. Tái sử dụng cache sản phẩm POS nếu đã có trong RAM, chỉ tải nền khi chưa có
+                if (typeof posProducts !== 'undefined' && Array.isArray(posProducts) && posProducts.length > 0 && (!allProducts || allProducts.length === 0)) {
+                    allProducts = posProducts;
+                } else if (!allProducts || allProducts.length === 0) {
+                    fetch('/api/products').then(r => r.ok ? r.json() : []).then(d => {
+                        if (Array.isArray(d) && d.length > 0) allProducts = d;
+                    }).catch(() => {});
+                }
+
+                if (!costIngredients || costIngredients.length === 0) {
+                    fetch('/api/ingredients').then(r => r.ok ? r.json() : []).then(d => {
+                        if (Array.isArray(d)) costIngredients = d;
+                    }).catch(() => {});
+                }
 
                 renderPurchaseItems();
             } catch (e) {
@@ -453,6 +491,11 @@
         function openCreatePurchaseModal() {
             editingPurchaseCode = null;
             resetPurchaseForm();
+            ensureSuppliersLoaded();
+            const whSel = document.getElementById('purchase-warehouse');
+            if (whSel && !whSel.options.length && Array.isArray(allWarehousesList) && allWarehousesList.length > 0) {
+                whSel.innerHTML = allWarehousesList.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+            }
             const modalTitle = document.getElementById('modal-purchase-title');
             if (modalTitle) modalTitle.innerHTML = '<span>➕ Tạo Đơn Đặt Hàng NCC Mới</span>';
             const btnDraft = document.getElementById('btn-draft-purchase-text');
