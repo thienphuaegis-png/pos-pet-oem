@@ -101,9 +101,74 @@ class PetUpdate(BaseModel):
     note: Optional[str] = None
 
 @router.get("")
-def list_contacts(type: Optional[str] = None, search: Optional[str] = None, compact: Optional[int] = 0, limit: Optional[int] = None):
+def list_contacts(
+    type: Optional[str] = None,
+    search: Optional[str] = None,
+    compact: Optional[int] = 0,
+    limit: Optional[int] = None,
+    offset: Optional[int] = 0,
+    paginated: Optional[int] = 0,
+):
     conn = get_db()
     cur = conn.cursor()
+    if paginated and type == "customer":
+        # Phân trang phía Server cho Tab Khách Hàng: chỉ đọc đúng trang hiện tại (VD: 20 dòng) + đếm pets của riêng 20 KH đó
+        cur.execute("SELECT COUNT(*) as cnt, COALESCE(SUM(debt), 0) as total_debt FROM contacts WHERE type = 'customer'")
+        kpi_row = cur.fetchone()
+        total_customers = int(kpi_row["cnt"] or 0) if kpi_row else 0
+        total_cust_debt = float(kpi_row["total_debt"] or 0.0) if kpi_row else 0.0
+
+        where_sql = "WHERE c.type = 'customer'"
+        params = []
+        if search and search.strip():
+            raw_q = search.strip()
+            s = f"%{raw_q}%"
+            digits = re.sub(r"\D+", "", raw_q)
+            if len(digits) >= 3:
+                sd = f"%{digits}%"
+                where_sql += " AND (c.name LIKE ? OR c.phone LIKE ? OR REPLACE(REPLACE(REPLACE(c.phone, ' ', ''), '.', ''), '-', '') LIKE ? OR c.code LIKE ? OR c.address LIKE ?)"
+                params.extend([s, s, sd, s, s])
+            else:
+                where_sql += " AND (c.name LIKE ? OR c.phone LIKE ? OR c.code LIKE ? OR c.address LIKE ?)"
+                params.extend([s, s, s, s])
+
+        if params:
+            cur.execute(f"SELECT COUNT(*) as cnt FROM contacts c {where_sql}", tuple(params))
+            filtered_total = int((cur.fetchone() or {"cnt": 0})["cnt"] or 0)
+        else:
+            filtered_total = total_customers
+
+        page_limit = max(1, min(int(limit or 20), 200))
+        page_offset = max(0, int(offset or 0))
+        page_sql = f"""
+            SELECT c.*, cs.name as segment_name, cs.discount_percent as segment_discount, cs.price_list_id,
+                   pl.name as price_list_name,
+                   st.name as creator_name
+            FROM contacts c
+            LEFT JOIN staff st ON st.id = c.created_by
+            LEFT JOIN customer_segments cs ON cs.id = c.segment_id
+            LEFT JOIN price_lists pl ON pl.id = cs.price_list_id
+            {where_sql}
+            ORDER BY c.id DESC
+            LIMIT ? OFFSET ?
+        """
+        cur.execute(page_sql, tuple(params) + (page_limit, page_offset))
+        rows = [dict(r) for r in cur.fetchall()]
+        if rows:
+            cids = [int(r["id"]) for r in rows]
+            ph = ",".join("?" for _ in cids)
+            cur.execute(f"SELECT customer_id, COUNT(*) as pets_count FROM pets WHERE customer_id IN ({ph}) GROUP BY customer_id", tuple(cids))
+            pet_map = {int(pr["customer_id"]): int(pr["pets_count"] or 0) for pr in cur.fetchall()}
+            for r in rows:
+                r["pets_count"] = pet_map.get(int(r["id"]), 0)
+        conn.close()
+        return {
+            "items": rows,
+            "total": filtered_total,
+            "customer_count": total_customers,
+            "customer_debt": total_cust_debt,
+        }
+
     if compact and type == "customer":
         # Chế độ gọn nhẹ cho ô tìm kiếm POS: chỉ lấy các cột cần cho tìm kiếm & tính giá (không quét bảng pets 6.112 dòng hay tính nợ NCC)
         query = """
@@ -123,10 +188,17 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None, comp
             WHERE c.type = 'customer'
         """
         params = []
-        if search:
-            query += " AND (c.name LIKE ? OR c.phone LIKE ?)"
-            s = f"%{search}%"
-            params.extend([s, s])
+        if search and search.strip():
+            raw_q = search.strip()
+            s = f"%{raw_q}%"
+            digits = re.sub(r"\D+", "", raw_q)
+            if len(digits) >= 3:
+                sd = f"%{digits}%"
+                query += " AND (c.name LIKE ? OR c.phone LIKE ? OR REPLACE(REPLACE(REPLACE(c.phone, ' ', ''), '.', ''), '-', '') LIKE ?)"
+                params.extend([s, s, sd])
+            else:
+                query += " AND (c.name LIKE ? OR c.phone LIKE ?)"
+                params.extend([s, s])
         query += " ORDER BY c.id DESC"
         if limit and int(limit) > 0:
             query += " LIMIT ?"

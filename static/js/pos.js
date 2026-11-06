@@ -321,6 +321,8 @@ async function initPOS(force = false) {
             const data = await prodRes.json();
             if (Array.isArray(data)) {
                 posProducts = data;
+                window.posProducts = data;
+                window.__sharedProductsDirty = false;
                 if (typeof allProducts !== 'undefined' && (!Array.isArray(allProducts) || allProducts.length === 0)) {
                     allProducts = data;
                 }
@@ -409,10 +411,11 @@ async function reloadPOSData() {
     if (btn) btn.classList.add('animate-spin');
     try {
         const [p, ct] = await Promise.all([
-            fetch('/api/products').then(r => r.json()),
+            typeof window.getSharedProducts === 'function' ? window.getSharedProducts(true) : fetch('/api/products').then(r => r.json()),
             fetch('/api/contacts?type=customer&compact=1').then(r => r.json())
         ]);
         posProducts = p;
+        window.posProducts = p;
         posContacts = ct;
         renderMobileCatalog();
         alert("Đã cập nhật danh sách hàng hóa!");

@@ -80,14 +80,44 @@ DEFAULT_SPA_COMMISSION_CONFIG = {
 }
 
 
+_STAFF_COLS_CACHE: dict = {}
+
+
+def _get_staff_cols_cached(cur) -> set:
+    try:
+        conn = getattr(cur, "connection", None)
+        if conn is not None and hasattr(conn, "execute"):
+            r = conn.execute("PRAGMA database_list").fetchone()
+            if r and len(r) >= 3 and r[2]:
+                import os as _os
+                p = str(r[2])
+                if _os.path.exists(p):
+                    k = (p, _os.stat(p).st_ctime_ns)
+                    cached = _STAFF_COLS_CACHE.get(k)
+                    if cached and {"commission_policy_mode", "spa_commission_tier"}.issubset(cached):
+                        return cached
+                    cur.execute("PRAGMA table_info(staff)")
+                    cols = {row[1] for row in cur.fetchall()}
+                    _STAFF_COLS_CACHE[k] = cols
+                    return cols
+    except Exception:
+        pass
+    cur.execute("PRAGMA table_info(staff)")
+    return {row[1] for row in cur.fetchall()}
+
+
 def ensure_staff_spa_tier_cols(cur):
     try:
-        cur.execute("PRAGMA table_info(staff)")
-        cols = {r[1] for r in cur.fetchall()}
+        cols = _get_staff_cols_cached(cur)
+        changed = False
         if "spa_commission_tier" not in cols:
             cur.execute("ALTER TABLE staff ADD COLUMN spa_commission_tier TEXT DEFAULT 'official'")
+            changed = True
         if "spa_commission_profile_id" not in cols:
             cur.execute("ALTER TABLE staff ADD COLUMN spa_commission_profile_id TEXT DEFAULT ''")
+            changed = True
+        if changed:
+            _STAFF_COLS_CACHE.clear()
     except Exception:
         pass
 
@@ -189,8 +219,7 @@ def effective_pos_commission_rate(staff_row: dict, dept_policies: list = None) -
 
 
 def calc_order_commission(cur, staff_id, total_amount, discount) -> float:
-    cur.execute("PRAGMA table_info(staff)")
-    cols = {r[1] for r in cur.fetchall()}
+    cols = _get_staff_cols_cached(cur)
     sel_cols = ["id", "commission_rate"]
     for opt in ("department", "is_spa_worker", "commission_policy_mode"):
         if opt in cols:
@@ -214,7 +243,7 @@ def sales_commission_by_staff(cur, from_dt: str, to_dt: str) -> dict:
         FROM orders o
         WHERE o.staff_id IS NOT NULL
           AND COALESCE(o.status, '') NOT IN ({ph})
-          AND datetime(o.created_at, '+7 hours') BETWEEN ? AND ?
+          AND o.created_at >= datetime(?, '-7 hours') AND o.created_at < datetime(?, '-7 hours', '+1 second')
         GROUP BY o.staff_id
     """, (*EXCLUDED_ORDER_STATUSES, from_dt, to_dt))
     out = {}
@@ -224,14 +253,13 @@ def sales_commission_by_staff(cur, from_dt: str, to_dt: str) -> dict:
         SELECT o.staff_id, COALESCE(SUM(ret.return_total), 0) AS returns
         FROM order_returns ret JOIN orders o ON o.id = ret.original_order_id
         WHERE o.staff_id IS NOT NULL
-          AND datetime(ret.created_at, '+7 hours') BETWEEN ? AND ?
+          AND ret.created_at >= datetime(?, '-7 hours') AND ret.created_at < datetime(?, '-7 hours', '+1 second')
         GROUP BY o.staff_id
     """, (from_dt, to_dt))
     for r in cur.fetchall():
         out.setdefault(r["staff_id"], {"revenue": 0.0, "returns": 0.0, "orders": 0})["returns"] = float(r["returns"] or 0)
     if out:
-        cur.execute("PRAGMA table_info(staff)")
-        cols = {r[1] for r in cur.fetchall()}
+        cols = _get_staff_cols_cached(cur)
         sel_cols = ["id", "commission_rate"]
         for opt in ("department", "is_spa_worker", "commission_policy_mode"):
             if opt in cols:
@@ -256,7 +284,7 @@ def admin_pos_sales_summary(cur, from_dt: str, to_dt: str) -> dict:
         FROM orders o
         LEFT JOIN staff s ON s.id = o.staff_id
         WHERE COALESCE(o.status, '') NOT IN ({ph})
-          AND datetime(o.created_at, '+7 hours') BETWEEN ? AND ?
+          AND o.created_at >= datetime(?, '-7 hours') AND o.created_at < datetime(?, '-7 hours', '+1 second')
           AND (o.staff_id IS NULL OR COALESCE(s.is_payroll_staff, 1) = 0)
     """, (*EXCLUDED_ORDER_STATUSES, from_dt, to_dt))
     row = cur.fetchone()
@@ -267,7 +295,7 @@ def admin_pos_sales_summary(cur, from_dt: str, to_dt: str) -> dict:
         FROM order_returns ret
         JOIN orders o ON o.id = ret.original_order_id
         LEFT JOIN staff s ON s.id = o.staff_id
-        WHERE datetime(ret.created_at, '+7 hours') BETWEEN ? AND ?
+        WHERE ret.created_at >= datetime(?, '-7 hours') AND ret.created_at < datetime(?, '-7 hours', '+1 second')
           AND (o.staff_id IS NULL OR COALESCE(s.is_payroll_staff, 1) = 0)
     """, (from_dt, to_dt))
     r2 = cur.fetchone()

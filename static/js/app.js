@@ -1,6 +1,59 @@
 
 
         // =========================================================================
+        // KHO CACHE DÙNG CHUNG CHO DANH MỤC HÀNG HÓA (/api/products) CHỐNG TẢI LẶP
+        // =========================================================================
+        (function() {
+            let _inflightProducts = null;
+            window.__sharedProductsDirty = false;
+            window.invalidateSharedProducts = function() {
+                window.__sharedProductsDirty = true;
+            };
+            window.getSharedProducts = async function(force = false) {
+                if (!force && !window.__sharedProductsDirty) {
+                    const cached = (Array.isArray(window.posProducts) && window.posProducts.length > 0)
+                        ? window.posProducts
+                        : ((typeof allProducts !== 'undefined' && Array.isArray(allProducts) && allProducts.length > 0) ? allProducts : null);
+                    if (cached) return cached;
+                }
+                if (_inflightProducts) return _inflightProducts;
+                _inflightProducts = fetch('/api/products?_t=' + Date.now())
+                    .then(async (r) => {
+                        if (!r.ok) return [];
+                        const data = await r.json();
+                        if (Array.isArray(data)) {
+                            window.posProducts = data;
+                            if (typeof posProducts !== 'undefined') posProducts = data;
+                            if (typeof allProducts !== 'undefined') allProducts = data;
+                            window.__sharedProductsDirty = false;
+                            return data;
+                        }
+                        return [];
+                    })
+                    .finally(() => { _inflightProducts = null; });
+                return _inflightProducts;
+            };
+
+            const _origFetchProdObserver = window.fetch;
+            if (typeof _origFetchProdObserver === 'function' && !window.__prodCacheObserverBound) {
+                window.__prodCacheObserverBound = true;
+                window.fetch = async function(url, opts) {
+                    const res = await _origFetchProdObserver.apply(this, arguments);
+                    try {
+                        const method = ((opts && opts.method) || 'GET').toUpperCase();
+                        if (method !== 'GET' && res && res.ok) {
+                            const u = typeof url === 'string' ? url : ((url && url.url) || '');
+                            if (/\/api\/(products|inventory|purchases|orders|combos|productions)/.test(u)) {
+                                window.__sharedProductsDirty = true;
+                            }
+                        }
+                    } catch (_) {}
+                    return res;
+                };
+            }
+        })();
+
+        // =========================================================================
         // HỆ THỐNG THÔNG BÁO & MODAL ALERT / TOAST ĐỒNG BỘ GIAO DIỆN HIỆN ĐẠI
         // Thay thế hoàn toàn alert() mặc định trình duyệt (Chromium popup xám)
         // =========================================================================
@@ -3483,11 +3536,9 @@
             }
 
             let products = window.posProducts || [];
-            if (products.length === 0) {
+            if (products.length === 0 || window.__sharedProductsDirty) {
                 try {
-                    const res = await fetch('/api/products');
-                    products = await res.json();
-                    window.posProducts = products;
+                    products = await window.getSharedProducts();
                 } catch (e) {
                     console.error("searchComboComponent fetch error:", e);
                 }
@@ -3755,9 +3806,8 @@
         async function openModalEditProduct(productId) {
             try {
                 currentComboItems = [];
-                // Lấy sản phẩm từ cache hoặc fetch thẳng
-                const res = await fetch('/api/products');
-                const products = await res.json();
+                // Lấy sản phẩm từ kho cache dùng chung (tự làm mới nếu vừa có thay đổi)
+                const products = await window.getSharedProducts();
                 let p = products.find(x => x.id === productId);
                 if (!p && unifiedInventoryData) {
                     p = unifiedInventoryData.find(x => x.item_type === 'product' && x.id === productId);
@@ -4145,8 +4195,7 @@
                         });
                         if (res.ok && (category || image_url || vat_rate > 0)) {
                             try {
-                                const pListRes = await fetch('/api/products');
-                                const pList = await pListRes.json();
+                                const pList = await window.getSharedProducts(true);
                                 const pEntry = pList.find(x => x.code === finalCode);
                                 if (pEntry) {
                                     await fetch(`/api/products/${pEntry.id}`, {
@@ -5287,8 +5336,7 @@
         }
 
         async function loadProducts() {
-            const res = await fetch('/api/products');
-            allProducts = await res.json();
+            allProducts = await window.getSharedProducts();
             
             const tbody = document.getElementById('table-products');
             if (!tbody) return;

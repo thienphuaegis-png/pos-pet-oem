@@ -9,6 +9,7 @@ import asyncio
 import datetime
 import io
 import json
+import os
 import re
 import time
 import urllib.request
@@ -95,6 +96,37 @@ def extract_tiktok_publish_time(url_or_key: str) -> str:
     except (ValueError, OverflowError, OSError):
         pass
     return ""
+
+
+_KOC_SCHEMA_READY_DBS: set = set()
+
+
+def _koc_db_key(cur):
+    try:
+        conn = getattr(cur, "connection", None)
+        if conn is not None and hasattr(conn, "execute"):
+            r = conn.execute("PRAGMA database_list").fetchone()
+            if r and len(r) >= 3 and r[2]:
+                db_file = str(r[2])
+                if os.path.exists(db_file):
+                    st = os.stat(db_file)
+                    return (db_file, st.st_ctime_ns)
+    except Exception:
+        pass
+    return None
+
+
+def ensure_koc_schema_once(cur) -> None:
+    """Chạy kiểm tra DDL/backfill KOC đúng 1 lần trên mỗi file DB (tránh quét lặp mỗi request)."""
+    key = _koc_db_key(cur)
+    if key and key in _KOC_SCHEMA_READY_DBS:
+        try:
+            cur.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='koc_videos'")
+            if cur.fetchone():
+                return
+        except Exception:
+            pass
+    ensure_koc_schema(cur)
 
 
 def ensure_koc_schema(cur) -> None:
@@ -185,6 +217,9 @@ def ensure_koc_schema(cur) -> None:
     cur.execute("CREATE INDEX IF NOT EXISTS idx_koc_videos_vkey ON koc_videos(video_key)")
     cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('koc_commission_rules', ?)",
                 (json.dumps(DEFAULT_KOC_RULES),))
+    key = _koc_db_key(cur)
+    if key:
+        _KOC_SCHEMA_READY_DBS.add(key)
 
 
 def load_default_rules(cur) -> dict:
@@ -1318,16 +1353,30 @@ def list_sources_summary(cur, month: Optional[str] = None) -> dict:
     sql += " ORDER BY ks.month DESC, ks.id DESC"
     cur.execute(sql, tuple(params))
     sources = [dict(r) for r in cur.fetchall()]
+    if not sources:
+        return {"sources": [], "default_rules": default_rules}
+
+    src_ids = [int(s["id"]) for s in sources]
+    ph = ",".join("?" for _ in src_ids)
+    cur.execute(f"SELECT source_id, COUNT(*) AS cnt FROM koc_profiles WHERE source_id IN ({ph}) GROUP BY source_id", tuple(src_ids))
+    koc_counts = {int(r["source_id"]): int(r["cnt"] or 0) for r in cur.fetchall()}
+
+    cur.execute(f"SELECT * FROM koc_videos WHERE source_id IN ({ph})", tuple(src_ids))
+    vids_by_src: Dict[int, List[dict]] = {}
+    for r in cur.fetchall():
+        vids_by_src.setdefault(int(r["source_id"]), []).append(dict(r))
+
+    dup_by_src: Dict[int, Dict[str, dict]] = {}
+    for (s_id, vk), info in dup_lookup.items():
+        dup_by_src.setdefault(int(s_id), {})[vk] = info
 
     out_sources = []
     for src in sources:
         sid = int(src["id"])
-        cur.execute("SELECT COUNT(*) FROM koc_profiles WHERE source_id = ?", (sid,))
-        koc_count = cur.fetchone()[0]
-        cur.execute("SELECT * FROM koc_videos WHERE source_id = ?", (sid,))
-        vids = [dict(r) for r in cur.fetchall()]
+        koc_count = koc_counts.get(sid, 0)
+        vids = vids_by_src.get(sid, [])
         rules = source_rules(cur, src, default_rules)
-        prev_for_src = {vk: info for (s_id, vk), info in dup_lookup.items() if s_id == sid}
+        prev_for_src = dup_by_src.get(sid, {})
         calc = calc_koc_commission(vids, rules, campaign_month=src.get("month") or "", prev_dup_for_source=prev_for_src)
         src["koc_count"] = koc_count
         src["custom_rules"] = bool(src.get("rules_json"))
@@ -1496,7 +1545,7 @@ def list_enriched_videos(
 
 def commission_by_staff(cur, month: str) -> Dict[int, dict]:
     """Tính tổng hoa hồng KOC theo staff_id trong tháng YYYY-MM để cộng vào Bảng Lương HRM."""
-    ensure_koc_schema(cur)
+    ensure_koc_schema_once(cur)
     summary = list_sources_summary(cur, month=month)
     out: Dict[int, dict] = {}
     for src in summary["sources"]:

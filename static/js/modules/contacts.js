@@ -2,9 +2,42 @@
         let contactSearchDebounceTimer = null;
         let customerPage = 1;
         let supplierPage = 1;
+        let contactsServerState = {
+            items: [],
+            total: 0,
+            customer_count: 0,
+            customer_debt: 0,
+            suppliers: [],
+            reqSeq: 0,
+        };
 
-        function changeCustomerPage(p) {
+        async function loadCustomerPageServer() {
+            const seq = ++contactsServerState.reqSeq;
+            const q = (document.getElementById('search-contacts-input')?.value || '').trim();
+            const offset = Math.max(0, (customerPage - 1) * 20);
+            const url = `/api/contacts?type=customer&paginated=1&limit=20&offset=${offset}${q ? '&search=' + encodeURIComponent(q) : ''}`;
+            const res = await fetch(url);
+            if (!res.ok || seq !== contactsServerState.reqSeq) return false;
+            const data = await res.json();
+            contactsServerState.items = Array.isArray(data.items) ? data.items : [];
+            contactsServerState.total = Number(data.total || 0);
+            contactsServerState.customer_count = Number(data.customer_count || 0);
+            contactsServerState.customer_debt = Number(data.customer_debt || 0);
+
+            const byId = new Map();
+            for (const c of (window.allContacts || [])) {
+                if (c && c.id) byId.set(c.id, c);
+            }
+            for (const c of contactsServerState.items) byId.set(c.id, c);
+            for (const s of contactsServerState.suppliers) byId.set(s.id, s);
+            allContacts = Array.from(byId.values());
+            window.allContacts = allContacts;
+            return true;
+        }
+
+        async function changeCustomerPage(p) {
             customerPage = p;
+            await loadCustomerPageServer();
             renderContactsTables();
         }
         window.changeCustomerPage = changeCustomerPage;
@@ -43,11 +76,12 @@
 
         function debounceFilterContacts() {
             clearTimeout(contactSearchDebounceTimer);
-            contactSearchDebounceTimer = setTimeout(() => {
+            contactSearchDebounceTimer = setTimeout(async () => {
                 customerPage = 1;
                 supplierPage = 1;
+                await loadCustomerPageServer();
                 renderContactsTables();
-            }, 200);
+            }, 220);
         }
 
         function renderContactsTables() {
@@ -55,28 +89,28 @@
             const tbodyCust = document.getElementById('table-customers');
             const tbodySupp = document.getElementById('table-suppliers');
 
-            const allCust = (allContacts || []).filter(c => c.type === 'customer');
-            const allSupp = (allContacts || []).filter(c => c.type === 'supplier');
+            const allSupp = contactsServerState.suppliers.length > 0
+                ? contactsServerState.suppliers
+                : (allContacts || []).filter(c => c.type === 'supplier');
 
-            // Update badges
+            // Update badges & KPI từ tổng thực tế toàn bảng trên Server
             const badgeCust = document.getElementById('badge-count-customers');
             const badgeSupp = document.getElementById('badge-count-suppliers');
-            if (badgeCust) badgeCust.textContent = allCust.length;
+            if (badgeCust) badgeCust.textContent = contactsServerState.customer_count;
             if (badgeSupp) badgeSupp.textContent = allSupp.length;
 
-            // KPI
-            const custDebt = allCust.reduce((sum, c) => sum + (c.debt || 0), 0);
+            const custDebt = contactsServerState.customer_debt;
             const suppDebt = allSupp.reduce((sum, c) => sum + (c.total_debt !== undefined ? c.total_debt : (c.debt || 0)), 0);
             const elCustCount = document.getElementById('kpi-contacts-customers');
             const elSuppCount = document.getElementById('kpi-contacts-suppliers');
             const elCustDebt = document.getElementById('kpi-contacts-cust-debt');
             const elSuppDebt = document.getElementById('kpi-contacts-supp-debt');
-            if (elCustCount) elCustCount.textContent = allCust.length;
+            if (elCustCount) elCustCount.textContent = contactsServerState.customer_count;
             if (elSuppCount) elSuppCount.textContent = allSupp.length;
             if (elCustDebt) elCustDebt.textContent = formatMoney(custDebt);
             if (elSuppDebt) elSuppDebt.textContent = formatMoney(suppDebt);
 
-            // Filter (hỗ trợ tìm cả SĐT thứ 2, không dấu, hoặc chuỗi số liền)
+            // Filter NCC tại client (chỉ có vài chục NCC)
             const qDigits = q.replace(/\D+/g, '');
             const matchContactByQuery = (c) => {
                 if (!q) return true;
@@ -89,20 +123,19 @@
                 if (typeof removeVietnameseTones === 'function' && removeVietnameseTones(hay).includes(removeVietnameseTones(q))) return true;
                 return false;
             };
-            const filteredCust = allCust.filter(matchContactByQuery);
             const filteredSupp = allSupp.filter(matchContactByQuery);
+            const pagedCust = contactsServerState.items || [];
+            const totalCust = contactsServerState.total || 0;
 
-            // 1. Render Customers Table (phân trang 20 dòng/trang chống treo trình duyệt khi có 29.000 KH)
+            // 1. Render Customers Table (phân trang trực tiếp từ SQLite Server — mỗi trang ~5 KB)
             if (tbodyCust) {
-                if (filteredCust.length === 0) {
+                if (pagedCust.length === 0) {
                     tbodyCust.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-gray-400">Không tìm thấy khách hàng nào</td></tr>';
                     if (typeof renderPaginationBar === 'function') renderPaginationBar('pagination-contacts-customer', 1, 1, 0, 'changeCustomerPage');
                 } else {
-                    const totalCust = filteredCust.length;
                     const totalCustPages = Math.ceil(totalCust / 20) || 1;
                     if (customerPage > totalCustPages) customerPage = totalCustPages;
                     if (customerPage < 1) customerPage = 1;
-                    const pagedCust = filteredCust.slice((customerPage - 1) * 20, customerPage * 20);
                     tbodyCust.innerHTML = pagedCust.map((c, idx) => {
                         const code = c.code || ('KH' + String(c.id).padStart(4, '0'));
                         const safeName = escapeJs(c.name || '');
@@ -194,24 +227,32 @@
 
         async function loadContacts() {
             try {
-                const res = await fetch('/api/contacts');
-                if (!res.ok) return;
-                const data = await res.json();
-                allContacts = Array.isArray(data) ? data : [];
-                window.allContacts = allContacts;
-                if (typeof posContacts !== 'undefined') {
-                    posContacts = allContacts.filter(c => c.type === 'customer');
+                const [, suppRes] = await Promise.all([
+                    loadCustomerPageServer(),
+                    fetch('/api/contacts?type=supplier')
+                ]);
+                if (suppRes && suppRes.ok) {
+                    const suppData = await suppRes.json();
+                    contactsServerState.suppliers = Array.isArray(suppData) ? suppData : [];
                 }
-                
+                const byId = new Map();
+                for (const c of (window.allContacts || [])) {
+                    if (c && c.id && c.type !== 'supplier') byId.set(c.id, c);
+                }
+                for (const c of contactsServerState.items) byId.set(c.id, c);
+                for (const s of contactsServerState.suppliers) byId.set(s.id, s);
+                allContacts = Array.from(byId.values());
+                window.allContacts = allContacts;
+
                 const custSelect = document.getElementById('pos-customer');
                 const suppSelect = document.getElementById('purchase-supplier');
-                
+
                 if (custSelect) {
-                    custSelect.innerHTML = allContacts.filter(c => c.type === 'customer').slice(0, 200).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                    custSelect.innerHTML = contactsServerState.items.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
                 }
                 if (suppSelect) {
-                    suppSelect.innerHTML = '<option value="">-- Chọn Nhà Cung Cấp --</option>' + 
-                        allContacts.filter(c => c.type === 'supplier').map(c => `<option value="${c.id}">${c.name} (${c.phone || 'Không SĐT'})</option>`).join('');
+                    suppSelect.innerHTML = '<option value="">-- Chọn Nhà Cung Cấp --</option>' +
+                        contactsServerState.suppliers.map(c => `<option value="${c.id}">${c.name} (${c.phone || 'Không SĐT'})</option>`).join('');
                 }
 
                 renderContactsTables();

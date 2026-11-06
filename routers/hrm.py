@@ -1,5 +1,6 @@
 """HRM: hồ sơ lương, chấm công (import máy vân tay), tăng ca, tạm ứng, hoa hồng spa, bảng lương."""
 import json
+import os
 from datetime import date, datetime
 from typing import List, Optional
 
@@ -1473,7 +1474,21 @@ def _load_dept_comm_policies(cur):
     return DEFAULT_DEPT_COMM_POLICIES
 
 
+_STAFF_COMM_COLS_READY: set = set()
+
+
 def _ensure_staff_comm_cols(cur):
+    db_key = None
+    try:
+        conn = getattr(cur, "connection", None)
+        if conn is not None and hasattr(conn, "execute"):
+            r = conn.execute("PRAGMA database_list").fetchone()
+            if r and len(r) >= 3 and r[2] and os.path.exists(str(r[2])):
+                db_key = (str(r[2]), os.stat(str(r[2])).st_ctime_ns)
+    except Exception:
+        db_key = None
+    if db_key and db_key in _STAFF_COMM_COLS_READY:
+        return
     cur.execute("PRAGMA table_info(staff)")
     cols = {r[1] for r in cur.fetchall()}
     if "commission_policy_mode" not in cols:
@@ -1486,6 +1501,8 @@ def _ensure_staff_comm_cols(cur):
         cur.execute("ALTER TABLE staff ADD COLUMN spa_commission_tier TEXT DEFAULT 'official'")
     if "spa_commission_profile_id" not in cols:
         cur.execute("ALTER TABLE staff ADD COLUMN spa_commission_profile_id TEXT DEFAULT ''")
+    if db_key:
+        _STAFF_COMM_COLS_READY.add(db_key)
 
 
 # ── Xem & Tính Hoa Hồng Tổng Hợp (POS + Spa + Sàn TMĐT + KOC) ──
@@ -1563,7 +1580,7 @@ def get_commissions_breakdown(
         FROM orders
         WHERE staff_id IS NOT NULL
           AND COALESCE(status, '') NOT IN ({ph})
-          AND datetime(created_at, '+7 hours') BETWEEN ? AND ?
+          AND created_at >= datetime(?, '-7 hours') AND created_at < datetime(?, '-7 hours', '+1 second')
         GROUP BY staff_id
     """, (*EXCLUDED_ORDER_STATUSES, from_dt, to_dt))
     pos_order_counts = {r["staff_id"]: r["cnt"] for r in cur.fetchall()}
@@ -1898,7 +1915,7 @@ def _recalc_staff_orders_comm(cur, staff_id: int, rate: float, month: str | None
             UPDATE orders
             SET commission_amount = ROUND(MAX(0, COALESCE(total_amount,0) - COALESCE(discount,0)) * ? / 100.0)
             WHERE staff_id = ?
-              AND datetime(created_at, '+7 hours') BETWEEN ? AND ?
+              AND created_at >= datetime(?, '-7 hours') AND created_at < datetime(?, '-7 hours', '+1 second')
         """, (rate, staff_id, f"{first.isoformat()} 00:00:00", f"{last.isoformat()} 23:59:59"))
     except Exception:
         pass

@@ -44,11 +44,8 @@ def list_products(category: Optional[str] = None, for_bom: Optional[bool] = Fals
         AND p.type != 'material'
         AND (p.code IS NULL OR (p.code NOT LIKE 'NL-%' AND p.code NOT LIKE 'NL_%'))
         AND LOWER(COALESCE(p.category, '')) NOT LIKE '%nguyên liệu%'
-        AND NOT EXISTS (
-            SELECT 1 FROM ingredients i 
-            WHERE (i.code IS NOT NULL AND i.code != '' AND i.code = p.code)
-               OR (i.name IS NOT NULL AND i.name != '' AND i.name = p.name)
-        )"""
+        AND (p.code IS NULL OR p.code = '' OR p.code NOT IN (SELECT code FROM ingredients WHERE code IS NOT NULL AND code != ''))
+        AND (p.name IS NULL OR p.name = '' OR p.name NOT IN (SELECT name FROM ingredients WHERE name IS NOT NULL AND name != ''))"""
     params = []
     if category:
         where_clause += ' AND COALESCE(p.category, "Khác") = ?'

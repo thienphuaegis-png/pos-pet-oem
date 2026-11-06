@@ -1032,7 +1032,7 @@ def get_reports_analytics(
                    strftime('%Y-%m-%d', datetime(o.created_at, '+7 hours')) as raw_date
             FROM orders o
             LEFT JOIN staff s ON o.staff_id = s.id
-            WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
+            WHERE o.created_at >= datetime(?, '-7 hours') AND o.created_at < datetime(?, '-7 hours', '+1 second')
               AND COALESCE(o.status, 'completed') != 'cancelled'
         """, (p_from_dt, p_to_dt))
         orders_rows = cur.fetchall()
@@ -1049,7 +1049,7 @@ def get_reports_analytics(
             FROM order_items oi
             JOIN orders o ON oi.order_id = o.id
             LEFT JOIN products p ON oi.product_id = p.id
-            WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
+            WHERE o.created_at >= datetime(?, '-7 hours') AND o.created_at < datetime(?, '-7 hours', '+1 second')
               AND COALESCE(o.status, 'completed') != 'cancelled'
         """, (p_from_dt, p_to_dt))
         oi_rows = cur.fetchall()
@@ -1147,7 +1147,7 @@ def get_reports_analytics(
             FROM order_return_items ori
             JOIN order_returns r ON ori.return_id = r.id
             LEFT JOIN products p ON ori.product_id = p.id
-            WHERE datetime(r.created_at, '+7 hours') >= ? AND datetime(r.created_at, '+7 hours') <= ?
+            WHERE r.created_at >= datetime(?, '-7 hours') AND r.created_at < datetime(?, '-7 hours', '+1 second')
         """, (p_from_dt, p_to_dt))
         ret_rows = cur.fetchall()
         total_returns = 0.0
@@ -1225,7 +1225,7 @@ def get_reports_analytics(
             SELECT id, code, total_amount, deposit_amount, status,
                    strftime('%Y-%m-%d', datetime(created_at, '+7 hours')) as raw_date
             FROM hotel_bookings
-            WHERE datetime(created_at, '+7 hours') >= ? AND datetime(created_at, '+7 hours') <= ?
+            WHERE created_at >= datetime(?, '-7 hours') AND created_at < datetime(?, '-7 hours', '+1 second')
               AND COALESCE(status, '') != 'cancelled'
         """, (p_from_dt, p_to_dt))
         for hb in cur.fetchall():
@@ -1256,7 +1256,7 @@ def get_reports_analytics(
                 SELECT op.order_id, op.method, op.amount
                 FROM order_payments op
                 JOIN orders o ON op.order_id = o.id
-                WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
+                WHERE o.created_at >= datetime(?, '-7 hours') AND o.created_at < datetime(?, '-7 hours', '+1 second')
                   AND COALESCE(o.status, 'completed') != 'cancelled'
             """, (p_from_dt, p_to_dt))
             for op in cur.fetchall():

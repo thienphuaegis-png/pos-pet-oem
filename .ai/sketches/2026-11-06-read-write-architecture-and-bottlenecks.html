@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Bản Đồ Đọc/Ghi Dữ Liệu & 5 Tác Vụ Quét Lặp Trong POS</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 18px;
+    background: #f1f5f9;
+    color: #0f172a;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  h1 { margin: 0 0 4px; font-size: 17px; }
+  .sub { color: #475569; font-size: 12px; margin-bottom: 14px; }
+  .flow-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .node {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .node-ok { border-top: 4px solid #16a34a; }
+  .node-warn { border-top: 4px solid #d97706; }
+  .node h3 { margin: 0 0 4px; font-size: 13px; }
+  .tag {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .t-green { background: #dcfce7; color: #166534; }
+  .t-amber { background: #fde68a; color: #78350f; }
+  .t-red { background: #ffe4e6; color: #9f1239; }
+  .t-blue { background: #e0f2fe; color: #075985; }
+  .card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 14px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  th, td { border: 1px solid #e2e8f0; padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: #f8fafc; color: #1e293b; font-weight: 700; }
+  code { background: #f1f5f9; padding: 1px 4px; border-radius: 4px; font-family: Consolas, monospace; font-size: 11px; }
+</style>
+</head>
+<body>
+  <h1>Kiểm Toán Tốc Độ Đọc / Ghi &amp; Các Chỗ Đang Quét Lặp Dữ Liệu</h1>
+  <div class="sub">Đo thực tế bằng <code>EXPLAIN QUERY PLAN</code> trên tập 13.000 khách hàng, 15.000 hóa đơn, 45.000 dòng chi tiết, 800 sản phẩm</div>
+
+  <div class="flow-bar">
+    <div class="node node-ok">
+      <span class="tag t-green">Nhanh (0.4s - 1.5s)</span>
+      <h3>1. File Tĩnh (JS / CSS)</h3>
+      <div>Đã nằm trên <b>Vercel Edge CDN (Hong Kong)</b>. Mở trang không còn kéo code giao diện qua máy tiệm.</div>
+    </div>
+    <div class="node node-warn">
+      <span class="tag t-amber">Nút thắt băng thông</span>
+      <h3>2. Đường Hầm Tailscale Funnel</h3>
+      <div>Mọi lệnh <code>/api/*</code> đi qua Funnel miễn phí (~<b>25–40 KB/s</b>). JSON nhỏ (&lt;30 KB) mất 0.2s; JSON 4 MB mất <b>20–35s</b>!</div>
+    </div>
+    <div class="node node-ok">
+      <span class="tag t-green">Rất nhanh (2ms - 8ms)</span>
+      <h3>3. Ghi SQLite (WAL Mode)</h3>
+      <div>Bật sẵn <code>journal_mode = WAL</code> + <code>busy_timeout = 30s</code> + ghi Nhật ký bất đồng bộ. Đọc &amp; Ghi chạy song song không khóa nhau.</div>
+    </div>
+    <div class="node node-ok">
+      <span class="tag t-blue">Đã tối ưu trước đó</span>
+      <h3>4. POS, Hóa Đơn &amp; Mở NCC</h3>
+      <div>Tìm khách POS (<code>compact=1</code>), Tab Hóa Đơn (CTE + limit) và Ô chọn NCC Nhập hàng đã chạy tức thì (&lt;0.2s).</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h3 style="margin:0;font-size:14px;">5 Tác Vụ Vẫn Đang Quét Đi Quét Lại Dữ Liệu Nhiều Lần (Phát Hiện Qua Code Audit)</h3>
+      <span class="tag t-red">Nguyên nhân gây khựng ở các tab còn lại</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:22%">Nơi xảy ra</th>
+          <th style="width:36%">Hiện tượng quét lặp thực tế trong code</th>
+          <th style="width:22%">Số đo hiện tại</th>
+          <th style="width:20%">Nếu tối ưu</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>1. Tab Khách Hàng, Tạo Phiếu Spa &amp; Dòng Tiền Nợ NCC</b><br><code>contacts.js:197</code>, <code>spa.js:4077</code>, <code>productions.js:11133</code></td>
+          <td>Gọi thẳng <code>GET /api/contacts</code> không phân trang &rarr; kéo sạch <b>13.000 khách lẻ + 6.000 thú cưng</b> về trình duyệt (riêng tab Dòng Tiền chỉ cần vài chục NCC nhưng kéo luôn 13.000 khách!).</td>
+          <td><b style="color:#9f1239">4,8 MB JSON</b><br>(Mất 15–35s qua đường hầm từ xa)</td>
+          <td><b style="color:#166534">&lt; 30 KB (&lt; 0.2s)</b><br>Phân trang 50 dòng &amp; chỉ lấy đúng loại đối tác</td>
+        </tr>
+        <tr>
+          <td><b>2. Báo Cáo Tổng Hợp &amp; HRM Hoa Hồng / Tính Lương</b><br><code>cashbook.py:1035</code>, <code>commission.py:217</code>, <code>hrm.py:1566</code></td>
+          <td>Dùng hàm <code>WHERE datetime(created_at, '+7 hours')</code> bọc quanh cột làm <b>mất sạch tác dụng Index</b> &rarr; quét toàn bộ 15.000 đơn + 45.000 dòng hàng <b>10 lần liên tiếp</b> mỗi lần mở Báo Cáo, và <b>5 lần</b> mỗi lần mở Hoa Hồng.</td>
+          <td><b style="color:#9f1239">FULL TABLE SCAN x10</b><br>(55.2ms / câu, ăn CPU khi nhiều đơn)</td>
+          <td><b style="color:#166534">4.7ms / câu (Nhanh x11,7)</b><br>Đổi sang <code>datetime(?, '-7 hours')</code> ăn thẳng Index</td>
+        </tr>
+        <tr>
+          <td><b>3. Danh Mục Hàng Hóa (<code>/api/products</code>)</b><br><code>products.py:47</code>, <code>app.js</code>, <code>productions.js:8</code>, <code>spa.js:4185</code></td>
+          <td>Câu SQL dùng <code>NOT EXISTS (... OR i.name = p.name)</code> bắt SQLite quét lại toàn bộ bảng Nguyên liệu trên <b>từng sản phẩm</b> (<code>800 x 150 = 120.000</code> phép dò); đồng thời 7 màn hình khác nhau tự tải lại <code>/api/products</code> từ đầu.</td>
+          <td><b style="color:#9f1239">120.000 phép dò lặp</b><br>+ tải lặp JSON nhiều lần</td>
+          <td><b style="color:#166534">Quét 1 lần (&lt; 1ms)</b><br>+ dùng chung kho cache RAM toàn app</td>
+        </tr>
+        <tr>
+          <td><b>4. Tab KOC / KOL &amp; HRM Schema</b><br><code>koc_service.py:54, 1318</code>, <code>marketplace.py:1739</code>, <code>hrm_schema.py:42</code></td>
+          <td>Mỗi 1 lần bấm nút bất kỳ đều chạy lại 8 lệnh kiểm tra bảng/index + quét backfill <code>koc_videos</code>; bảng <i>Danh sách KOC</i> chạy <code>2 x 165 = 330</code> câu subquery <code>LOWER()</code> quét lặp bảng video; bảng <i>Chiến dịch</i> lặp SQL theo từng dòng.</td>
+          <td><b style="color:#9f1239">330+ lần quét con</b><br>trên mỗi lần tải danh sách KOC</td>
+          <td><b style="color:#166534">Chạy schema 1 lần duy nhất</b><br>+ gộp thành 1 câu <code>GROUP BY</code></td>
+        </tr>
+        <tr>
+          <td><b>5. Gửi Log Thao Tác Ngầm (<code>clientlog.js:22</code>)</b></td>
+          <td><code>setInterval(flush, 2000)</code> cứ mỗi <b>2 giây</b> lại bắn 1 request <code>POST /api/client-log</code> qua Vercel &rarr; Funnel về máy chủ tiệm khi người dùng gõ phím/click.</td>
+          <td><b style="color:#78350f">30 request / phút / máy</b></td>
+          <td><b style="color:#166534">Gom lô 12–15 giây</b><br>(chỉ gửi tức thì khi có lỗi đỏ)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

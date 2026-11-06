@@ -2888,6 +2888,7 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_purchases_supplier_debt ON purchases(supplier_id, status, debt_amount)",
         "CREATE INDEX IF NOT EXISTS idx_oem_orders_partner_rem ON oem_orders(partner_id, status, remaining_payment)",
         "CREATE INDEX IF NOT EXISTS idx_orders_customer_created ON orders(customer_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_order_returns_created_at ON order_returns(created_at)",
         "CREATE INDEX IF NOT EXISTS idx_pet_tickets_pet_date ON pet_service_tickets(pet_id, ticket_date DESC, id DESC)",
         "CREATE INDEX IF NOT EXISTS idx_pet_tickets_cust_date ON pet_service_tickets(customer_id, ticket_date DESC, id DESC)",
         "CREATE INDEX IF NOT EXISTS idx_pet_tickets_date_id ON pet_service_tickets(ticket_date DESC, id DESC)",

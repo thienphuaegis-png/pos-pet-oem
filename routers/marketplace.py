@@ -1636,7 +1636,7 @@ def list_koc_sources(month: Optional[str] = None, user=Depends(get_optional_user
     conn = get_db()
     try:
         cur = conn.cursor()
-        koc_svc.ensure_koc_schema(cur)
+        koc_svc.ensure_koc_schema_once(cur)
         res = koc_svc.list_sources_summary(cur, month=month)
         conn.commit()
         return res
@@ -1673,7 +1673,7 @@ def save_koc_source(req: KocSourceSaveRequest, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     try:
-        koc_svc.ensure_koc_schema(cur)
+        koc_svc.ensure_koc_schema_once(cur)
         if req.staff_id:
             cur.execute("SELECT 1 FROM staff WHERE id = ?", (req.staff_id,))
             if not cur.fetchone():
@@ -1760,7 +1760,7 @@ def delete_koc_source(source_id: int, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     try:
-        koc_svc.ensure_koc_schema(cur)
+        koc_svc.ensure_koc_schema_once(cur)
         cur.execute("DELETE FROM koc_videos WHERE source_id = ?", (source_id,))
         cur.execute("DELETE FROM koc_profiles WHERE source_id = ?", (source_id,))
         cur.execute("DELETE FROM koc_sources WHERE id = ?", (source_id,))
@@ -1775,7 +1775,7 @@ def update_default_koc_rules(req: KocCommissionRulesIn, user=Depends(get_optiona
     conn = get_db()
     cur = conn.cursor()
     try:
-        koc_svc.ensure_koc_schema(cur)
+        koc_svc.ensure_koc_schema_once(cur)
         data = req.model_dump()
         cur.execute("INSERT INTO settings (key, value) VALUES ('koc_commission_rules', ?) "
                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (json.dumps(data),))
@@ -1790,7 +1790,7 @@ def sync_koc_source(source_id: int, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     try:
-        koc_svc.ensure_koc_schema(cur)
+        koc_svc.ensure_koc_schema_once(cur)
         cur.execute("SELECT * FROM koc_sources WHERE id = ?", (source_id,))
         src = cur.fetchone()
         if not src:
@@ -1822,14 +1822,22 @@ def list_koc_profiles(source_id: Optional[int] = None, month: Optional[str] = No
     conn = get_db()
     cur = conn.cursor()
     try:
-        koc_svc.ensure_koc_schema(cur)
+        koc_svc.ensure_koc_schema_once(cur)
         sql = """
+            WITH vid_agg AS (
+                SELECT source_id, LOWER(koc_username) AS uname_low,
+                       COUNT(*) AS actual_videos,
+                       COALESCE(SUM(views), 0) AS total_views
+                FROM koc_videos
+                GROUP BY source_id, LOWER(koc_username)
+            )
             SELECT kp.*, ks.name AS source_name, ks.month, s.name AS staff_name,
-                   (SELECT COUNT(*) FROM koc_videos kv WHERE kv.source_id = kp.source_id AND LOWER(kv.koc_username) = LOWER(kp.koc_username)) AS actual_videos,
-                   (SELECT COALESCE(SUM(kv.views), 0) FROM koc_videos kv WHERE kv.source_id = kp.source_id AND LOWER(kv.koc_username) = LOWER(kp.koc_username)) AS total_views
+                   COALESCE(va.actual_videos, 0) AS actual_videos,
+                   COALESCE(va.total_views, 0) AS total_views
             FROM koc_profiles kp
             JOIN koc_sources ks ON ks.id = kp.source_id
             LEFT JOIN staff s ON s.id = ks.staff_id
+            LEFT JOIN vid_agg va ON va.source_id = kp.source_id AND va.uname_low = LOWER(kp.koc_username)
             WHERE ks.is_active = 1
         """
         params = []
@@ -1860,7 +1868,7 @@ def list_koc_videos(
     conn = get_db()
     cur = conn.cursor()
     try:
-        koc_svc.ensure_koc_schema(cur)
+        koc_svc.ensure_koc_schema_once(cur)
         res = koc_svc.list_enriched_videos(cur, source_id=source_id, month=month, kpi_filter=kpi_filter or "all", q=q)
         conn.commit()
         return res
@@ -1873,7 +1881,7 @@ def add_manual_koc_videos(req: KocManualVideoAddRequest, user=Depends(get_option
     conn = get_db()
     cur = conn.cursor()
     try:
-        koc_svc.ensure_koc_schema(cur)
+        koc_svc.ensure_koc_schema_once(cur)
         cur.execute("SELECT id FROM koc_sources WHERE id = ?", (req.source_id,))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Không tìm thấy nguồn/chiến dịch KOC")
@@ -1915,7 +1923,7 @@ def bulk_update_koc_video_kpi(req: KocBulkKpiRequest, user=Depends(get_optional_
     conn = get_db()
     cur = conn.cursor()
     try:
-        koc_svc.ensure_koc_schema(cur)
+        koc_svc.ensure_koc_schema_once(cur)
         if (req.mode or "").strip().lower() == "top1_zero_koc":
             data = koc_svc.list_enriched_videos(cur, source_id=req.source_id, month=req.month, kpi_filter="all")
             best_by_koc = {}
@@ -1969,7 +1977,7 @@ def update_koc_video(video_id: int, req: KocVideoUpdateRequest, user=Depends(get
     conn = get_db()
     cur = conn.cursor()
     try:
-        koc_svc.ensure_koc_schema(cur)
+        koc_svc.ensure_koc_schema_once(cur)
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cur.execute("""
             UPDATE koc_videos
@@ -2017,7 +2025,7 @@ async def refresh_koc_source_views(
     conn = get_db()
     cur = conn.cursor()
     try:
-        koc_svc.ensure_koc_schema(cur)
+        koc_svc.ensure_koc_schema_once(cur)
         cur.execute("SELECT * FROM koc_sources WHERE id = ?", (source_id,))
         src_row = cur.fetchone()
         rules = koc_svc.source_rules(cur, dict(src_row) if src_row else None)
@@ -2115,7 +2123,7 @@ def export_koc_commission_excel(
     conn = get_db()
     cur = conn.cursor()
     try:
-        koc_svc.ensure_koc_schema(cur)
+        koc_svc.ensure_koc_schema_once(cur)
         src_summary = koc_svc.list_sources_summary(cur, month=month or None)
         sources = src_summary["sources"]
         if source_id:

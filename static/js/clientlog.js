@@ -8,8 +8,8 @@
   const isLocalOrLan = h === 'localhost' || h === '127.0.0.1' || h === 'pos-server' || h.startsWith('192.168.') || h.startsWith('10.') || h.startsWith('100.');
   if (!isLocalOrLan) return;
   const q = [];
+  let urgentTimer = null;
   const ts = () => new Date().toISOString().slice(11, 23);
-  function push(kind, msg) { q.push(`${ts()} ${kind} ${String(msg).slice(0, 400)}`); if (q.length > 200) q.shift(); }
   function flush() {
     if (!q.length || !localStorage.getItem('pos_token')) return;
     const lines = q.splice(0, q.length);
@@ -19,8 +19,23 @@
       body: JSON.stringify({ lines, page: location.pathname, ua: navigator.userAgent.slice(0, 80) })
     }).catch(() => {});
   }
-  setInterval(flush, 2000);
+  function flushUrgent() {
+    if (urgentTimer) return;
+    urgentTimer = setTimeout(() => { urgentTimer = null; flush(); }, 250);
+  }
+  function push(kind, msg) {
+    q.push(`${ts()} ${kind} ${String(msg).slice(0, 400)}`);
+    if (q.length > 200) q.shift();
+    if (kind === 'JS_ERROR' || kind === 'JS_PROMISE' || kind === 'CONSOLE_ERR' || kind === 'FETCH_FAIL' || String(kind).startsWith('HTTP_5')) {
+      flushUrgent();
+    }
+  }
+  // Gom lô 15s cho thao tác thường để giảm tải đường hầm; lỗi nghiêm trọng hoặc ẩn tab gửi ngay
+  setInterval(flush, 15000);
   window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flush();
+  });
 
   const vis = id => { const e = document.getElementById(id); return e && !e.classList.contains('hidden') ? 1 : 0; };
   const dd = () => `dd[hang=${vis('pos-search-dropdown')} khach=${vis('pos-customer-dropdown')}]`;

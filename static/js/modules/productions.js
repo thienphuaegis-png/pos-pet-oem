@@ -3,16 +3,15 @@
 
         async function initProduction() {
             try {
-                const [whRes, prodRes, ingRes, bomRes] = await Promise.all([
+                const [whRes, prodData, ingRes, bomRes] = await Promise.all([
                     fetch('/api/warehouses'),
-                    fetch('/api/products'),
+                    typeof window.getSharedProducts === 'function' ? window.getSharedProducts() : fetch('/api/products').then(r => r.ok ? r.json() : []),
                     fetch('/api/ingredients'),
                     fetch('/api/bom')
                 ]);
 
                 if (!whRes.ok) return;
                 const whData = await whRes.json();
-                const prodData = await prodRes.json();
                 const ingData = await ingRes.json();
                 const bomData = await bomRes.json();
                 allWarehousesList = Array.isArray(whData) ? whData : [];
@@ -5989,16 +5988,15 @@
         }
 
         async function loadReturnProductsCache() {
-            if (returnProductsCache && returnProductsCache.length > 0) {
+            if (returnProductsCache && returnProductsCache.length > 0 && !window.__sharedProductsDirty) {
                 return returnProductsCache.filter(isExchangeableRetailProduct);
             }
             try {
-                const res = await fetch('/api/products?_t=' + Date.now());
-                if (res.ok) {
-                    const raw = await res.json();
-                    returnProductsCache = Array.isArray(raw) ? raw.filter(isExchangeableRetailProduct) : [];
-                    return returnProductsCache;
-                }
+                const raw = typeof window.getSharedProducts === 'function'
+                    ? await window.getSharedProducts()
+                    : await fetch('/api/products?_t=' + Date.now()).then(r => r.ok ? r.json() : []);
+                returnProductsCache = Array.isArray(raw) ? raw.filter(isExchangeableRetailProduct) : [];
+                return returnProductsCache;
             } catch (e) {
                 console.error('loadReturnProductsCache error:', e);
             }
@@ -11125,13 +11123,16 @@
 
         // --- QUẢN LÝ GÁN KHO CHO NHÀ MÁY (MODAL) ---
         async function openModalManageOEMFactories() {
-            // Luôn fetch mới nhất danh bạ đối tác và kho hàng từ database để không bị dính cache cũ
+            // Chỉ nạp danh sách Nhà cung cấp (tránh kéo 13.000 khách hàng lẻ qua đường hầm)
             try {
-                if (typeof loadContacts === 'function') {
-                    await loadContacts();
-                } else {
-                    const resC = await fetch('/api/contacts');
-                    if (resC.ok) allContacts = await resC.json();
+                const resC = await fetch('/api/contacts?type=supplier');
+                if (resC.ok) {
+                    const supps = await resC.json();
+                    if (Array.isArray(supps)) {
+                        const existingCusts = Array.isArray(allContacts) ? allContacts.filter(c => c.type !== 'supplier') : [];
+                        allContacts = [...existingCusts, ...supps];
+                        window.allContacts = allContacts;
+                    }
                 }
             } catch(e) {}
 

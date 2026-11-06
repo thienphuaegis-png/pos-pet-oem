@@ -4072,14 +4072,19 @@
             populateServicePackageDropdowns();
             renderQuickSurchargeButtons();
 
-            // Đảm bảo nạp sẵn danh sách khách hàng nếu chưa có
-            if (!window.allContacts || window.allContacts.length === 0) {
-                fetch('/api/contacts').then(r => r.json()).then(data => {
+            // Nạp gọn 40 khách gần nhất (compact=1, ~6 KB) thay vì kéo nguyên bảng 13.000 khách (~4,8 MB)
+            if (typeof posContacts !== 'undefined' && Array.isArray(posContacts) && posContacts.length > 0) {
+                const supps = Array.isArray(window.allContacts) ? window.allContacts.filter(c => c.type === 'supplier') : [];
+                window.allContacts = [...posContacts, ...supps];
+                if (typeof allContacts !== 'undefined') allContacts = window.allContacts;
+            } else if (!window.allContacts || !window.allContacts.some(c => c.type === 'customer')) {
+                fetch('/api/contacts?type=customer&compact=1&limit=40').then(r => r.json()).then(data => {
                     if (Array.isArray(data)) {
-                        window.allContacts = data;
-                        if (typeof allContacts !== 'undefined') allContacts = data;
+                        const supps = Array.isArray(window.allContacts) ? window.allContacts.filter(c => c.type === 'supplier') : [];
+                        window.allContacts = [...data, ...supps];
+                        if (typeof allContacts !== 'undefined') allContacts = window.allContacts;
                     }
-                }).catch(e => console.warn('Lỗi tải contacts:', e));
+                }).catch(e => console.warn('Lỗi tải nhanh contacts Spa:', e));
             }
 
             // Đảm bảo có danh sách thợ
@@ -4179,15 +4184,16 @@
             const previewWallet = document.getElementById('svc-preview-wallet');
             if (previewWallet) previewWallet.textContent = '0 đ';
 
-            // Preload danh sách hàng hóa POS nếu chưa có
+            // Preload danh sách hàng hóa từ kho cache chung
             if ((typeof posProducts === 'undefined' || !Array.isArray(posProducts) || posProducts.length === 0) &&
                 (!Array.isArray(allProducts) || allProducts.length === 0)) {
-                fetch('/api/products').then(r => r.json()).then(data => {
-                    allProducts = data;
-                    if (typeof posProducts !== 'undefined' && Array.isArray(posProducts) && posProducts.length === 0) {
-                        posProducts = data;
-                    }
-                }).catch(e => console.error("preload products err:", e));
+                (typeof window.getSharedProducts === 'function' ? window.getSharedProducts() : fetch('/api/products').then(r => r.json()))
+                    .then(data => {
+                        if (Array.isArray(data)) {
+                            allProducts = data;
+                            if (typeof posProducts !== 'undefined') posProducts = data;
+                        }
+                    }).catch(e => console.error("preload products err:", e));
             }
 
             // Reset Cột 3: Lịch sử Spa
@@ -4540,10 +4546,11 @@
                 ? posProducts
                 : (typeof allProducts !== 'undefined' && Array.isArray(allProducts) && allProducts.length > 0 ? allProducts : []);
 
-            if (sourceProducts.length === 0) {
+            if (sourceProducts.length === 0 || window.__sharedProductsDirty) {
                 try {
-                    const res = await fetch('/api/products');
-                    sourceProducts = await res.json();
+                    sourceProducts = typeof window.getSharedProducts === 'function'
+                        ? await window.getSharedProducts()
+                        : await fetch('/api/products').then(r => r.json());
                     allProducts = sourceProducts;
                     if (typeof posProducts !== 'undefined') posProducts = sourceProducts;
                 } catch(e) {
@@ -4882,25 +4889,34 @@
         }
 
         // Dropdown popup tìm khách hàng theo tên + SĐT, khớp linh hoạt, tự phục hồi nạp API nếu cache rỗng
+        let _spaCustSearchSeq = 0;
         async function onSvcCustomerSearchInput(rawQuery) {
             const dropdown = document.getElementById('svc-customer-dropdown');
             if (!dropdown) return;
+            const mySeq = ++_spaCustSearchSeq;
+            const cleanQuery = (rawQuery || '').trim();
 
-            let source = (typeof allContacts !== 'undefined' && Array.isArray(allContacts) && allContacts.length > 0)
-                ? allContacts
-                : (window.allContacts || []);
+            const hasFullPosCache = (typeof posContacts !== 'undefined' && Array.isArray(posContacts) && posContacts.length > 50);
+            let custs = [];
 
-            if (source.length === 0) {
-                dropdown.innerHTML = '<div class="px-3 py-2 text-xs text-slate-400 flex items-center gap-1.5"><span>⏳</span><span>Đang tải danh bạ khách hàng...</span></div>';
+            if (hasFullPosCache) {
+                custs = posContacts;
+            } else {
+                dropdown.innerHTML = '<div class="px-3 py-2 text-xs text-slate-400 flex items-center gap-1.5"><span>⏳</span><span>Đang tìm khách hàng...</span></div>';
                 dropdown.classList.remove('hidden');
                 try {
-                    const r = await fetch('/api/contacts');
+                    const url = `/api/contacts?type=customer&compact=1&limit=30${cleanQuery ? '&search=' + encodeURIComponent(cleanQuery) : ''}`;
+                    const r = await fetch(url);
+                    if (mySeq !== _spaCustSearchSeq) return;
                     if (r.ok) {
                         const data = await r.json();
                         if (Array.isArray(data)) {
-                            window.allContacts = data;
-                            if (typeof allContacts !== 'undefined') allContacts = data;
-                            source = data;
+                            custs = data;
+                            const byId = new Map();
+                            for (const ex of (window.allContacts || [])) byId.set(ex.id, ex);
+                            for (const item of data) byId.set(item.id, item);
+                            window.allContacts = Array.from(byId.values());
+                            if (typeof allContacts !== 'undefined') allContacts = window.allContacts;
                         }
                     }
                 } catch (e) {
@@ -4909,8 +4925,7 @@
                 }
             }
 
-            const custs = source.filter(c => c.type === 'customer' || !c.type);
-            const tokens = (rawQuery || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
+            const tokens = cleanQuery.toLowerCase().split(/\s+/).filter(Boolean);
 
             const removeVnAccents = (str) => {
                 return (str || '').toString().toLowerCase()
@@ -4919,14 +4934,14 @@
             };
 
             const matched = [];
-            if (tokens.length === 0) {
+            if (tokens.length === 0 || !hasFullPosCache) {
                 for (const c of custs) {
                     matched.push(c);
-                    if (matched.length >= 20) break;
+                    if (matched.length >= 30) break;
                 }
             } else {
                 const cleanTokens = tokens.map(t => removeVnAccents(t));
-                const qDigits = rawQ.replace(/\D+/g, '');
+                const qDigits = cleanQuery.replace(/\D+/g, '');
                 for (const c of custs) {
                     const phoneTokens = typeof window.buildContactPhoneSearchTokens === 'function'
                         ? window.buildContactPhoneSearchTokens(c.phone)
