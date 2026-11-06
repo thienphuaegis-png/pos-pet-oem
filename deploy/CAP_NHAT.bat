@@ -5,6 +5,9 @@ setlocal EnableDelayedExpansion
 cd /d "%~dp0.."
 set "ROOT=%CD%"
 set "GIT_TERMINAL_PROMPT=0"
+set "GCM_INTERACTIVE=never"
+set "GIT_ASKPASS=echo"
+set "PYTHONUTF8=1"
 set "PYTHONUNBUFFERED=1"
 
 REM /auto = chay tu nut web: khong pause, ghi ket qua ra logs\update_status.txt
@@ -59,18 +62,19 @@ echo [1/5] Tam dung server...
 taskkill /F /IM POS_Mastercare.exe >nul 2>&1
 taskkill /F /IM pythonw.exe >nul 2>&1
 powershell -NoProfile -NonInteractive -Command ^
-  "Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*main.py*' -or $_.Name -like '*POS_Mastercare*' } | Stop-Process -Force -ErrorAction SilentlyContinue;" ^
+  "Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*main.py*' -or $_.CommandLine -like '*uvicorn*' -or $_.CommandLine -like '*share_online.py*' -or $_.Name -like '*POS_Mastercare*' } | Stop-Process -Force -ErrorAction SilentlyContinue;" ^
   "foreach ($p in 8997,8998,8999) { $c = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue } }"
-REM Khong dung "timeout": ban Unix cua Git Bash co cu phap khac, con
-REM timeout.exe cua Windows bao loi khi stdin bi chuyen huong.
+REM Khong dung "timeout" hay ong pipe "findstr" (findstr lam ket cua so den khi chay ngam).
 powershell -NoProfile -NonInteractive -Command "Start-Sleep -Seconds 3"
-netstat -aon 2>nul | findstr ":8998 :8997" | findstr "LISTENING" >nul 2>&1
-if !errorlevel! equ 0 if /i not "%~1"=="/auto" (
-    net session >nul 2>&1
-    if !errorlevel! neq 0 (
-        echo       Server cu dang chay quyen Admin, dang xin quyen Administrator...
-        powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
-        exit /b
+if /i not "%~1"=="/auto" (
+    "%VPY%" -c "import socket,sys; s=any(socket.socket().connect_ex(('127.0.0.1',p))==0 for p in (8998,8997)); sys.exit(0 if s else 1)" >nul 2>&1
+    if !errorlevel! equ 0 (
+        net session >nul 2>&1
+        if !errorlevel! neq 0 (
+            echo       Server cu dang chay quyen Admin, dang xin quyen Administrator...
+            powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+            exit /b
+        )
     )
 )
 echo       OK
@@ -84,12 +88,10 @@ if not exist "data\pos.db" (
 )
 if not exist "data\backups" mkdir "data\backups"
 
-for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value 2^>nul') do set "dt=%%a"
-if not defined dt (
-    REM Du phong khi wmic bi go khoi Windows moi
+set "STAMP="
+for /f "delims=" %%a in ('"%VPY%" -c "import datetime; print(datetime.datetime.now().strftime('%%Y%%m%%d_%%H%%M%%S'))"') do set "STAMP=%%a"
+if not defined STAMP (
     for /f "delims=" %%a in ('powershell -NoProfile -NonInteractive -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "STAMP=%%a"
-) else (
-    set "STAMP=!dt:~0,8!_!dt:~8,6!"
 )
 set "BACKUP=data\backups\pos_truoc_capnhat_!STAMP!.db"
 
@@ -141,6 +143,14 @@ if defined PULLURL (
     set "RC=!errorlevel!"
 )
 if !RC! neq 0 (
+    echo       git pull gap xung dot hoac khoa cu - chuyen sang dong bo chuan HTTPS...
+    "%GIT%" -c credential.helper= fetch --depth=50 https://github.com/thienphuaegis-png/pos-pet-oem.git main >nul 2>&1
+    if !errorlevel! equ 0 (
+        "%GIT%" reset --hard FETCH_HEAD >nul 2>&1
+        set "RC=!errorlevel!"
+    )
+)
+if !RC! neq 0 (
     echo.
     echo [LOI] Khong tai duoc ban cap nhat.
     echo       DU LIEU CUA BAN VAN AN TOAN - khong mat gi.
@@ -187,10 +197,10 @@ REM --- 5/5 Chay lai va kiem tra thuc su len ---
 echo [5/5] Khoi dong lai...
 start /d "%ROOT%" "" wscript.exe "%ROOT%\deploy\start_server.vbs"
 
-REM Cho server len, toi da 30 giay.
+REM Cho server len, toi da 75 giay (ho tro dual-server 8998 + 8997).
 set "READY="
 powershell -NoProfile -NonInteractive -Command ^
-  "for ($i=0; $i -lt 30; $i++) {" ^
+  "for ($i=0; $i -lt 75; $i++) {" ^
   "  try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8999/api/ping' -TimeoutSec 2 -UseBasicParsing;" ^
   "        if ($r.StatusCode -eq 200) { exit 0 } } catch {}" ^
   "  try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8998/api/ping' -TimeoutSec 2 -UseBasicParsing;" ^
@@ -201,7 +211,7 @@ if %errorlevel% equ 0 set "READY=1"
 if not defined READY (
     set "ERR_DETAIL="
     if exist "pos_debug.log" (
-        for /f "delims=" %%l in ('powershell -NoProfile -NonInteractive -Command "Get-Content pos_debug.log -Tail 15 -ErrorAction SilentlyContinue | Out-String"') do set "ERR_DETAIL=%%l"
+        for /f "delims=" %%l in ('"%VPY%" -c "l=open('pos_debug.log',encoding='utf-8',errors='ignore').read().splitlines()[-1]; print(l[:180])" 2^>nul') do set "ERR_DETAIL=%%l"
     )
     if defined ERR_DETAIL (
         set "REASON=Server khoi dong loi: !ERR_DETAIL!"

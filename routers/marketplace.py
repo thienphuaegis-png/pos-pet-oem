@@ -14,7 +14,7 @@ from schemas import (
     MarketplaceOrderBulkDeleteRequest, PancakeTestRequest, PancakeSyncRequest,
     PancakeCommissionRules, PancakeSellerUpdate,
     KocInspectSheetRequest, KocCommissionRulesIn, KocSourceSaveRequest,
-    KocManualVideoAddRequest, KocVideoUpdateRequest
+    KocManualVideoAddRequest, KocVideoUpdateRequest, KocBulkKpiRequest
 )
 from services import pancake as pancake_svc
 from services import koc_service as koc_svc
@@ -1814,6 +1814,60 @@ def add_manual_koc_videos(req: KocManualVideoAddRequest, user=Depends(get_option
             added += 1
         conn.commit()
         return {"status": "ok", "added": added, "message": f"Đã thêm {added} link video TikTok"}
+    finally:
+        conn.close()
+
+
+@router.post("/koc/videos/bulk-kpi")
+def bulk_update_koc_video_kpi(req: KocBulkKpiRequest, user=Depends(get_optional_user)):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        koc_svc.ensure_koc_schema(cur)
+        if (req.mode or "").strip().lower() == "top1_zero_koc":
+            data = koc_svc.list_enriched_videos(cur, source_id=req.source_id, month=req.month, kpi_filter="all")
+            best_by_koc = {}
+            for v in data.get("videos") or []:
+                if (v.get("koc_auto_qual") or 0) + (v.get("koc_manual_qual") or 0) > 0:
+                    continue
+                if v.get("kpi_state") != "under_kpi":
+                    continue
+                uname = (v.get("koc_username") or "").strip().lstrip("@/").lower()
+                if not uname:
+                    continue
+                key = (int(v["source_id"]), uname)
+                cand_score = (int(v.get("views") or 0), str(v.get("published_at") or ""), -int(v["id"]))
+                prev = best_by_koc.get(key)
+                if prev is None or cand_score > prev[0]:
+                    best_by_koc[key] = (cand_score, int(v["id"]))
+            target_ids = [vid for _, vid in best_by_koc.values()]
+            if target_ids:
+                ph = ",".join("?" for _ in target_ids)
+                cur.execute(f"UPDATE koc_videos SET manual_kpi = 1 WHERE id IN ({ph})", tuple(target_ids))
+                conn.commit()
+            return {
+                "status": "ok",
+                "updated": len(target_ids),
+                "video_ids": target_ids,
+                "manual_kpi": 1,
+                "message": (
+                    f"Đã tự động chọn duyệt 1 video view cao nhất cho {len(target_ids)} kênh KOC đang 0 bài đạt!"
+                    if target_ids else "Không còn kênh KOC nào đang 0 bài đạt cần gợi ý."
+                ),
+            }
+
+        ids = [int(x) for x in (req.video_ids or []) if x]
+        if not ids:
+            raise HTTPException(status_code=400, detail="Chưa chọn video nào")
+        ph = ",".join("?" for _ in ids)
+        cur.execute(f"UPDATE koc_videos SET manual_kpi = ? WHERE id IN ({ph})", (req.manual_kpi, *ids))
+        conn.commit()
+        return {
+            "status": "ok",
+            "updated": len(ids),
+            "video_ids": ids,
+            "manual_kpi": req.manual_kpi,
+        }
     finally:
         conn.close()
 

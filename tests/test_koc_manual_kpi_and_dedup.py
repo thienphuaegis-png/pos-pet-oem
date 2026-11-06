@@ -253,3 +253,95 @@ def test_koc_manual_kpi_dedup_grace_days_and_rescan_preservation(monkeypatch):
             client.delete(f"/api/marketplace/koc/sources/{s_oct_id}")
         if s_sep_id:
             client.delete(f"/api/marketplace/koc/sources/{s_sep_id}")
+
+
+def test_koc_bulk_kpi_and_auto_top1_zero_koc_and_sort_ui():
+    import os
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    html = open(os.path.join(root, "templates", "index.html"), encoding="utf-8").read()
+    js = open(os.path.join(root, "static", "js", "modules", "marketplace.js"), encoding="utf-8").read()
+    assert 'id="koc-video-sort"' in html
+    assert 'id="koc-manual-tools-bar"' in html
+    assert "autoApproveTop1ZeroKoc" in js
+    assert "bulkUpdateSelectedKocKpi" in js
+    assert "getSortedKocVideos" in js
+    assert "applyOptimisticManualKpi" in js
+
+    client = TestClient(app, headers=owner_auth_headers())
+
+    def make_vid(ymd_hm: str, seq: int) -> str:
+        import datetime
+        tz = datetime.timezone(datetime.timedelta(hours=7))
+        dt = datetime.datetime.strptime(ymd_hm, "%Y-%m-%d %H:%M").replace(tzinfo=tz)
+        return str((int(dt.timestamp()) << 32) | seq)
+
+    v_koc1_180 = make_vid("2026-10-11 10:00", 101)
+    v_koc1_197 = make_vid("2026-10-12 10:00", 102)
+    v_koc2_220 = make_vid("2026-10-13 10:00", 103)
+    v_koc2_190 = make_vid("2026-10-14 10:00", 104)
+    v_koc3_old = make_vid("2026-08-15 10:00", 105)
+
+    src_id = None
+    try:
+        r = client.post("/api/marketplace/koc/sources", json={
+            "name": "Test Bulk KOC T10",
+            "sheet_url": "https://docs.google.com/spreadsheets/d/1TRCLEZtxbGBvsLrFU9pIUTqrlWeAMUrkTr2B4aBJeVA/edit",
+            "month": "2026-10",
+        })
+        assert r.status_code == 200
+        src_id = r.json()["id"]
+
+        client.post("/api/marketplace/koc/videos", json={
+            "source_id": src_id,
+            "urls_text": "\n".join([
+                f"https://www.tiktok.com/@koc_zero_a/video/{v_koc1_180}",
+                f"https://www.tiktok.com/@koc_zero_a/video/{v_koc1_197}",
+                f"https://www.tiktok.com/@koc_has_one/video/{v_koc2_220}",
+                f"https://www.tiktok.com/@koc_has_one/video/{v_koc2_190}",
+                f"https://www.tiktok.com/@koc_old_only/video/{v_koc3_old}",
+            ]),
+        })
+        vmap = {v["video_key"]: v for v in client.get(f"/api/marketplace/koc/videos?source_id={src_id}").json()["videos"]}
+        for vk, vw in [
+            (v_koc1_180, 180),
+            (v_koc1_197, 197),
+            (v_koc2_220, 220),
+            (v_koc2_190, 190),
+            (v_koc3_old, 199),
+        ]:
+            client.put(f"/api/marketplace/koc/videos/{vmap[vk]['id']}", json={"views": vw, "status": "Thành công"})
+
+        # 1. Chạy chế độ gợi ý tự động: chỉ chọn đúng 1 bài cao nhất (197 view) của @koc_zero_a
+        # Không chọn @koc_has_one (đã có bài 220 view) và không chọn @koc_old_only (bài tháng 08 bị loại)
+        r_top1 = client.post("/api/marketplace/koc/videos/bulk-kpi", json={
+            "mode": "top1_zero_koc",
+            "source_id": src_id,
+        })
+        assert r_top1.status_code == 200
+        assert r_top1.json()["updated"] == 1
+        assert r_top1.json()["video_ids"] == [vmap[v_koc1_197]["id"]]
+
+        # Gọi lần 2 liên tiếp sẽ trả updated=0 vì @koc_zero_a đã có 1 bài được tính KPI
+        r_top1_again = client.post("/api/marketplace/koc/videos/bulk-kpi", json={
+            "mode": "top1_zero_koc",
+            "source_id": src_id,
+        })
+        assert r_top1_again.status_code == 200
+        assert r_top1_again.json()["updated"] == 0
+
+        # 2. Duyệt hàng loạt theo danh sách video_ids đã tick chọn
+        ids_bulk = [vmap[v_koc1_180]["id"], vmap[v_koc2_190]["id"]]
+        r_bulk = client.post("/api/marketplace/koc/videos/bulk-kpi", json={
+            "video_ids": ids_bulk,
+            "manual_kpi": 1,
+        })
+        assert r_bulk.status_code == 200
+        assert r_bulk.json()["updated"] == 2
+
+        src_sum = next(s for s in client.get("/api/marketplace/koc/sources?month=2026-10").json()["sources"] if s["id"] == src_id)
+        assert src_sum["stats"]["auto_qualified_videos"] == 1
+        assert src_sum["stats"]["manual_approved_videos"] == 3
+        assert src_sum["stats"]["payable_videos"] == 4
+    finally:
+        if src_id:
+            client.delete(f"/api/marketplace/koc/sources/{src_id}")

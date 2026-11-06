@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chẩn Đoán Cập Nhật Từ Xa & Hướng Dẫn Chấm KPI Thủ Công</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #f1f5f9;
+    color: #111827;
+    padding: 14px;
+    line-height: 1.45;
+  }
+  .banner {
+    background: #fef2f2;
+    border: 2px solid #f87171;
+    border-radius: 10px;
+    padding: 11px 14px;
+    margin-bottom: 12px;
+  }
+  .banner h1 { font-size: 14px; font-weight: 800; color: #991b1b; }
+  .banner p { font-size: 12px; color: #7f1d1d; margin-top: 3px; }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 12px;
+  }
+  @media (max-width: 960px) { .grid-2 { grid-template-columns: 1fr; } }
+  .card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 13px;
+  }
+  .card-title {
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 5px;
+    display: inline-block;
+    margin-bottom: 9px;
+  }
+  .t-red { background: #fee2e2; color: #991b1b; }
+  .t-green { background: #d1fae5; color: #065f46; }
+  .step-list { list-style: none; space-y: 8px; }
+  .step-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    background: #f8fafc;
+    font-size: 11.5px;
+  }
+  .step-item b { color: #0f172a; }
+  .code-pill {
+    font-family: Consolas, monospace;
+    background: #e2e8f0;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    color: #0f172a;
+  }
+  .toolbar-mock {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    padding: 7px 9px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 11px;
+  }
+  .btn {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #1e293b;
+  }
+  .btn-blue { background: #0284c7; color: #ffffff; border-color: #0369a1; }
+  .btn-sky-out { background: #f0f9ff; color: #0369a1; border-color: #7dd3fc; }
+  .btn-emerald { background: #059669; color: #ffffff; border-color: #047857; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th {
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 10px;
+    text-transform: uppercase;
+    padding: 6px 5px;
+    text-align: left;
+    border-bottom: 1px solid #cbd5e1;
+  }
+  td { padding: 6px 5px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  .mono { font-family: Consolas, monospace; }
+  .tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .tag-blue { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+  .tag-amber { background: #fef3c7; color: #92400e; }
+  .how-box {
+    margin-top: 9px;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: #065f46;
+  }
+  .how-box ol { margin-left: 16px; margin-top: 4px; }
+  .how-box li { margin-bottom: 3px; }
+</style>
+</head>
+<body>
+
+<div class="banner">
+  <h1>Phát hiện trực tiếp: Máy chủ tiệm hiện vẫn đang ở bản cũ v3.6.113 (commit 69220a5 hôm qua)!</h1>
+  <p>Em vừa đo trực tiếp <b>mcarepet.vercel.app/api/version</b> &rarr; trả về <b>69220a5</b> (chưa lên <b>3a67c51</b>). Vì vậy màn hình của anh vẫn là bản cũ, chưa hiện cột <b>Duyệt Tay</b> và <b>Ngày Đăng</b>.</p>
+</div>
+
+<div class="grid-2">
+  <!-- BÊN TRÁI: NGUYÊN NHÂN ĐỨNG CỬA SỔ -->
+  <div class="card">
+    <span class="card-title t-red">1. Vì sao Cập nhật từ xa bị đứng cửa sổ &amp; tụt về bản cũ?</span>
+
+    <div class="step-item">
+      <b>Thủ phạm 1 (Đứng cửa sổ đen chờ tắt tay):</b><br>
+      Dòng <span class="code-pill">deploy/CAP_NHAT.bat:67</span> có lệnh ống <span class="code-pill">netstat | findstr | findstr</span> chạy cả ở chế độ <span class="code-pill">/auto</span>, kết hợp với cờ <span class="code-pill">DETACHED_PROCESS</span> trong <span class="code-pill">server.py:270</span> làm Windows bung cửa sổ <span class="code-pill">findstr.exe</span> bị kẹt cứng stdin cho tới khi anh bấm [X] tắt tay.
+    </div>
+
+    <div class="step-item">
+      <b>Thủ phạm 2 (Tắt cửa sổ xong vẫn ở bản cũ 69220a5):</b><br>
+      1) <span class="code-pill">git pull --ff-only</span> gặp token cũ hết hạn hoặc lệch dòng CRLF nên báo lỗi <span class="code-pill">FAILED_PULL</span> và tự bật lại server cũ.<br>
+      2) <span class="code-pill">start_server.vbs</span> bật 2 cổng 8998 + 8997 mất ~30s sát trần chờ 30s nên dễ kích hoạt <span class="code-pill">:rollback</span> quay ngược về <span class="code-pill">69220a5</span>.
+    </div>
+
+    <div class="step-item" style="background:#f0fdf4;border-color:#bbf7d0">
+      <b style="color:#065f46">Cách sửa dứt điểm trong bản vá này:</b><br>
+      &bull; Bỏ sạch ống <span class="code-pill">| findstr</span> và bỏ cờ <span class="code-pill">DETACHED_PROCESS</span> xung đột (chỉ dùng console ẩn <span class="code-pill">CREATE_NO_WINDOW</span> &rarr; <b>0 cửa sổ đen</b>).<br>
+      &bull; Đặt <span class="code-pill">GCM_INTERACTIVE=never</span> + fallback HTTPS sạch + nâng trần chờ lên 75s.
+    </div>
+  </div>
+
+  <!-- BÊN PHẢI: 3 CÁCH TÍNH KPI BẰNG TAY -->
+  <div class="card">
+    <span class="card-title t-green">2. Ba cách tính KPI bằng tay trên giao diện mới (Đề xuất nâng cấp tốc độ)</span>
+
+    <div class="toolbar-mock">
+      <span class="btn btn-blue">[x] Đã chọn 2 video</span>
+      <span class="btn btn-emerald">+ Duyệt KPI (2)</span>
+      <span class="btn">Bỏ duyệt</span>
+      <span class="btn btn-sky-out">Gợi ý: Tự chọn 1 bài cao nhất / KOC đang 0 bài</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th><input type="checkbox" checked></th>
+          <th>KOC &amp; Tiến Độ Kênh</th>
+          <th>Ngày Đăng</th>
+          <th style="text-align:right">View</th>
+          <th style="text-align:center">Kết Quả</th>
+          <th style="text-align:center">Cách 1: Click Lẻ 0s</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="background:#eff6ff">
+          <td><input type="checkbox" checked></td>
+          <td><b>@nguyen.kimanh74</b><br><span style="color:#1d4ed8;font-size:10px">Kênh: 0 đạt + 1 duyệt / 1 bài</span></td>
+          <td class="mono">18/10/2026</td>
+          <td class="mono" style="text-align:right"><b>199</b></td>
+          <td style="text-align:center"><span class="tag tag-blue">Duyệt tay</span></td>
+          <td style="text-align:center"><span class="btn btn-blue">[x] Tính KPI</span></td>
+        </tr>
+        <tr style="background:#eff6ff">
+          <td><input type="checkbox" checked></td>
+          <td><b>@nhamonmia.22</b><br><span style="color:#1d4ed8;font-size:10px">Kênh: 0 đạt + 1 duyệt / 2 bài</span></td>
+          <td class="mono">20/10/2026</td>
+          <td class="mono" style="text-align:right"><b>193</b></td>
+          <td style="text-align:center"><span class="tag tag-blue">Duyệt tay</span></td>
+          <td style="text-align:center"><span class="btn btn-blue">[x] Tính KPI</span></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox"></td>
+          <td><b>@kimchidangiuuu</b><br><span style="color:#64748b;font-size:10px">Kênh: 2 đạt + 0 duyệt / 4 bài</span></td>
+          <td class="mono">21/10/2026</td>
+          <td class="mono" style="text-align:right"><b>195</b></td>
+          <td style="text-align:center"><span class="tag tag-amber">Chưa đạt</span></td>
+          <td style="text-align:center"><span class="btn">[ ] Tính KPI</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="how-box">
+      <b>Sau khi máy chủ lên bản mới, anh có đủ 3 cách chấm tay siêu nhanh:</b>
+      <ol>
+        <li><b>Click lẻ 1 chạm (0 giây, không giật bảng):</b> Bấm thẳng nút <b>[ ] Tính KPI</b> ở cột <i>Duyệt Tay</i> trên dòng video muốn cộng.</li>
+        <li><b>Duyệt hàng loạt (cho 50-80 bài):</b> Lọc <i>"Kênh đang 0 bài KPI"</i> &rarr; tick chọn nhiều dòng (hoặc bấm nút <i>"Tự chọn 1 bài cao nhất/KOC"</i>) &rarr; bấm <b>+ Duyệt KPI</b>.</li>
+        <li><b>Nhập con số tổng nhanh:</b> Bấm nút <b>Công Thức Hoa Hồng</b> (hoặc nút <b>Chung/Riêng</b> ở bảng trên) &rarr; gõ số vào ô <b>Cộng / trừ video thủ công (+/-)</b> (VD: gõ <b>+35</b>).</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

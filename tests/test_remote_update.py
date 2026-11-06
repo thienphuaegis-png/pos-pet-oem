@@ -31,10 +31,16 @@ def test_apply_update_spawns_deploy_bat_auto(upd_dir, monkeypatch):
     r = client.post("/api/system/apply-update", headers=owner_auth_headers())
     assert r.status_code == 200, r.text
     args = calls[0][0][0]
+    kw = calls[0][1]
+    assert args[0].lower() == "wscript.exe"
+    assert "//B" in args and "//NoLogo" in args
+    assert any(str(x).endswith("run_update_hidden.vbs") for x in args)
     assert args[-1] == "/auto"
     assert args[-2].endswith("deploy\\CAP_NHAT.bat"), "Phải gọi bản deploy (có rollback), không phải bản gốc"
-    assert calls[0][1]["creationflags"] & server.subprocess.DETACHED_PROCESS, \
+    assert kw["creationflags"] & server.subprocess.DETACHED_PROCESS, \
         "Phải tách rời — script tắt server, không được chết theo"
+    assert kw["creationflags"] & server.subprocess.CREATE_NO_WINDOW
+    assert kw["startupinfo"].wShowWindow == 0
     assert (upd_dir / "update.lock").exists()
 
 

@@ -266,13 +266,26 @@ def apply_system_update(user=Depends(require_role("owner", "admin"))):
         username = user.get("username", "admin") if isinstance(user, dict) else getattr(user, "username", "admin")
         lock.write_text(f"{username} {datetime.datetime.now():%Y-%m-%d %H:%M:%S}", encoding="utf-8")
         stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        log = open(UPDATE_DIR / f"update_{stamp}.log", "w", encoding="utf-8", errors="replace")
+        log_path = UPDATE_DIR / f"update_{stamp}.log"
+        vbs_runner = APP_ROOT / "deploy" / "run_update_hidden.vbs"
         base = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
         si = subprocess.STARTUPINFO()
         si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         si.wShowWindow = 0  # SW_HIDE: triệt tiêu hoàn toàn cửa sổ đen
-        kw = dict(cwd=str(APP_ROOT), stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, startupinfo=si)
-        args = ["cmd", "/c", str(deploy_bat), "/auto"]
+        if vbs_runner.exists():
+            args = ["wscript.exe", "//B", "//NoLogo", str(vbs_runner), str(log_path), str(deploy_bat), "/auto"]
+            kw = dict(
+                cwd=str(APP_ROOT),
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                startupinfo=si,
+                close_fds=True,
+            )
+        else:
+            log = open(log_path, "w", encoding="utf-8", errors="replace")
+            args = ["cmd", "/c", str(deploy_bat), "/auto"]
+            kw = dict(cwd=str(APP_ROOT), stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, startupinfo=si)
         try:
             # Thoát khỏi job object của Task Scheduler để không bị giết khi server tắt
             subprocess.Popen(args, creationflags=base | subprocess.CREATE_BREAKAWAY_FROM_JOB, **kw)

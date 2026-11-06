@@ -236,6 +236,32 @@ def test_tunnel_register_endpoint():
     assert r_status.status_code == 200
 
 
+def test_updater_no_findstr_pipe_and_has_https_fallback():
+    """Khi chạy ngầm từ Web (DETACHED_PROCESS), mọi ống pipe `| findstr` trong .bat
+    sẽ mở cửa sổ đen findstr.exe và treo chờ tắt tay. Phải gỡ sạch pipe findstr,
+    bật GCM_INTERACTIVE=never, có fallback fetch HTTPS + reset --hard FETCH_HEAD,
+    và có wrapper run_update_hidden.vbs chạy window style 0."""
+    vbs_path = os.path.join(DEPLOY, "run_update_hidden.vbs")
+    assert os.path.exists(vbs_path), "Thiếu deploy/run_update_hidden.vbs"
+    with open(vbs_path, encoding="utf-8") as f:
+        vbs = f.read()
+    assert ", 0, False" in vbs
+
+    for rel in (os.path.join(DEPLOY, "CAP_NHAT.bat"), os.path.join(ROOT, "CAP_NHAT.bat")):
+        with open(rel, encoding="utf-8") as f:
+            src = f.read()
+        for i, line in enumerate(src.splitlines(), 1):
+            s = line.strip()
+            if s.upper().startswith(("REM", "::", "ECHO")):
+                continue
+            assert "findstr" not in s.lower(), f"{rel}:{i} còn dùng findstr gây treo cửa sổ đen: {s}"
+        assert "GCM_INTERACTIVE=never" in src, f"{rel} thiếu GCM_INTERACTIVE=never"
+
+    deploy_bat = _read("CAP_NHAT.bat")
+    assert "reset --hard FETCH_HEAD" in deploy_bat, "deploy/CAP_NHAT.bat phải có fallback fetch + reset --hard FETCH_HEAD"
+    assert "$i -lt 75" in deploy_bat, "deploy/CAP_NHAT.bat phải chờ tối thiểu 75s cho Dual-Server"
+
+
 if __name__ == "__main__":
     test_no_bare_winget();                  print("✓ không gọi winget trần")
     test_echo_lines_are_ascii();            print("✓ dòng echo không dấu")

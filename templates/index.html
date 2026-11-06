@@ -2610,32 +2610,61 @@
                                     <option value="manual">Đã duyệt tay (+KPI)</option>
                                     <option value="excluded">Bị loại (Trùng kỳ trước / Tháng cũ)</option>
                                 </select>
+                                <select id="koc-video-sort" onchange="onChangeKocSort(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white focus:outline-none" title="Sắp xếp nhanh danh sách video (0 giây)">
+                                    <option value="views_desc">Sắp xếp: View Cao → Thấp</option>
+                                    <option value="views_asc">Sắp xếp: View Thấp → Cao</option>
+                                    <option value="koc_zero_first">Gom theo @KOC (Kênh 0 bài đạt trước)</option>
+                                    <option value="koc_az">Gom theo @KOC (A → Z)</option>
+                                    <option value="pub_desc">Ngày đăng: Mới → Cũ</option>
+                                    <option value="pub_asc">Ngày đăng: Cũ → Mới</option>
+                                    <option value="kpi_state">Kết quả KPI (Duyệt tay lên đầu)</option>
+                                </select>
                                 <div class="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2.5 py-1">
                                     <span class="text-slate-400"><i class="ph ph-magnifying-glass"></i></span>
-                                    <input type="text" id="koc-search-input" oninput="debounceKocSearch()" placeholder="Tìm @koc, link, sản phẩm..." class="text-xs font-medium text-slate-700 w-48 focus:outline-none">
+                                    <input type="text" id="koc-search-input" oninput="debounceKocSearch()" placeholder="Tìm @koc, link, sản phẩm..." class="text-xs font-medium text-slate-700 w-44 focus:outline-none">
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Thanh thao tác chấm KPI thủ công nhanh & Duyệt hàng loạt -->
+                        <div id="koc-manual-tools-bar" class="px-3 py-2 border-b border-slate-200 bg-sky-50/40 flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button type="button" onclick="autoApproveTop1ZeroKoc()" class="px-2.5 py-1 rounded-lg font-bold bg-white hover:bg-sky-600 text-sky-700 hover:text-white border border-sky-300 shadow-2xs cursor-pointer transition">
+                                    <i class="ph ph-magic-wand"></i> Gợi ý: Tự chọn 1 bài cao nhất / KOC đang 0 bài
+                                </button>
+                                <span class="text-slate-500 hidden sm:inline">Mẹo: giữ <b>Shift + Click</b> ô tích để chọn nhanh 1 dãy dòng, hoặc bấm thẳng cột tiêu đề để sắp xếp.</span>
+                            </div>
+                            <div id="koc-bulk-actions-group" class="hidden flex flex-wrap items-center gap-1.5">
+                                <span class="font-bold text-sky-800 px-2 py-0.5 rounded bg-sky-100">Đã chọn <span id="koc-selected-count">0</span> video</span>
+                                <button type="button" onclick="bulkUpdateSelectedKocKpi(1)" class="px-2.5 py-1 rounded-lg font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs cursor-pointer transition">+ Duyệt KPI</button>
+                                <button type="button" onclick="bulkUpdateSelectedKocKpi(0)" class="px-2.5 py-1 rounded-lg font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 cursor-pointer transition">Bỏ duyệt</button>
+                                <button type="button" onclick="bulkUpdateSelectedKocKpi(-1)" class="px-2.5 py-1 rounded-lg font-bold bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 cursor-pointer transition">Loại trừ</button>
+                                <button type="button" onclick="clearKocSelectedVideos()" class="px-2 py-1 text-slate-500 hover:text-slate-800 font-semibold cursor-pointer">Bỏ chọn</button>
                             </div>
                         </div>
 
                         <!-- Bảng 1: Danh sách Link Video -->
                         <div id="koc-pane-videos" class="overflow-x-auto max-h-[560px]">
                             <table class="w-full text-left border-collapse text-xs">
-                                <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-xs sticky top-0 z-10">
+                                <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-xs sticky top-0 z-10 select-none">
                                     <tr>
+                                        <th class="p-2.5 w-9 text-center">
+                                            <input type="checkbox" id="koc-select-all-videos" onchange="toggleSelectAllKocVideos(this.checked)" class="w-3.5 h-3.5 rounded cursor-pointer" title="Chọn tất cả video đang hiển thị">
+                                        </th>
                                         <th class="p-2.5 w-10 text-center">#</th>
-                                        <th class="p-2.5">KOC &amp; Tiến Độ Kênh</th>
-                                        <th class="p-2.5">Link Video TikTok</th>
-                                        <th class="p-2.5">Sản Phẩm / Tiêu Đề</th>
-                                        <th class="p-2.5 whitespace-nowrap">Ngày Đăng</th>
-                                        <th class="p-2.5 text-right">Lượt Xem</th>
-                                        <th class="p-2.5 text-center">Kết Quả KPI</th>
+                                        <th class="p-2.5 whitespace-nowrap cursor-pointer hover:text-sky-700" onclick="toggleKocHeaderSort('koc')" title="Bấm để sắp xếp gom theo kênh KOC">KOC &amp; Tiến Độ Kênh <span id="koc-sort-ind-koc" class="text-slate-400">↕</span></th>
+                                        <th class="p-2.5 whitespace-nowrap">Link Video TikTok</th>
+                                        <th class="p-2.5 whitespace-nowrap cursor-pointer hover:text-sky-700" onclick="toggleKocHeaderSort('product')" title="Bấm để sắp xếp theo sản phẩm">Sản Phẩm / Tiêu Đề <span id="koc-sort-ind-product" class="text-slate-400">↕</span></th>
+                                        <th class="p-2.5 whitespace-nowrap cursor-pointer hover:text-sky-700" onclick="toggleKocHeaderSort('pub')" title="Bấm để sắp xếp theo Ngày đăng">Ngày Đăng <span id="koc-sort-ind-pub" class="text-slate-400">↕</span></th>
+                                        <th class="p-2.5 text-right whitespace-nowrap cursor-pointer hover:text-sky-700" onclick="toggleKocHeaderSort('views')" title="Bấm để đảo chiều sắp xếp Lượt xem">Lượt Xem <span id="koc-sort-ind-views" class="text-sky-600">↓</span></th>
+                                        <th class="p-2.5 text-center whitespace-nowrap cursor-pointer hover:text-sky-700" onclick="toggleKocHeaderSort('kpi')" title="Bấm để sắp xếp theo Kết quả KPI">Kết Quả KPI <span id="koc-sort-ind-kpi" class="text-slate-400">↕</span></th>
                                         <th class="p-2.5 text-center whitespace-nowrap">Duyệt Tay</th>
                                         <th class="p-2.5 text-center whitespace-nowrap">Trạng Thái</th>
-                                        <th class="p-2.5 text-center w-14">Xóa</th>
+                                        <th class="p-2.5 text-center w-12">Xóa</th>
                                     </tr>
                                 </thead>
                                 <tbody id="koc-videos-tbody" class="divide-y divide-slate-100">
-                                    <tr><td colspan="10" class="p-6 text-center text-slate-400">Chưa có dữ liệu video.</td></tr>
+                                    <tr><td colspan="11" class="p-6 text-center text-slate-400">Chưa có dữ liệu video.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -2643,16 +2672,16 @@
                         <!-- Bảng 2: Danh sách KOC / KOL -->
                         <div id="koc-pane-profiles" class="hidden overflow-x-auto max-h-[560px]">
                             <table class="w-full text-left border-collapse text-xs">
-                                <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-xs sticky top-0">
+                                <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-xs sticky top-0 z-10 select-none">
                                     <tr>
                                         <th class="p-2.5 w-10 text-center">#</th>
-                                        <th class="p-2.5">ID KOC / Kênh</th>
+                                        <th class="p-2.5 cursor-pointer hover:text-sky-700" onclick="toggleKocProfileSort('koc')">ID KOC / Kênh <span id="koc-psort-koc" class="text-slate-400">↕</span></th>
                                         <th class="p-2.5">Follow &amp; GMV</th>
                                         <th class="p-2.5">Sản Phẩm Gửi Mẫu</th>
                                         <th class="p-2.5 text-center">Duyệt</th>
-                                        <th class="p-2.5 text-right">Chi Phí Cast</th>
-                                        <th class="p-2.5 text-center">Video Đã Trả</th>
-                                        <th class="p-2.5 text-right">Tổng View</th>
+                                        <th class="p-2.5 text-right cursor-pointer hover:text-sky-700" onclick="toggleKocProfileSort('cast')">Chi Phí Cast <span id="koc-psort-cast" class="text-slate-400">↕</span></th>
+                                        <th class="p-2.5 text-center cursor-pointer hover:text-sky-700" onclick="toggleKocProfileSort('videos')">Video Đã Trả <span id="koc-psort-videos" class="text-slate-400">↕</span></th>
+                                        <th class="p-2.5 text-right cursor-pointer hover:text-sky-700" onclick="toggleKocProfileSort('views')">Tổng View <span id="koc-psort-views" class="text-sky-600">↓</span></th>
                                         <th class="p-2.5">Liên Hệ / Ghi Chú</th>
                                     </tr>
                                 </thead>

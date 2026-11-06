@@ -735,6 +735,13 @@ class KocVideoUpdateRequest(BaseModel):
     product_note: Optional[str] = None
     manual_kpi: Optional[int] = Field(default=None, ge=-1, le=1)
 
+class KocBulkKpiRequest(BaseModel):
+    video_ids: Optional[List[int]] = None
+    manual_kpi: int = Field(default=1, ge=-1, le=1)
+    mode: Optional[str] = None
+    source_id: Optional[int] = None
+    month: Optional[str] = None
+
 class QuickDraftRequest(BaseModel):
     product_id: Optional[int] = None
     partner_id: Optional[int] = None

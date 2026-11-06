@@ -5,6 +5,9 @@ title CAP NHAT POS MASTERCARE - TU DONG DONG BO
 cd /d "%~dp0"
 set "PYTHONUTF8=1"
 set "PYTHONIOENCODING=utf-8"
+set "GIT_TERMINAL_PROMPT=0"
+set "GCM_INTERACTIVE=never"
+set "GIT_ASKPASS=echo"
 
 echo ========================================================
 echo         CAP NHAT PHIEN BAN MOI - POS MASTERCARE
@@ -14,23 +17,14 @@ echo.
 REM --- 1/5 Tat may chu POS va giai phong cong ---
 echo [1/5] Dang tam dung may chu POS de cap nhat an toan...
 taskkill /F /IM POS_Mastercare.exe >nul 2>&1
-taskkill /F /IM python.exe >nul 2>&1
 taskkill /F /IM pythonw.exe >nul 2>&1
-taskkill /F /IM cloudflared.exe >nul 2>&1
-
-for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8997" ^| findstr "LISTENING"') do (
-    taskkill /F /PID %%a >nul 2>&1
-)
-for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8998" ^| findstr "LISTENING"') do (
-    taskkill /F /PID %%a >nul 2>&1
-)
-for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8999" ^| findstr "LISTENING"') do (
-    taskkill /F /PID %%a >nul 2>&1
-)
-powershell -NoProfile -Command "Start-Sleep -Seconds 1"
+powershell -NoProfile -NonInteractive -Command ^
+  "Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*main.py*' -or $_.CommandLine -like '*uvicorn*' -or $_.CommandLine -like '*share_online.py*' -or $_.Name -like '*POS_Mastercare*' } | Stop-Process -Force -ErrorAction SilentlyContinue;" ^
+  "foreach ($p in 8997,8998,8999) { $c = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue } }"
+powershell -NoProfile -NonInteractive -Command "Start-Sleep -Seconds 2"
 
 REM Neu cong 8998/8997 van bi giu boi tien trinh quyen Administrator cu -> tu dong xin quyen Admin de tat triet de
-netstat -aon 2>nul | findstr ":8998 :8997" | findstr "LISTENING" >nul 2>&1
+powershell -NoProfile -NonInteractive -Command "if (Get-NetTCPConnection -LocalPort 8998,8997 -State Listen -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }" >nul 2>&1
 if !errorlevel! equ 0 (
     net session >nul 2>&1
     if !errorlevel! neq 0 (
@@ -115,16 +109,14 @@ if "!FETCH_OK!"=="1" (
 
     REM Tu dong chay nang cap co so du lieu (migration) neu co python
     if exist ".venv\Scripts\python.exe" (
-        ".venv\Scripts\python.exe" database.py >nul 2>&1
+        ".venv\Scripts\python.exe" -c "import database; database.init_db()" >nul 2>&1
         if exist "data\pos_instance2.db" (
             ".venv\Scripts\python.exe" -c "import os; os.environ['POS_DB_PATH']=r'data\pos_instance2.db'; import database; database.init_db()" >nul 2>&1
         )
-        ".venv\Scripts\python.exe" scripts\import_full_google_sheets_history.py >nul 2>&1
     ) else (
         where python >nul 2>&1
         if !errorlevel! equ 0 (
-            python database.py >nul 2>&1
-            python scripts\import_full_google_sheets_history.py >nul 2>&1
+            python -c "import database; database.init_db()" >nul 2>&1
         )
     )
 
