@@ -2250,8 +2250,11 @@
     function kocRulesSummaryText(r) {
         if (!r) return '';
         const deduct = Number(r.kpi_deduct_videos || 0);
+        const adj = Number(r.manual_adjust_videos || 0);
+        const grace = r.grace_days_prev_month !== undefined ? Number(r.grace_days_prev_month) : 5;
+        const adjTxt = adj !== 0 ? ` · Bù/trừ tổng: ${adj > 0 ? '+' + adj : adj} video` : '';
         const viral = Number(r.viral_bonus || 0) > 0 ? ` · Thưởng viral (≥${r.viral_min_views} view): +${pcMoney(r.viral_bonus)}/video` : '';
-        return `Mức view sàn: ≥${r.min_views || 200} view · Trừ KPI: ${deduct} video · Đơn giá: ${pcMoney(r.rate_per_video || 10000)}/video đạt${viral}`;
+        return `Mức view sàn: ≥${r.min_views ?? 200} view · Trừ KPI: ${deduct} video${adjTxt} · Du di tháng trước: ${grace} ngày · Đơn giá: ${pcMoney(r.rate_per_video ?? 10000)}/video đạt${viral}`;
     }
 
     async function ensureKocStaffLoaded() {
@@ -2325,12 +2328,23 @@
     }
     window.onSelectKocSource = onSelectKocSource;
 
+    function formatKocPubDate(raw) {
+        const s = String(raw || '').trim();
+        if (!s) return '—';
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+            const [y, m, d] = s.slice(0, 10).split('-');
+            const hm = s.length >= 16 ? s.slice(11, 16) : '';
+            return `${d}/${m}/${y}${hm ? ' ' + hm : ''}`;
+        }
+        return s;
+    }
+
     function updateKocTopKpiCards() {
         const activeList = kocSelectedSourceId
             ? kocSources.filter(s => String(s.id) === String(kocSelectedSourceId))
             : kocSources;
 
-        let totalKoc = 0, totalVids = 0, totalViews = 0, qualVids = 0, payableVids = 0, underVids = 0, errVids = 0, pendingVids = 0, totalComm = 0;
+        let totalKoc = 0, totalVids = 0, totalViews = 0, autoQualVids = 0, manualVids = 0, qualVids = 0, payableVids = 0, underVids = 0, errVids = 0, exclVids = 0, pendingVids = 0, totalComm = 0;
         let minViewLabel = kocDefaultRules ? kocDefaultRules.min_views : 200;
 
         activeList.forEach(s => {
@@ -2338,10 +2352,13 @@
             totalKoc += Number(s.koc_count || st.unique_kocs || 0);
             totalVids += Number(st.total_videos || 0);
             totalViews += Number(st.total_views || 0);
+            autoQualVids += Number(st.auto_qualified_videos ?? st.qualified_videos ?? 0);
+            manualVids += Number(st.manual_approved_videos || 0);
             qualVids += Number(st.qualified_videos || 0);
             payableVids += Number(st.payable_videos || 0);
             underVids += Number(st.under_kpi_videos || 0);
             errVids += Number(st.error_videos || 0);
+            exclVids += Number(st.excluded_videos || 0);
             pendingVids += Number(st.pending_videos !== undefined ? st.pending_videos : Math.max(0, Number(st.total_videos || 0) - Number(st.qualified_videos || 0)));
             totalComm += Number(st.commission || 0);
             if (activeList.length === 1 && s.rules) minViewLabel = s.rules.min_views;
@@ -2352,9 +2369,17 @@
         document.getElementById('kpi-koc-total-views').textContent = `${totalViews.toLocaleString('vi-VN')} lượt xem`;
         document.getElementById('kpi-koc-min-view-label').textContent = `≥${minViewLabel}`;
         document.getElementById('kpi-koc-qualified-videos').textContent = qualVids.toLocaleString('vi-VN');
-        document.getElementById('kpi-koc-payable-videos').textContent = `Tính thưởng: ${payableVids.toLocaleString('vi-VN')} video`;
+        document.getElementById('kpi-koc-payable-videos').textContent = manualVids > 0
+            ? `Tính thưởng: ${payableVids.toLocaleString('vi-VN')} (${autoQualVids} view + ${manualVids} duyệt tay)`
+            : `Tính thưởng: ${payableVids.toLocaleString('vi-VN')} video`;
         document.getElementById('kpi-koc-under-videos').textContent = underVids.toLocaleString('vi-VN');
-        document.getElementById('kpi-koc-error-videos').textContent = `Lỗi/riêng tư: ${errVids}`;
+        const errEl = document.getElementById('kpi-koc-error-videos');
+        if (errEl) {
+            errEl.textContent = exclVids > 0
+                ? `Lỗi: ${errVids} · Loại trùng/cũ: ${exclVids}`
+                : `Lỗi/riêng tư: ${errVids}`;
+            errEl.className = exclVids > 0 ? 'text-xs text-rose-600 font-semibold mt-0.5' : 'text-xs text-slate-400 mt-0.5';
+        }
         document.getElementById('kpi-koc-commission').textContent = pcMoney(totalComm);
 
         const scanLbl = document.getElementById('lbl-koc-scan-pending');
@@ -2373,12 +2398,26 @@
         tbody.innerHTML = kocSources.map((s, idx) => {
             const st = s.stats || {};
             const r = s.rules || kocDefaultRules || {};
+            const manualApproved = Number(st.manual_approved_videos || 0);
+            const autoQual = Number(st.auto_qualified_videos ?? st.qualified_videos ?? 0);
+            const excludedCnt = Number(st.excluded_videos || 0);
+            const manualAdj = Number(r.manual_adjust_videos || 0);
             const staffOpts = '<option value="">-- Chưa gán NV --</option>' +
                 pcStaff.map(u => `<option value="${u.id}" ${u.id === s.staff_id ? 'selected' : ''}>${escapeHtml(u.employee_code ? '[' + u.employee_code + '] ' : '')}${escapeHtml(u.name)}</option>`).join('');
             const tabsInfo = [
                 s.koc_tab_name ? `KOC: ${s.koc_tab_name}` : '',
                 s.video_tab_name ? `View: ${s.video_tab_name}` : ''
             ].filter(Boolean).join(' · ') || 'Chưa chọn tab';
+
+            const qualSub = manualApproved > 0
+                ? `<div class="text-[11px] text-sky-700 font-semibold">${autoQual} view + ${manualApproved} tay</div>`
+                : `<span class="text-xs text-slate-400 font-normal">(≥${r.min_views ?? 200})</span>`;
+            const underSub = excludedCnt > 0
+                ? `<div class="text-[11px] text-rose-600 font-semibold" title="Đã tự động loại video trùng kỳ trước / quá hạn tháng cũ">Loại: ${excludedCnt}</div>`
+                : '';
+            const deductSub = manualAdj !== 0
+                ? `<div class="text-[11px] font-bold ${manualAdj > 0 ? 'text-sky-700' : 'text-rose-600'}">${manualAdj > 0 ? '+' + manualAdj : manualAdj} tay</div>`
+                : '';
 
             return `<tr class="hover:bg-slate-50 ${String(s.id) === String(kocSelectedSourceId) ? 'bg-sky-50/40' : ''}">
                 <td class="p-2.5">
@@ -2395,9 +2434,9 @@
                 </td>
                 <td class="p-2.5 text-center font-bold">${s.koc_count || 0}</td>
                 <td class="p-2.5 text-center font-mono font-bold">${st.total_videos || 0}</td>
-                <td class="p-2.5 text-center font-mono font-bold text-emerald-700">${st.qualified_videos || 0} <span class="text-xs text-slate-400 font-normal">(≥${r.min_views})</span></td>
-                <td class="p-2.5 text-center font-mono text-amber-700">${st.under_kpi_videos || 0}</td>
-                <td class="p-2.5 text-center font-mono text-slate-600">${r.kpi_deduct_videos || 0}</td>
+                <td class="p-2.5 text-center font-mono font-bold text-emerald-700">${st.qualified_videos || 0} ${qualSub}</td>
+                <td class="p-2.5 text-center font-mono text-amber-700">${st.under_kpi_videos || 0}${underSub}</td>
+                <td class="p-2.5 text-center font-mono text-slate-600">${r.kpi_deduct_videos || 0}${deductSub}</td>
                 <td class="p-2.5 text-center font-mono font-bold text-sky-700">${st.payable_videos || 0}</td>
                 <td class="p-2.5 text-right font-mono">${pcMoney(r.rate_per_video)}</td>
                 <td class="p-2.5 text-right font-mono font-bold text-sky-600">${pcMoney(st.commission)}</td>
@@ -2491,48 +2530,135 @@
 
             const videos = dataV.videos || [];
             const minV = dataV.min_views || 200;
+            const fc = dataV.filter_counts || null;
             const profiles = dataP.profiles || [];
+
+            const filterSel = document.getElementById('koc-video-kpi-filter');
+            if (filterSel && fc) {
+                const curVal = filterSel.value;
+                const labels = {
+                    all: `Tất cả video (${fc.all ?? 0})`,
+                    qualified: `Đạt & Duyệt tính KPI (${fc.qualified ?? 0})`,
+                    under: `Chưa đạt (< view sàn) (${fc.under ?? 0})`,
+                    under_zero_koc: `Chưa đạt — Kênh đang 0 bài KPI (${fc.under_zero_koc ?? 0})`,
+                    manual: `Đã duyệt tay (+KPI) (${fc.manual ?? 0})`,
+                    excluded: `Bị loại: Trùng / Tháng cũ (${fc.excluded ?? 0})`,
+                };
+                Array.from(filterSel.options).forEach(opt => {
+                    if (labels[opt.value]) opt.textContent = labels[opt.value];
+                });
+                filterSel.value = curVal;
+            }
 
             document.getElementById('badge-koc-video-count').textContent = videos.length;
             document.getElementById('badge-koc-profile-count').textContent = profiles.length;
 
+            const paneVideos = document.getElementById('koc-pane-videos');
+            const prevScroll = paneVideos ? paneVideos.scrollTop : 0;
             const vTbody = document.getElementById('koc-videos-tbody');
             if (vTbody) {
                 if (!videos.length) {
-                    vTbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-400">Không có link video nào khớp bộ lọc.</td></tr>';
+                    vTbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-slate-400">Không có link video nào khớp bộ lọc.</td></tr>';
                 } else {
                     vTbody.innerHTML = videos.map((v, i) => {
                         const views = Number(v.views || 0);
-                        const isQual = views >= minV;
-                        const kpiBadge = isQual
-                            ? `<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">✅ Đạt (≥${minV})</span>`
-                            : `<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Chưa đạt</span>`;
+                        const rowMinV = Number(v.min_views ?? minV);
+                        const st = v.kpi_state || (views >= rowMinV ? 'auto_qualified' : 'under_kpi');
+                        const manualKpi = Number(v.manual_kpi || 0);
+                        const isCounted = Boolean(v.is_kpi_counted ?? (views >= rowMinV));
+                        const isExcluded = st === 'excluded_dup' || st === 'excluded_old' || st === 'manual_excluded';
+
+                        let rowBg = '';
+                        if (st === 'manual_approved') rowBg = 'bg-sky-50/50';
+                        else if (st === 'auto_qualified') rowBg = 'bg-emerald-50/20';
+                        else if (isExcluded) rowBg = 'bg-rose-50/40';
+
+                        let kpiBadge = '';
+                        if (st === 'auto_qualified') {
+                            kpiBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 whitespace-nowrap">Đạt (≥${rowMinV})</span>`;
+                        } else if (st === 'manual_approved') {
+                            kpiBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800 border border-sky-300 whitespace-nowrap">Duyệt tay (+KPI)</span>`;
+                        } else if (st === 'excluded_dup') {
+                            kpiBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200 whitespace-nowrap" title="Trùng chiến dịch ${escapeHtml(v.dup_source_name || '')}">Loại (Trùng cũ)</span>`;
+                        } else if (st === 'excluded_old') {
+                            kpiBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200 whitespace-nowrap">Loại (Tháng cũ)</span>`;
+                        } else if (st === 'manual_excluded') {
+                            kpiBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-200 text-slate-700 whitespace-nowrap">Đã loại tay</span>`;
+                        } else if (st === 'error') {
+                            kpiBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-rose-50 text-rose-700 whitespace-nowrap">Lỗi / Riêng tư</span>`;
+                        } else {
+                            kpiBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 whitespace-nowrap">Chưa đạt</span>`;
+                        }
+
+                        let pubSub = '';
+                        if (v.is_dup_prev) {
+                            pubSub = `<div><span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">Trùng ${escapeHtml(v.dup_month || 'kỳ trước')}</span></div>`;
+                        } else if (v.is_old_month) {
+                            pubSub = `<div><span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">Cũ ${escapeHtml(v.pub_month || '')}</span></div>`;
+                        } else if (v.is_grace_prev) {
+                            pubSub = `<div><span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Du di ${escapeHtml(v.pub_month || '')}</span></div>`;
+                        } else if (v.pub_month) {
+                            pubSub = `<div class="text-[10px] font-semibold text-emerald-700">Đúng kỳ ${escapeHtml(v.pub_month)}</div>`;
+                        }
+
+                        let actionBtn = '';
+                        if (manualKpi === 1) {
+                            actionBtn = `<button type="button" onclick="toggleKocVideoManualKpi(${v.id}, 0)" class="px-2.5 py-1 rounded-md text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-2xs cursor-pointer transition whitespace-nowrap" title="Bấm để bỏ duyệt tay">[x] Tính KPI</button>`;
+                        } else if (manualKpi === -1) {
+                            actionBtn = `<button type="button" onclick="toggleKocVideoManualKpi(${v.id}, 0)" class="px-2 py-1 rounded-md text-xs font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 cursor-pointer transition whitespace-nowrap" title="Khôi phục xét KPI tự động">Khôi phục</button>`;
+                        } else if (st === 'excluded_dup' || st === 'excluded_old') {
+                            actionBtn = `<button type="button" onclick="toggleKocVideoManualKpi(${v.id}, 1)" class="px-2 py-1 rounded-md text-xs font-bold bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-700 border border-slate-300 cursor-pointer transition whitespace-nowrap" title="Duyệt ngoại lệ tính KPI cho video này">Ngoại lệ</button>`;
+                        } else if (st === 'auto_qualified') {
+                            actionBtn = `<button type="button" onclick="toggleKocVideoManualKpi(${v.id}, -1)" class="px-2 py-1 rounded-md text-xs font-semibold bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-700 border border-slate-200 cursor-pointer transition whitespace-nowrap" title="Loại trừ thủ công video này khỏi KPI">Loại trừ</button>`;
+                        } else {
+                            actionBtn = `<button type="button" onclick="toggleKocVideoManualKpi(${v.id}, 1)" class="px-2.5 py-1 rounded-md text-xs font-bold bg-white hover:bg-sky-600 text-sky-700 hover:text-white border border-sky-300 cursor-pointer transition whitespace-nowrap" title="Duyệt thủ công tính KPI (+1 video)">[ ] Tính KPI</button>`;
+                        }
+
                         const uname = v.koc_username ? '@' + v.koc_username.replace(/^\/?@/, '') : '—';
-                        return `<tr class="hover:bg-slate-50 ${isQual ? 'bg-emerald-50/20' : ''}">
+                        const kAuto = Number(v.koc_auto_qual || 0);
+                        const kMan = Number(v.koc_manual_qual || 0);
+                        const kTot = Number(v.koc_total_videos || 1);
+                        const kZero = (kAuto + kMan) === 0;
+                        const chanProg = `<div class="text-[11px] mt-0.5 ${kZero ? 'text-amber-700 font-bold' : (kMan > 0 ? 'text-sky-700 font-semibold' : 'text-slate-500')}">Kênh: ${kAuto} đạt + ${kMan} duyệt / ${kTot} video</div>`;
+                        const dupNote = v.is_dup_prev && v.dup_source_name
+                            ? `<div class="text-[11px] text-rose-600 font-bold mt-0.5">Đã tính ở: ${escapeHtml(v.dup_source_name)}</div>`
+                            : '';
+
+                        return `<tr class="hover:bg-slate-50 ${rowBg}">
                             <td class="p-2.5 text-center text-slate-400 font-mono">${i + 1}</td>
-                            <td class="p-2.5 font-bold text-slate-800">
-                                <a href="https://www.tiktok.com/${escapeHtml(uname)}" target="_blank" class="hover:text-sky-600 hover:underline">${escapeHtml(uname)}</a>
+                            <td class="p-2.5">
+                                <a href="https://www.tiktok.com/${escapeHtml(uname)}" target="_blank" class="font-bold text-slate-800 hover:text-sky-600 hover:underline">${escapeHtml(uname)}</a>
                                 <div class="text-xs text-slate-400 font-normal">${escapeHtml(v.source_name || '')}</div>
+                                ${chanProg}
                             </td>
-                            <td class="p-2.5 max-w-[280px] truncate font-mono">
+                            <td class="p-2.5 max-w-[240px] truncate font-mono">
                                 <a href="${escapeHtml(v.video_url)}" target="_blank" class="text-sky-700 hover:underline" title="${escapeHtml(v.video_url)}">${escapeHtml(v.video_url)}</a>
                             </td>
-                            <td class="p-2.5 max-w-[220px]">
+                            <td class="p-2.5 max-w-[210px]">
                                 <div class="font-semibold text-slate-700">${escapeHtml(v.product_note || '')}</div>
                                 <div class="text-xs text-slate-400 truncate" title="${escapeHtml(v.title || '')}">${escapeHtml(v.title || '')}</div>
+                                ${dupNote}
+                            </td>
+                            <td class="p-2.5 font-mono text-xs whitespace-nowrap">
+                                <div class="font-semibold text-slate-800">${escapeHtml(formatKocPubDate(v.published_at))}</div>
+                                ${pubSub}
                             </td>
                             <td class="p-2.5 text-right">
-                                <input type="number" min="0" value="${views}" onchange="updateSingleKocVideoViews(${v.id}, this.value)" class="w-24 border border-slate-200 focus:border-sky-500 rounded px-2 py-1 text-right font-mono font-bold ${isQual ? 'text-emerald-700 bg-white' : 'text-slate-700 bg-slate-50'}" title="Sửa nhanh số view">
+                                <input type="number" min="0" value="${views}" onchange="updateSingleKocVideoViews(${v.id}, this.value)" class="w-20 border border-slate-200 focus:border-sky-500 rounded px-2 py-1 text-right font-mono font-bold ${isExcluded ? 'line-through text-slate-400 bg-slate-100' : (isCounted ? 'text-emerald-700 bg-white' : 'text-slate-700 bg-slate-50')}" title="Sửa nhanh số view">
                             </td>
                             <td class="p-2.5 text-center">${kpiBadge}</td>
-                            <td class="p-2.5 text-center"><span class="text-xs font-semibold text-slate-600">${escapeHtml(v.status || 'OK')}</span></td>
-                            <td class="p-2.5 text-xs text-slate-500 font-mono">${escapeHtml((v.updated_at || '').slice(0, 16))}</td>
+                            <td class="p-2.5 text-center">${actionBtn}</td>
+                            <td class="p-2.5 text-center whitespace-nowrap">
+                                <div class="text-xs font-semibold text-slate-600">${escapeHtml(v.status || 'OK')}</div>
+                                <div class="text-[11px] text-slate-400 font-mono">${escapeHtml((v.updated_at || '').slice(5, 16))}</div>
+                            </td>
                             <td class="p-2.5 text-center">
                                 <button type="button" onclick="deleteSingleKocVideo(${v.id})" class="text-rose-500 hover:text-rose-700 font-bold px-1.5 py-0.5 cursor-pointer" title="Xóa link này">🗑️</button>
                             </td>
                         </tr>`;
                     }).join('');
                 }
+                if (paneVideos && prevScroll > 0) paneVideos.scrollTop = prevScroll;
             }
 
             const pTbody = document.getElementById('koc-profiles-tbody');
@@ -2579,6 +2705,18 @@
         } catch (e) { pcToast(e.message, 'error'); }
     }
     window.updateSingleKocVideoViews = updateSingleKocVideoViews;
+
+    async function toggleKocVideoManualKpi(videoId, nextManualKpi) {
+        try {
+            const res = await fetch(`/api/marketplace/koc/videos/${videoId}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ manual_kpi: Number(nextManualKpi) })
+            });
+            if (!res.ok) throw new Error('Lỗi cập nhật duyệt KPI video');
+            await loadKocTab();
+        } catch (e) { pcToast(e.message, 'error'); }
+    }
+    window.toggleKocVideoManualKpi = toggleKocVideoManualKpi;
 
     async function deleteSingleKocVideo(videoId) {
         try {
@@ -2908,6 +3046,10 @@
         document.getElementById('koc-rule-min-views').value = r.min_views ?? 200;
         document.getElementById('koc-rule-kpi-deduct').value = r.kpi_deduct_videos ?? 0;
         document.getElementById('koc-rule-rate').value = Number(r.rate_per_video ?? 10000).toLocaleString('vi-VN');
+        const adjEl = document.getElementById('koc-rule-manual-adjust');
+        if (adjEl) adjEl.value = r.manual_adjust_videos ?? 0;
+        const graceEl = document.getElementById('koc-rule-grace-days');
+        if (graceEl) graceEl.value = r.grace_days_prev_month ?? 5;
         document.getElementById('koc-rule-viral-views').value = r.viral_min_views ?? 1000;
         document.getElementById('koc-rule-viral-bonus').value = Number(r.viral_bonus ?? 0).toLocaleString('vi-VN');
     }
@@ -2940,10 +3082,14 @@
     window.closeKocRulesModal = closeKocRulesModal;
 
     async function saveKocRules() {
+        const adjRaw = parseInt(document.getElementById('koc-rule-manual-adjust')?.value || 0, 10);
+        const graceRaw = parseInt(document.getElementById('koc-rule-grace-days')?.value || 5, 10);
         const rules = {
             min_views: Math.max(0, parseInt(document.getElementById('koc-rule-min-views').value || 0, 10)),
             kpi_deduct_videos: Math.max(0, parseInt(document.getElementById('koc-rule-kpi-deduct').value || 0, 10)),
             rate_per_video: parseMoneyInput(document.getElementById('koc-rule-rate').value),
+            manual_adjust_videos: Number.isNaN(adjRaw) ? 0 : adjRaw,
+            grace_days_prev_month: Math.max(0, Math.min(60, Number.isNaN(graceRaw) ? 5 : graceRaw)),
             viral_min_views: Math.max(0, parseInt(document.getElementById('koc-rule-viral-views').value || 0, 10)),
             viral_bonus: parseMoneyInput(document.getElementById('koc-rule-viral-bonus').value),
         };

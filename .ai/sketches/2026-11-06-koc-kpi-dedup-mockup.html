@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>So Sánh Giao Diện KOC: Hiện Tại vs Đề Xuất</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #f1f5f9;
+    color: #111827;
+    padding: 16px;
+    line-height: 1.45;
+  }
+  .header {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+  }
+  .header h1 { font-size: 15px; font-weight: 800; color: #0f172a; }
+  .header p { font-size: 12px; color: #475569; margin-top: 3px; }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 960px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 14px;
+    border: 2px solid #cbd5e1;
+  }
+  .panel-old { border-color: #fca5a5; }
+  .panel-new { border-color: #34d399; }
+  .badge-title {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .badge-old { background: #fee2e2; color: #991b1b; }
+  .badge-new { background: #d1fae5; color: #065f46; }
+
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .kpi-box {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px;
+    background: #f8fafc;
+  }
+  .kpi-box.green { background: #ecfdf5; border-color: #a7f3d0; }
+  .kpi-box.amber { background: #fffbeb; border-color: #fde68a; }
+  .kpi-box.blue  { background: #f0f9ff; border-color: #bae6fd; }
+  .kpi-lbl { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; }
+  .kpi-val { font-size: 15px; font-weight: 800; color: #0f172a; margin-top: 2px; font-family: Consolas, monospace; }
+  .kpi-sub { font-size: 10px; color: #475569; margin-top: 2px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-top: 6px;
+  }
+  th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    text-align: left;
+    padding: 6px 6px;
+    border-bottom: 1px solid #cbd5e1;
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+  td {
+    padding: 7px 6px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+  }
+  .mono { font-family: Consolas, monospace; }
+  .right { text-align: right; }
+  .center { text-align: center; }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .tag-amber { background: #fef3c7; color: #92400e; }
+  .tag-green { background: #d1fae5; color: #065f46; }
+  .tag-blue  { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+  .tag-red   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+  .btn-toggle {
+    display: inline-block;
+    padding: 3px 7px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+  }
+  .btn-toggle.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #1d4ed8;
+  }
+  .note-box {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    font-size: 11px;
+  }
+  .note-err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  .note-ok  { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+  .note-box ul { margin-left: 16px; margin-top: 4px; }
+  .note-box li { margin-bottom: 3px; }
+  .filter-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+    font-size: 10px;
+  }
+  .pill {
+    padding: 3px 8px;
+    border-radius: 99px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #334155;
+    font-weight: 600;
+  }
+  .pill.on { background: #0284c7; color: #ffffff; border-color: #0284c7; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>So Sánh Thiết Kế KOC / KOL (Dữ Liệu Thật Chiến Dịch THANH 10/2026)</h1>
+  <p>Giải quyết 3 vấn đề: (1) Duyệt thêm thủ công video dưới 200 view không bị mất khi quét lại, (2) Hiện Ngày đăng thật từ mã video TikTok, (3) Chặn trùng video tháng cũ.</p>
+</div>
+
+<div class="grid-2">
+  <!-- CỘT TRÁI: HIỆN TẠI -->
+  <div class="panel panel-old">
+    <span class="badge-title badge-old">Hiện Tại (Đang Bị Vướng)</span>
+
+    <div class="kpi-strip">
+      <div class="kpi-box green">
+        <div class="kpi-lbl">Đạt KPI (≥200)</div>
+        <div class="kpi-val" style="color:#059669">170</div>
+        <div class="kpi-sub">Chỉ đếm tự động</div>
+      </div>
+      <div class="kpi-box amber">
+        <div class="kpi-lbl">Chưa Đạt (&lt;200)</div>
+        <div class="kpi-val" style="color:#d97706">289</div>
+        <div class="kpi-sub">Bỏ hết 100%</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-lbl">Trùng / Cũ</div>
+        <div class="kpi-val" style="color:#dc2626">Không rõ</div>
+        <div class="kpi-sub">Lọt 14 video cũ</div>
+      </div>
+      <div class="kpi-box blue">
+        <div class="kpi-lbl">Hoa Hồng</div>
+        <div class="kpi-val" style="color:#0284c7">1.700.000 đ</div>
+        <div class="kpi-sub">170 x 10.000 đ</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>KOC / Tác Giả</th>
+          <th>Sản Phẩm</th>
+          <th class="right">View</th>
+          <th class="center">Kết Quả KPI</th>
+          <th>Cập Nhật Lúc</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>@nguyen.kimanh74</b><br><span style="color:#64748b;font-size:10px">THANH 10/2026</span></td>
+          <td>lau sàn</td>
+          <td class="right mono"><b>199</b></td>
+          <td class="center"><span class="tag tag-amber">Chưa đạt</span></td>
+          <td class="mono" style="color:#64748b">2026-11-05<br>14:50</td>
+        </tr>
+        <tr>
+          <td><b>@kimchidangiuuu</b><br><span style="color:#64748b;font-size:10px">THANH 10/2026</span></td>
+          <td>sữa tắm+lau sàn+lược</td>
+          <td class="right mono"><b>195</b></td>
+          <td class="center"><span class="tag tag-amber">Chưa đạt</span></td>
+          <td class="mono" style="color:#64748b">2026-11-05<br>14:46</td>
+        </tr>
+        <tr>
+          <td><b>@conlaquit</b><br><span style="color:#64748b;font-size:10px">THANH 10/2026</span></td>
+          <td>đồ ăn vặt mèo</td>
+          <td class="right mono" style="color:#059669"><b>3.203</b></td>
+          <td class="center"><span class="tag tag-green">Đạt (≥200)</span></td>
+          <td class="mono" style="color:#64748b">2026-11-05<br>14:48</td>
+        </tr>
+        <tr>
+          <td><b>@lily_petshop1</b><br><span style="color:#64748b;font-size:10px">THANH 10/2026</span></td>
+          <td>thịt sấy</td>
+          <td class="right mono" style="color:#059669"><b>840</b></td>
+          <td class="center"><span class="tag tag-green">Đạt (≥200)</span></td>
+          <td class="mono" style="color:#64748b">2026-11-05<br>14:52</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note-box note-err">
+      <b>3 điểm bất tiện hiện tại:</b>
+      <ul>
+        <li><b>Không duyệt tay được video &lt;200 view:</b> Video 199 view của @nguyen.kimanh74 bị loại; nếu sửa giả ô View thành 200 thì lần sau bấm "Quét Lại Tất Cả" sẽ bị trả về 199 và mất tiền thưởng.</li>
+        <li><b>Thiếu cột Ngày đăng:</b> Chỉ thấy giờ quét view (05/11), không biết video đăng tháng 8, tháng 9 hay tháng 10.</li>
+        <li><b>Lọt video trùng kỳ trước:</b> Cùng 1 link nộp ở Tháng 9 và nộp lại ở Tháng 10 vẫn được đếm 2 lần.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- CỘT PHẢI: ĐỀ XUẤT -->
+  <div class="panel panel-new">
+    <span class="badge-title badge-new">Đề Xuất Mới (Duyệt Tay + Ngày Đăng + Chống Trùng)</span>
+
+    <div class="kpi-strip">
+      <div class="kpi-box green">
+        <div class="kpi-lbl">Tổng Đạt &amp; Duyệt</div>
+        <div class="kpi-val" style="color:#059669">198</div>
+        <div class="kpi-sub">166 tự động + <b>32 duyệt tay</b></div>
+      </div>
+      <div class="kpi-box amber">
+        <div class="kpi-lbl">Chưa Đạt (&lt;200)</div>
+        <div class="kpi-val" style="color:#d97706">257</div>
+        <div class="kpi-sub">Còn lại chưa tick duyệt</div>
+      </div>
+      <div class="kpi-box" style="background:#fef2f2;border-color:#fecaca">
+        <div class="kpi-lbl" style="color:#991b1b">Loại Trùng / Cũ</div>
+        <div class="kpi-val" style="color:#dc2626">14</div>
+        <div class="kpi-sub">3 trùng T09 · 11 tháng cũ</div>
+      </div>
+      <div class="kpi-box blue">
+        <div class="kpi-lbl">Hoa Hồng</div>
+        <div class="kpi-val" style="color:#0284c7">1.980.000 đ</div>
+        <div class="kpi-sub">198 x 10.000 đ (giữ bền)</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <span class="pill">Tất cả (461)</span>
+      <span class="pill on">Chưa đạt - Chờ xét (257)</span>
+      <span class="pill">Đã duyệt tay (32)</span>
+      <span class="pill">Trùng / Tháng cũ (14)</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>KOC &amp; Tiến Độ Kênh</th>
+          <th>Ngày Đăng</th>
+          <th class="right">View</th>
+          <th class="center">Kết Quả KPI</th>
+          <th class="center">Duyệt Tay</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="background:#eff6ff">
+          <td>
+            <b>@nguyen.kimanh74</b>
+            <div style="color:#1d4ed8;font-size:10px;font-weight:600">Kênh: 0 đạt + 1 duyệt / 1 video</div>
+          </td>
+          <td class="mono"><b>18/10/2026</b><br><span style="color:#059669;font-size:10px">Đúng T10</span></td>
+          <td class="right mono"><b>199</b></td>
+          <td class="center"><span class="tag tag-blue">Duyệt tay (+KPI)</span></td>
+          <td class="center"><span class="btn-toggle active">[x] Tính KPI</span></td>
+        </tr>
+        <tr>
+          <td>
+            <b>@kimchidangiuuu</b>
+            <div style="color:#64748b;font-size:10px">Kênh: 2 đạt + 0 duyệt / 4 video</div>
+          </td>
+          <td class="mono"><b>21/10/2026</b><br><span style="color:#059669;font-size:10px">Đúng T10</span></td>
+          <td class="right mono"><b>195</b></td>
+          <td class="center"><span class="tag tag-amber">Chưa đạt</span></td>
+          <td class="center"><span class="btn-toggle">[ ] Tính KPI</span></td>
+        </tr>
+        <tr style="background:#fef2f2">
+          <td>
+            <b>@conlaquit</b>
+            <div style="color:#991b1b;font-size:10px;font-weight:600">Đã tính ở THANH 09/2026</div>
+          </td>
+          <td class="mono"><b>03/09/2026</b><br><span class="tag tag-red">Trùng T09</span></td>
+          <td class="right mono" style="color:#64748b"><s>3.203</s></td>
+          <td class="center"><span class="tag tag-red">Loại (Trùng cũ)</span></td>
+          <td class="center"><span class="btn-toggle">Ngoại lệ</span></td>
+        </tr>
+        <tr style="background:#fffbeb">
+          <td>
+            <b>@lily_petshop1</b>
+            <div style="color:#92400e;font-size:10px;font-weight:600">Chưa có ở T09, đăng tháng 08</div>
+          </td>
+          <td class="mono"><b>19/08/2026</b><br><span class="tag tag-red">Cũ 08/2026</span></td>
+          <td class="right mono" style="color:#64748b"><s>840</s></td>
+          <td class="center"><span class="tag tag-red">Loại (Khác tháng)</span></td>
+          <td class="center"><span class="btn-toggle">Ngoại lệ</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note-box note-ok">
+      <b>3 nâng cấp giải quyết triệt để:</b>
+      <ul>
+        <li><b>Nút [x] Tính KPI riêng biệt:</b> Lưu vào cột <code>manual_kpi</code> độc lập với số view; bấm "Quét Lại Tất Cả" hay "Đồng Bộ Từ Sheet" vẫn giữ nguyên các bài anh đã duyệt, kèm dòng tóm tắt <i>"Kênh: X đạt + Y duyệt / Z video"</i> giống cách anh chấm cột L bên Sheet.</li>
+        <li><b>Cột Ngày đăng thật tức thì:</b> Giải mã thẳng từ ID video TikTok (461 video hiện có lên ngày đăng ngay lập tức không cần quét lại).</li>
+        <li><b>Tự chặn video trùng kỳ trước &amp; cảnh báo/loại video đăng tháng cũ:</b> Tránh trả hoa hồng 2 lần cho cùng 1 clip.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

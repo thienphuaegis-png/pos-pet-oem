@@ -1615,7 +1615,9 @@ def list_koc_sources(month: Optional[str] = None, user=Depends(get_optional_user
     try:
         cur = conn.cursor()
         koc_svc.ensure_koc_schema(cur)
-        return koc_svc.list_sources_summary(cur, month=month)
+        res = koc_svc.list_sources_summary(cur, month=month)
+        conn.commit()
+        return res
     finally:
         conn.close()
 
@@ -1770,42 +1772,9 @@ def list_koc_videos(
     cur = conn.cursor()
     try:
         koc_svc.ensure_koc_schema(cur)
-        default_rules = koc_svc.load_default_rules(cur)
-        min_v = int(default_rules.get("min_views") or 200)
-        if source_id:
-            cur.execute("SELECT * FROM koc_sources WHERE id = ?", (source_id,))
-            srow = cur.fetchone()
-            if srow:
-                min_v = int(koc_svc.source_rules(cur, srow, default_rules).get("min_views") or 200)
-
-        sql = """
-            SELECT kv.*, ks.name AS source_name, ks.month, s.name AS staff_name
-            FROM koc_videos kv
-            JOIN koc_sources ks ON ks.id = kv.source_id
-            LEFT JOIN staff s ON s.id = ks.staff_id
-            WHERE ks.is_active = 1
-        """
-        params = []
-        if source_id:
-            sql += " AND kv.source_id = ?"
-            params.append(source_id)
-        if month:
-            sql += " AND ks.month = ?"
-            params.append(month)
-        if kpi_filter == "qualified":
-            sql += " AND kv.views >= ?"
-            params.append(min_v)
-        elif kpi_filter == "under":
-            sql += " AND kv.views < ?"
-            params.append(min_v)
-        if q and q.strip():
-            kw = f"%{q.strip()}%"
-            sql += " AND (kv.koc_username LIKE ? OR kv.video_url LIKE ? OR kv.product_note LIKE ? OR kv.title LIKE ?)"
-            params.extend([kw, kw, kw, kw])
-        sql += " ORDER BY kv.views DESC, kv.id ASC"
-        cur.execute(sql, tuple(params))
-        rows = [dict(r) for r in cur.fetchall()]
-        return {"videos": rows, "min_views": min_v}
+        res = koc_svc.list_enriched_videos(cur, source_id=source_id, month=month, kpi_filter=kpi_filter or "all", q=q)
+        conn.commit()
+        return res
     finally:
         conn.close()
 
@@ -1827,13 +1796,15 @@ def add_manual_koc_videos(req: KocManualVideoAddRequest, user=Depends(get_option
         for u in urls:
             vkey = koc_svc.extract_video_key(u)
             author = (req.koc_username or "").strip().lstrip("@/") or koc_svc.extract_username(u)
+            pub_dt = koc_svc.extract_tiktok_publish_time(u)
             cur.execute("""
-                INSERT INTO koc_videos (source_id, video_key, video_url, koc_username, views, product_note, status, updated_at)
-                VALUES (?, ?, ?, ?, 0, ?, 'Chưa quét view', ?)
+                INSERT INTO koc_videos (source_id, video_key, video_url, koc_username, views, product_note, status, published_at, updated_at)
+                VALUES (?, ?, ?, ?, 0, ?, 'Chưa quét view', ?, ?)
                 ON CONFLICT(source_id, video_key) DO UPDATE SET
                     video_url = excluded.video_url,
+                    published_at = CASE WHEN excluded.published_at != '' THEN excluded.published_at ELSE koc_videos.published_at END,
                     product_note = CASE WHEN excluded.product_note != '' THEN excluded.product_note ELSE koc_videos.product_note END
-            """, (req.source_id, vkey, u, author, (req.product_note or "").strip(), now_str))
+            """, (req.source_id, vkey, u, author, (req.product_note or "").strip(), pub_dt, now_str))
             if author:
                 cur.execute("""
                     INSERT INTO koc_profiles (source_id, koc_username, channel_url, product_sample, approval_status, videos_returned, updated_at)
@@ -1856,9 +1827,13 @@ def update_koc_video(video_id: int, req: KocVideoUpdateRequest, user=Depends(get
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cur.execute("""
             UPDATE koc_videos
-            SET views = ?, status = COALESCE(?, status), product_note = COALESCE(?, product_note), updated_at = ?
+            SET views = COALESCE(?, views),
+                status = COALESCE(?, status),
+                product_note = COALESCE(?, product_note),
+                manual_kpi = COALESCE(?, manual_kpi),
+                updated_at = CASE WHEN ? IS NOT NULL THEN ? ELSE updated_at END
             WHERE id = ?
-        """, (req.views, req.status, req.product_note, now_str, video_id))
+        """, (req.views, req.status, req.product_note, req.manual_kpi, req.views, now_str, video_id))
         conn.commit()
         return {"status": "ok"}
     finally:

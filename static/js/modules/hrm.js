@@ -4710,7 +4710,10 @@
                     `);
                 }
                 if (it.koc_commission > 0 || it.koc_videos > 0) {
-                    blocks.push(`<div class="font-mono text-sky-700 font-semibold mt-1">KOC TikTok: +${fmtN(it.koc_commission)} ₫ (${it.koc_qualified_videos || 0}/${it.koc_videos || 0} video đạt view)</div>`);
+                    const kocBreak = (it.koc_manual_approved_videos || 0) > 0
+                        ? `${it.koc_auto_qualified_videos || 0} đạt view + ${it.koc_manual_approved_videos} duyệt tay / ${it.koc_videos || 0} video`
+                        : `${it.koc_qualified_videos || 0}/${it.koc_videos || 0} video đạt view`;
+                    blocks.push(`<div class="font-mono text-sky-700 font-semibold mt-1">KOC TikTok: +${fmtN(it.koc_commission)} ₫ (${kocBreak})</div>`);
                 }
                 tmdtCell = blocks.join('');
             }

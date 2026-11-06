@@ -23,11 +23,32 @@ DEFAULT_KOC_RULES = {
     "rate_per_video": 10_000,
     "viral_min_views": 1_000,
     "viral_bonus": 0,
+    "manual_adjust_videos": 0,
+    "grace_days_prev_month": 5,
 }
 
+_VN_TZ = datetime.timezone(datetime.timedelta(hours=7))
 TIKTOK_URL_RE = re.compile(r"https?://(?:www\.|vm\.|vt\.)?tiktok\.com/[^\s,;\'\"><\)]+", re.I)
 VIDEO_ID_RE = re.compile(r"/video/(\d+)")
 USERNAME_RE = re.compile(r"/@([a-zA-Z0-9_.\-]+)")
+
+
+def extract_tiktok_publish_time(url_or_key: str) -> str:
+    """Giải mã thời gian đăng gốc từ TikTok Snowflake ID (32 bit cao = Unix timestamp)."""
+    s = str(url_or_key or "").strip()
+    if not s:
+        return ""
+    m = VIDEO_ID_RE.search(s)
+    vid_str = m.group(1) if m else (s if s.isdigit() else "")
+    if not (vid_str and 18 <= len(vid_str) <= 20):
+        return ""
+    try:
+        ts = int(vid_str) >> 32
+        if 1451606400 <= ts <= 4102444800:
+            return datetime.datetime.fromtimestamp(ts, tz=_VN_TZ).strftime("%Y-%m-%d %H:%M")
+    except (ValueError, OverflowError, OSError):
+        pass
+    return ""
 
 
 def ensure_koc_schema(cur) -> None:
@@ -84,11 +105,29 @@ def ensure_koc_schema(cur) -> None:
         status TEXT DEFAULT 'OK',
         published_at TEXT DEFAULT '',
         updated_at TEXT DEFAULT '',
+        manual_kpi INTEGER DEFAULT 0,
         UNIQUE(source_id, video_key)
     )
     """)
+    cur.execute("PRAGMA table_info(koc_videos)")
+    kv_cols = {c[1] for c in cur.fetchall()}
+    if "manual_kpi" not in kv_cols:
+        cur.execute("ALTER TABLE koc_videos ADD COLUMN manual_kpi INTEGER DEFAULT 0")
+
+    # Giải mã tức thì published_at từ Snowflake ID cho các video cũ chưa có giờ đăng chuẩn
+    cur.execute(
+        "SELECT id, video_key, video_url, published_at FROM koc_videos "
+        "WHERE (COALESCE(published_at, '') = '' OR published_at LIKE '%00:00:00' OR LENGTH(published_at) = 10) "
+        "AND LENGTH(video_key) BETWEEN 18 AND 20"
+    )
+    for r in cur.fetchall():
+        sf = extract_tiktok_publish_time(r["video_key"] or r["video_url"])
+        if sf and sf != (r["published_at"] or ""):
+            cur.execute("UPDATE koc_videos SET published_at = ? WHERE id = ?", (sf, r["id"]))
+
     cur.execute("CREATE INDEX IF NOT EXISTS idx_koc_sources_month ON koc_sources(month, staff_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_koc_videos_source ON koc_videos(source_id, views)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_koc_videos_vkey ON koc_videos(video_key)")
     cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('koc_commission_rules', ?)",
                 (json.dumps(DEFAULT_KOC_RULES),))
 
@@ -137,47 +176,187 @@ def clean_tiktok_url(url: str) -> str:
     return m.group(0) if m else u
 
 
-def calc_koc_commission(videos: List[dict], rules: dict) -> dict:
+def _parse_ymd_prefix(s: str) -> Optional[datetime.date]:
+    txt = str(s or "").strip()
+    if len(txt) < 10:
+        return None
+    try:
+        return datetime.date.fromisoformat(txt[:10])
+    except ValueError:
+        return None
+
+
+def _parse_month_first(month_str: str) -> Optional[datetime.date]:
+    txt = str(month_str or "").strip()
+    if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", txt):
+        return None
+    y, m = txt.split("-")
+    return datetime.date(int(y), int(m), 1)
+
+
+def build_prev_dup_lookup(cur) -> Dict[Tuple[int, str], dict]:
+    """Xác định các video bị nộp trùng giữa nhiều chiến dịch / nhiều tháng.
+    Chiến dịch có (month ASC, id ASC) nhỏ hơn giữ quyền tính đầu tiên (trừ khi dòng đó bị loại tay manual_kpi = -1).
+    """
+    cur.execute("""
+        SELECT ks.id AS source_id, ks.month, ks.name, kv.video_key, COALESCE(kv.manual_kpi, 0) AS manual_kpi
+        FROM koc_videos kv
+        JOIN koc_sources ks ON ks.id = kv.source_id
+        WHERE ks.is_active = 1
+        ORDER BY ks.month ASC, ks.id ASC, kv.id ASC
+    """)
+    first_owner: Dict[str, dict] = {}
+    dup_lookup: Dict[Tuple[int, str], dict] = {}
+    for r in cur.fetchall():
+        sid = int(r["source_id"])
+        vk = str(r["video_key"] or "").strip()
+        if not vk:
+            continue
+        mk = int(r["manual_kpi"] or 0)
+        owner = first_owner.get(vk)
+        if owner is None:
+            if mk != -1:
+                first_owner[vk] = {"source_id": sid, "month": r["month"], "name": r["name"]}
+        elif owner["source_id"] != sid:
+            dup_lookup[(sid, vk)] = owner
+    return dup_lookup
+
+
+def evaluate_koc_video(
+    v: dict,
+    campaign_month: str = "",
+    min_views: int = 200,
+    grace_days: int = 5,
+    dup_info: Optional[dict] = None,
+) -> dict:
+    views = int(v.get("views") or 0)
+    manual_kpi = int(v.get("manual_kpi") or 0)
+    status_str = str(v.get("status") or "OK").strip()
+    status_low = status_str.lower()
+
+    is_err = any(x in status_low for x in ("lỗi", "error", "riêng tư", "private", "xóa", "dead", "không tồn tại"))
+    is_pending = (views <= 0 and status_low != "thành công") or any(
+        k in status_low for k in ("chưa quét", "lỗi", "không lấy", "free api limit")
+    )
+
+    sf_pub = extract_tiktok_publish_time(v.get("video_key") or v.get("video_url") or "")
+    eff_pub = sf_pub or str(v.get("published_at") or "").strip()
+    pub_date = _parse_ymd_prefix(eff_pub)
+    pub_month = pub_date.strftime("%Y-%m") if pub_date else ""
+
+    camp_first = _parse_month_first(campaign_month)
+    is_old_month = False
+    is_grace_prev = False
+    if pub_date and camp_first:
+        earliest_allowed = camp_first - datetime.timedelta(days=max(0, int(grace_days or 0)))
+        if pub_date < earliest_allowed:
+            is_old_month = True
+        elif pub_date < camp_first:
+            is_grace_prev = True
+
+    is_dup_prev = bool(dup_info)
+    dup_source_name = dup_info["name"] if dup_info else ""
+    dup_month = dup_info["month"] if dup_info else ""
+
+    if manual_kpi == 1:
+        kpi_state = "manual_approved"
+    elif manual_kpi == -1:
+        kpi_state = "manual_excluded"
+    elif is_dup_prev:
+        kpi_state = "excluded_dup"
+    elif is_old_month:
+        kpi_state = "excluded_old"
+    elif views >= min_views:
+        kpi_state = "auto_qualified"
+    elif is_err:
+        kpi_state = "error"
+    else:
+        kpi_state = "under_kpi"
+
+    return {
+        "published_at": eff_pub,
+        "pub_month": pub_month,
+        "manual_kpi": manual_kpi,
+        "min_views": min_views,
+        "is_err": is_err,
+        "is_pending": is_pending,
+        "is_dup_prev": is_dup_prev,
+        "dup_source_name": dup_source_name,
+        "dup_month": dup_month,
+        "is_old_month": is_old_month,
+        "is_grace_prev": is_grace_prev,
+        "kpi_state": kpi_state,
+        "is_kpi_counted": kpi_state in ("auto_qualified", "manual_approved"),
+    }
+
+
+def calc_koc_commission(
+    videos: List[dict],
+    rules: dict,
+    campaign_month: str = "",
+    prev_dup_for_source: Optional[Dict[str, dict]] = None,
+) -> dict:
     min_views = int(rules.get("min_views") if rules.get("min_views") is not None else 200)
     kpi_deduct = int(rules.get("kpi_deduct_videos") or 0)
     rate = float(rules.get("rate_per_video") if rules.get("rate_per_video") is not None else 10_000)
     viral_min = int(rules.get("viral_min_views") if rules.get("viral_min_views") is not None else 1_000)
     viral_bonus = float(rules.get("viral_bonus") or 0)
+    manual_adjust = int(rules.get("manual_adjust_videos") or 0)
+    grace_days = int(rules.get("grace_days_prev_month") if rules.get("grace_days_prev_month") is not None else 5)
 
     total_videos = len(videos)
     active_videos = 0
     error_videos = 0
     pending_videos = 0
-    qualified_videos = 0
+    auto_qualified_videos = 0
+    manual_approved_videos = 0
     under_kpi_videos = 0
+    dup_excluded_videos = 0
+    old_excluded_videos = 0
+    manual_excluded_videos = 0
     viral_videos = 0
     total_views = 0
     koc_set = set()
 
     for v in videos:
         views = int(v.get("views") or 0)
-        status_str = str(v.get("status") or "OK").strip().lower()
-        is_err = any(x in status_str for x in ("lỗi", "error", "riêng tư", "private", "xóa", "dead", "không tồn tại"))
-        if (views <= 0 and status_str != "thành công") or any(
-            k in status_str for k in ("chưa quét", "lỗi", "không lấy", "free api limit")
-        ):
+        vk = str(v.get("video_key") or "")
+        dup_info = prev_dup_for_source.get(vk) if prev_dup_for_source else None
+        ev = evaluate_koc_video(v, campaign_month=campaign_month, min_views=min_views, grace_days=grace_days, dup_info=dup_info)
+
+        if ev["is_pending"]:
             pending_videos += 1
         total_views += max(0, views)
         uname = (v.get("koc_username") or "").strip().lstrip("@/").lower()
         if uname:
             koc_set.add(uname)
-        if is_err and views < min_views:
+
+        st_code = ev["kpi_state"]
+        if st_code == "error":
             error_videos += 1
         else:
             active_videos += 1
-        if views >= min_views:
-            qualified_videos += 1
+
+        if st_code == "auto_qualified":
+            auto_qualified_videos += 1
             if viral_min > 0 and views >= viral_min:
                 viral_videos += 1
-        elif not is_err:
+        elif st_code == "manual_approved":
+            manual_approved_videos += 1
+            if viral_min > 0 and views >= viral_min:
+                viral_videos += 1
+        elif st_code == "under_kpi":
             under_kpi_videos += 1
+        elif st_code == "excluded_dup":
+            dup_excluded_videos += 1
+        elif st_code == "excluded_old":
+            old_excluded_videos += 1
+        elif st_code == "manual_excluded":
+            manual_excluded_videos += 1
 
-    payable_videos = max(0, qualified_videos - max(0, kpi_deduct))
+    qualified_videos = auto_qualified_videos + manual_approved_videos
+    excluded_videos = dup_excluded_videos + old_excluded_videos + manual_excluded_videos
+    payable_videos = max(0, qualified_videos + manual_adjust - max(0, kpi_deduct))
     base_commission = round(payable_videos * rate)
     viral_commission = round(viral_videos * viral_bonus) if viral_bonus > 0 else 0
     total_commission = base_commission + viral_commission
@@ -187,8 +366,15 @@ def calc_koc_commission(videos: List[dict], rules: dict) -> dict:
         "active_videos": active_videos,
         "error_videos": error_videos,
         "pending_videos": pending_videos,
+        "auto_qualified_videos": auto_qualified_videos,
+        "manual_approved_videos": manual_approved_videos,
         "qualified_videos": qualified_videos,
         "under_kpi_videos": under_kpi_videos,
+        "dup_excluded_videos": dup_excluded_videos,
+        "old_excluded_videos": old_excluded_videos,
+        "manual_excluded_videos": manual_excluded_videos,
+        "excluded_videos": excluded_videos,
+        "manual_adjust_videos": manual_adjust,
         "viral_videos": viral_videos,
         "payable_videos": payable_videos,
         "total_views": total_views,
@@ -202,6 +388,8 @@ def calc_koc_commission(videos: List[dict], rules: dict) -> dict:
             "rate_per_video": rate,
             "viral_min_views": viral_min,
             "viral_bonus": viral_bonus,
+            "manual_adjust_videos": manual_adjust,
+            "grace_days_prev_month": grace_days,
         },
     }
 
@@ -433,7 +621,7 @@ def parse_koc_booking_sheet(ws) -> Tuple[List[dict], List[dict]]:
                 "title": "",
                 "product_note": sample,
                 "status": "Chưa quét view",
-                "published_at": air_dt,
+                "published_at": extract_tiktok_publish_time(vu),
                 "updated_at": "",
             }
 
@@ -545,7 +733,7 @@ def parse_video_views_sheet(ws) -> Tuple[List[dict], Optional[dict]]:
             "title": title,
             "product_note": prod_note,
             "status": status,
-            "published_at": pub,
+            "published_at": extract_tiktok_publish_time(url) or pub,
             "updated_at": updated,
         }
 
@@ -723,7 +911,10 @@ async def _fetch_tiktok_html_fallback(clean_u: str, orig_url: str, now_str: str,
         st = item.get("stats") or {}
         author = ((item.get("author") or {}).get("uniqueId")) or extract_username(orig_url)
         pub_ts = item.get("createTime")
-        pub_str = datetime.datetime.fromtimestamp(int(pub_ts)).strftime("%Y-%m-%d %H:%M") if pub_ts else ""
+        pub_str = (
+            datetime.datetime.fromtimestamp(int(pub_ts), tz=_VN_TZ).strftime("%Y-%m-%d %H:%M")
+            if pub_ts else extract_tiktok_publish_time(orig_url)
+        )
         return {
             "ok": True,
             "views": int(st.get("playCount") or 0),
@@ -754,7 +945,10 @@ async def fetch_tiktok_video_metrics(video_url: str, client: httpx.AsyncClient) 
                     d = payload["data"]
                     author = (d.get("author") or {}).get("unique_id") or extract_username(video_url)
                     pub_ts = d.get("create_time")
-                    pub_str = datetime.datetime.fromtimestamp(int(pub_ts)).strftime("%Y-%m-%d %H:%M") if pub_ts else ""
+                    pub_str = (
+                        datetime.datetime.fromtimestamp(int(pub_ts), tz=_VN_TZ).strftime("%Y-%m-%d %H:%M")
+                        if pub_ts else extract_tiktok_publish_time(video_url)
+                    )
                     return {
                         "ok": True,
                         "views": int(d.get("play_count") or 0),
@@ -794,6 +988,7 @@ def source_rules(cur, src_row, default_rules: dict = None) -> dict:
 
 def list_sources_summary(cur, month: Optional[str] = None) -> dict:
     default_rules = load_default_rules(cur)
+    dup_lookup = build_prev_dup_lookup(cur)
     sql = """
         SELECT ks.*, s.name AS staff_name, s.employee_code AS staff_code
         FROM koc_sources ks
@@ -810,12 +1005,14 @@ def list_sources_summary(cur, month: Optional[str] = None) -> dict:
 
     out_sources = []
     for src in sources:
-        cur.execute("SELECT COUNT(*) FROM koc_profiles WHERE source_id = ?", (src["id"],))
+        sid = int(src["id"])
+        cur.execute("SELECT COUNT(*) FROM koc_profiles WHERE source_id = ?", (sid,))
         koc_count = cur.fetchone()[0]
-        cur.execute("SELECT * FROM koc_videos WHERE source_id = ?", (src["id"],))
+        cur.execute("SELECT * FROM koc_videos WHERE source_id = ?", (sid,))
         vids = [dict(r) for r in cur.fetchall()]
         rules = source_rules(cur, src, default_rules)
-        calc = calc_koc_commission(vids, rules)
+        prev_for_src = {vk: info for (s_id, vk), info in dup_lookup.items() if s_id == sid}
+        calc = calc_koc_commission(vids, rules, campaign_month=src.get("month") or "", prev_dup_for_source=prev_for_src)
         src["koc_count"] = koc_count
         src["custom_rules"] = bool(src.get("rules_json"))
         src["rules"] = rules
@@ -823,6 +1020,148 @@ def list_sources_summary(cur, month: Optional[str] = None) -> dict:
         out_sources.append(src)
 
     return {"sources": out_sources, "default_rules": default_rules}
+
+
+def list_enriched_videos(
+    cur,
+    source_id: Optional[int] = None,
+    month: Optional[str] = None,
+    kpi_filter: str = "all",
+    q: Optional[str] = None,
+) -> dict:
+    default_rules = load_default_rules(cur)
+    dup_lookup = build_prev_dup_lookup(cur)
+
+    src_sql = """
+        SELECT ks.*, s.name AS staff_name
+        FROM koc_sources ks
+        LEFT JOIN staff s ON s.id = ks.staff_id
+        WHERE ks.is_active = 1
+    """
+    src_params = []
+    if source_id:
+        src_sql += " AND ks.id = ?"
+        src_params.append(source_id)
+    if month:
+        src_sql += " AND ks.month = ?"
+        src_params.append(month)
+    cur.execute(src_sql, tuple(src_params))
+    src_rows = [dict(r) for r in cur.fetchall()]
+    if not src_rows:
+        return {
+            "videos": [],
+            "min_views": int(default_rules.get("min_views") if default_rules.get("min_views") is not None else 200),
+            "filter_counts": {"all": 0, "qualified": 0, "under": 0, "under_zero_koc": 0, "manual": 0, "excluded": 0},
+        }
+
+    src_meta: Dict[int, Tuple[dict, dict]] = {}
+    for sr in src_rows:
+        src_meta[int(sr["id"])] = (sr, source_rules(cur, sr, default_rules))
+
+    placeholders = ",".join("?" for _ in src_meta)
+    cur.execute(
+        f"SELECT * FROM koc_videos WHERE source_id IN ({placeholders}) ORDER BY views DESC, id ASC",
+        tuple(src_meta.keys()),
+    )
+    raw_videos = [dict(r) for r in cur.fetchall()]
+
+    # Bước 1: Đánh giá toàn bộ video & tính tiến độ từng kênh KOC trên toàn chiến dịch (trước khi lọc)
+    koc_progress: Dict[Tuple[int, str], dict] = {}
+    evaluated_all: List[dict] = []
+    for rv in raw_videos:
+        sid = int(rv["source_id"])
+        sr, rls = src_meta[sid]
+        min_v = int(rls.get("min_views") if rls.get("min_views") is not None else 200)
+        grace_d = int(rls.get("grace_days_prev_month") if rls.get("grace_days_prev_month") is not None else 5)
+        dup_info = dup_lookup.get((sid, str(rv.get("video_key") or "")))
+        ev = evaluate_koc_video(rv, campaign_month=sr.get("month") or "", min_views=min_v, grace_days=grace_d, dup_info=dup_info)
+
+        item = {
+            **rv,
+            **ev,
+            "source_name": sr.get("name") or "",
+            "month": sr.get("month") or "",
+            "staff_name": sr.get("staff_name") or "",
+        }
+        evaluated_all.append(item)
+
+        uname_key = (rv.get("koc_username") or "").strip().lstrip("@/").lower()
+        if uname_key:
+            kp = koc_progress.setdefault((sid, uname_key), {"total": 0, "auto": 0, "manual": 0})
+            kp["total"] += 1
+            if ev["kpi_state"] == "auto_qualified":
+                kp["auto"] += 1
+            elif ev["kpi_state"] == "manual_approved":
+                kp["manual"] += 1
+
+    counts = {"all": 0, "qualified": 0, "under": 0, "under_zero_koc": 0, "manual": 0, "excluded": 0}
+    for it in evaluated_all:
+        sid = int(it["source_id"])
+        uname_key = (it.get("koc_username") or "").strip().lstrip("@/").lower()
+        kp = koc_progress.get((sid, uname_key), {"total": 1, "auto": 0, "manual": 0})
+        it["koc_total_videos"] = kp["total"]
+        it["koc_auto_qual"] = kp["auto"]
+        it["koc_manual_qual"] = kp["manual"]
+
+        st = it["kpi_state"]
+        views_num = int(it.get("views") or 0)
+        is_under_bucket = st in ("under_kpi", "error") or (
+            st == "manual_approved" and views_num < it["min_views"] and not it["is_dup_prev"] and not it["is_old_month"]
+        )
+        counts["all"] += 1
+        if it["is_kpi_counted"]:
+            counts["qualified"] += 1
+        if is_under_bucket:
+            counts["under"] += 1
+        if st == "under_kpi" and (kp["auto"] + kp["manual"]) == 0:
+            counts["under_zero_koc"] += 1
+        if st == "manual_approved":
+            counts["manual"] += 1
+        if st in ("excluded_dup", "excluded_old", "manual_excluded"):
+            counts["excluded"] += 1
+        it["_under_bucket"] = is_under_bucket
+
+    # Bước 2: Lọc theo kpi_filter & từ khóa tìm kiếm q
+    flt = (kpi_filter or "all").strip().lower()
+    kw = (q or "").strip().lower()
+    out_videos = []
+    for it in evaluated_all:
+        st = it["kpi_state"]
+        under_b = it.pop("_under_bucket", False)
+        if flt == "qualified" and not it["is_kpi_counted"]:
+            continue
+        elif flt == "under" and not under_b:
+            continue
+        elif flt == "under_zero_koc" and not (st == "under_kpi" and (it["koc_auto_qual"] + it["koc_manual_qual"]) == 0):
+            continue
+        elif flt == "manual" and st != "manual_approved":
+            continue
+        elif flt == "excluded" and st not in ("excluded_dup", "excluded_old", "manual_excluded"):
+            continue
+
+        if kw:
+            hay = " ".join([
+                str(it.get("koc_username") or ""),
+                str(it.get("video_url") or ""),
+                str(it.get("product_note") or ""),
+                str(it.get("title") or ""),
+                str(it.get("published_at") or ""),
+                str(it.get("dup_source_name") or ""),
+            ]).lower()
+            if kw not in hay:
+                continue
+        out_videos.append(it)
+
+    rep_min_views = (
+        int(next(iter(src_meta.values()))[1].get("min_views") or 200)
+        if len(src_meta) == 1
+        else int(default_rules.get("min_views") if default_rules.get("min_views") is not None else 200)
+    )
+    return {
+        "videos": out_videos,
+        "min_views": rep_min_views,
+        "filter_counts": counts,
+    }
 
 
 def commission_by_staff(cur, month: str) -> Dict[int, dict]:
@@ -835,8 +1174,20 @@ def commission_by_staff(cur, month: str) -> Dict[int, dict]:
         if not sid:
             continue
         st = src["stats"]
-        rec = out.setdefault(sid, {"commission": 0, "videos": 0, "qualified_videos": 0})
+        rec = out.setdefault(sid, {
+            "commission": 0,
+            "videos": 0,
+            "qualified_videos": 0,
+            "auto_qualified_videos": 0,
+            "manual_approved_videos": 0,
+            "payable_videos": 0,
+            "excluded_videos": 0,
+        })
         rec["commission"] += int(st.get("commission") or 0)
         rec["videos"] += int(st.get("total_videos") or 0)
         rec["qualified_videos"] += int(st.get("qualified_videos") or 0)
+        rec["auto_qualified_videos"] += int(st.get("auto_qualified_videos") or 0)
+        rec["manual_approved_videos"] += int(st.get("manual_approved_videos") or 0)
+        rec["payable_videos"] += int(st.get("payable_videos") or 0)
+        rec["excluded_videos"] += int(st.get("excluded_videos") or 0)
     return out

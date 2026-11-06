@@ -710,6 +710,8 @@ class KocCommissionRulesIn(BaseModel):
     rate_per_video: float = Field(default=10000, ge=0)
     viral_min_views: int = Field(default=1000, ge=0)
     viral_bonus: float = Field(default=0, ge=0)
+    manual_adjust_videos: int = Field(default=0)
+    grace_days_prev_month: int = Field(default=5, ge=0, le=60)
 
 class KocSourceSaveRequest(BaseModel):
     id: Optional[int] = None
@@ -728,9 +730,10 @@ class KocManualVideoAddRequest(BaseModel):
     product_note: Optional[str] = ""
 
 class KocVideoUpdateRequest(BaseModel):
-    views: int = Field(ge=0)
-    status: Optional[str] = "OK"
+    views: Optional[int] = Field(default=None, ge=0)
+    status: Optional[str] = None
     product_note: Optional[str] = None
+    manual_kpi: Optional[int] = Field(default=None, ge=-1, le=1)
 
 class QuickDraftRequest(BaseModel):
     product_id: Optional[int] = None
