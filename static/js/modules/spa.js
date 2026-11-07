@@ -902,9 +902,35 @@
         }
         window.deleteSelectedSpaTickets = deleteSelectedSpaTickets;
 
+        function openSpaBulkCheckoutFromToolbar() {
+            if (!selectedSpaTicketIds || selectedSpaTicketIds.size === 0) {
+                alert('Vui lòng tích chọn các bé cần thu tiền / trả bé!');
+                return;
+            }
+            const targetIds = Array.from(selectedSpaTicketIds);
+            const tickets = targetIds.map(id => (allPetServiceTickets || []).find(t => t.id === id)).filter(Boolean);
+            if (tickets.length === 0) return;
+            const firstTarget = tickets.find(t => t.payment_status !== 'paid') || tickets[0];
+            openSpaCheckoutModal(firstTarget.id);
+        }
+        window.openSpaBulkCheckoutFromToolbar = openSpaBulkCheckoutFromToolbar;
+
         async function applyBulkPetServiceStatus(newStatus) {
             if (!newStatus || selectedSpaTicketIds.size === 0) return;
             const targetIds = Array.from(selectedSpaTicketIds);
+
+            // 2a: Chặn đổi "Đã về" nếu trong các bé có bé chưa thanh toán
+            if (newStatus === 'checked_out') {
+                const unpaid = targetIds.map(id => (allPetServiceTickets || []).find(t => t.id === id))
+                                        .filter(t => t && t.payment_status !== 'paid');
+                if (unpaid.length > 0) {
+                    const msg = `Có ${unpaid.length} bé chưa thanh toán (${unpaid.map(t => '#' + (t.ticket_number || t.id)).join(', ')}). Vui lòng thu tiền trước khi cho bé về!`;
+                    if (window.showToast) showToast(msg, 'warning');
+                    else alert(msg);
+                    openSpaCheckoutModal(unpaid[0].id);
+                    return;
+                }
+            }
             
             targetIds.forEach(id => {
                 const t = (allPetServiceTickets || []).find(item => item.id === id);
@@ -6516,12 +6542,36 @@
                 const serviceType = serviceTypes.join(' + ') || 'Dịch vụ Spa';
 
                 const lineItems = [];
-                const basePrice = Math.max(0, rowTotal - surcharge);
+                let primaryPrice = 0;
+                let dyePrice = 0;
+                if (primaryPkg && Array.isArray(allPetPricingData)) {
+                    const match = allPetPricingData.find(item => 
+                        item.service_name.trim().toLowerCase() === primaryPkg.trim().toLowerCase() &&
+                        (item.min_weight === 0 ? weight >= item.min_weight : weight > item.min_weight) &&
+                        weight <= item.max_weight
+                    ) || allPetPricingData.find(item => 
+                        item.service_name.trim().toLowerCase() === primaryPkg.trim().toLowerCase() &&
+                        weight >= item.min_weight && weight <= item.max_weight
+                    );
+                    if (match) primaryPrice = Number(match.price || 0);
+                }
+                if (dyePkg && Array.isArray(allPetPricingData)) {
+                    const matchDye = allPetPricingData.find(item => 
+                        item.service_name.trim().toLowerCase() === dyePkg.trim().toLowerCase()
+                    );
+                    if (matchDye) dyePrice = Number(matchDye.price || 0);
+                }
+                if (primaryPrice === 0 && dyePrice === 0) {
+                    primaryPrice = Math.max(0, rowTotal - surcharge);
+                } else if (dyePrice > 0 && primaryPrice === 0) {
+                    primaryPrice = Math.max(0, rowTotal - surcharge - dyePrice);
+                }
+
                 if (primaryPkg) {
-                    lineItems.push({ name: primaryPkg, quantity: 1, price: basePrice, original_price: basePrice });
+                    lineItems.push({ name: primaryPkg, quantity: 1, price: primaryPrice, original_price: primaryPrice });
                 }
                 if (dyePkg) {
-                    lineItems.push({ name: dyePkg, quantity: 1, price: 0, original_price: 0 });
+                    lineItems.push({ name: dyePkg, quantity: 1, price: dyePrice, original_price: dyePrice, is_dye: true });
                 }
                 const surchRows = (tr._surch || []).filter(it => (it.name || '').trim() && Number(it.price) > 0);
                 if (surchRows.length > 0) {
@@ -6582,10 +6632,9 @@
                 if (paymentTiming === 'paid' && paymentMethod === 'wallet') {
                     const cust = (allContacts || []).find(c => c.id == custId);
                     if (cust) {
-                        const totalBatch = parseFloat(document.getElementById('batch-grand-total')?.textContent?.replace(/[^\d]/g, '') || 0);
+                        const totalDeducted = (resData.tickets || []).reduce((sum, t) => sum + (Number(t.spa_wallet_deduction) || 0), 0);
                         const bal = cust.spa_wallet_balance || 0;
-                        const deducted = Math.min(bal, totalBatch);
-                        cust.spa_wallet_balance = Math.max(0, bal - deducted);
+                        cust.spa_wallet_balance = Math.max(0, bal - totalDeducted);
                     }
                 }
                 closeCreateServiceTicketModal();
@@ -7408,8 +7457,31 @@
             }).join('');
 
             const titleStr = type === 'invoice' ? 'HÓA ĐƠN THANH TOÁN SPA (TỔNG HỢP)' : 'PHIẾU TIẾP NHẬN DỊCH VỤ (TỔNG HỢP)';
-            const methodStr = firstTicket.payment_method === 'wallet' ? 'Trừ Ví Spa' : (firstTicket.payment_method === 'transfer' ? 'Chuyển khoản (VietQR)' : 'Tiền mặt');
-            const paymentLine = firstTicket.payment_status === 'paid' ? `Đã thanh toán trước (${methodStr})` : 'Thu tiền khi trả bé';
+            const methodStr = firstTicket.payment_method === 'wallet' ? 'Trừ Ví Spa' : (firstTicket.payment_method === 'transfer' ? 'Chuyển khoản (VietQR)' : (firstTicket.payment_method === 'card' ? 'Quẹt thẻ' : 'Tiền mặt'));
+            const totalDeposit = fullTickets.reduce((sum, t) => sum + (Number(t.deposit_amount) || 0), 0);
+            const totalWalletDed = fullTickets.reduce((sum, t) => sum + (Number(t.spa_wallet_deduction) || 0), 0);
+            const allPaid = fullTickets.every(t => t.payment_status === 'paid');
+            const anyPaid = fullTickets.some(t => t.payment_status === 'paid');
+            const payableCash = Math.max(0, grandFinal - totalDeposit - totalWalletDed);
+
+            let paymentDetailStr = '';
+            if (type === 'invoice') {
+                if (allPaid) {
+                    if (totalWalletDed > 0 && payableCash > 0) {
+                        paymentDetailStr = `Đã trừ ví (${formatMoney(totalWalletDed)}) + Đã thu (${formatMoney(payableCash)})`;
+                    } else if (totalWalletDed > 0) {
+                        paymentDetailStr = `Đã trừ ví Spa (${formatMoney(totalWalletDed)})`;
+                    } else {
+                        paymentDetailStr = `Đã thanh toán đủ (${methodStr})`;
+                    }
+                } else if (anyPaid) {
+                    paymentDetailStr = `Đã thanh toán một phần`;
+                } else {
+                    paymentDetailStr = totalDeposit > 0 ? `Đã cọc (${formatMoney(totalDeposit)}) - Thu khi đón` : 'Thu tiền khi trả bé';
+                }
+            } else {
+                paymentDetailStr = firstTicket.payment_status === 'paid' ? `Đã thanh toán trước (${methodStr})` : (totalDeposit > 0 ? `Đã cọc (${formatMoney(totalDeposit)}) - Thu khi đón` : 'Thu tiền khi trả bé');
+            }
 
             return `
                 <div class="thermal-k80-wrapper" style="width: 72mm; max-width: 72mm; margin: 0 auto; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; font-size: 11.5px; line-height: 1.35; color: #000; padding: 1mm 1mm;">
@@ -7440,13 +7512,29 @@
                             <span>Tổng số lượng bé:</span>
                             <strong style="font-weight: 900;">${totalPets} bé</strong>
                         </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 2px;">
+                            <span>Tổng tiền dịch vụ:</span>
+                            <span style="font-family: monospace; font-weight: 800;">${formatMoney(grandFinal)}</span>
+                        </div>
+                        ${totalDeposit > 0 ? `
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
+                            <span>Đã đặt cọc trước:</span>
+                            <span style="font-family: monospace; font-weight: 800;">- ${formatMoney(totalDeposit)}</span>
+                        </div>
+                        ` : ''}
+                        ${totalWalletDed > 0 ? `
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
+                            <span>Đã trừ Ví Spa (dịch vụ):</span>
+                            <span style="font-family: monospace; font-weight: 800;">- ${formatMoney(totalWalletDed)}</span>
+                        </div>
+                        ` : ''}
                         <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 900; color: #000; margin-top: 4px; padding-top: 4px; border-top: 1px solid #000;">
-                            <span style="font-size: 13px;">TỔNG CỘNG ĐỢT NÀY:</span>
-                            <span style="font-size: 16px; font-family: monospace; font-weight: 900;">${formatMoney(grandFinal)}</span>
+                            <span style="font-size: 13px;">${allPaid ? (totalWalletDed > 0 && payableCash > 0 ? 'ĐÃ THU TM/CK/THẺ:' : 'ĐÃ THANH TOÁN:') : 'TỔNG CỘNG ĐỢT NÀY:'}</span>
+                            <span style="font-size: 16px; font-family: monospace; font-weight: 900;">${formatMoney(allPaid ? payableCash : grandFinal)}</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 3px;">
                             <span>Trạng thái:</span>
-                            <strong style="font-weight: 800;">${paymentLine}</strong>
+                            <strong style="font-weight: 800; text-align: right; max-width: 170px;">${paymentDetailStr}</strong>
                         </div>
                     </div>
 

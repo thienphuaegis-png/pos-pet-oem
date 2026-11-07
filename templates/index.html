@@ -4189,7 +4189,12 @@
                                 </select>
                             </div>
 
-                            <!-- 4. Gán thợ chi tiết -->
+                            <!-- 4. Thu Tiền & Trả Bé hàng loạt -->
+                            <button onclick="openSpaBulkCheckoutFromToolbar()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow flex items-center gap-1.5 transition-all cursor-pointer" title="Thu tiền và trả các bé đã chọn">
+                                <span><i class="ph ph-wallet"></i></span> <span>Thu Tiền &amp; Trả Bé</span>
+                            </button>
+
+                            <!-- 5. Gán thợ chi tiết -->
                             <button onclick="openSpaBulkAssignStaffModal()" class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow flex items-center gap-1.5 transition-all" title="Gán chi tiết Thợ cắt, Thợ tắm và Thợ tiếp nhận">
                                 <span><i class="ph ph-users"></i></span> <span>Gán Chi Tiết</span>
                             </button>
@@ -13361,6 +13366,7 @@
                                 <option value="wallet" id="batch-opt-pay-wallet">Trừ Ví Spa (Số dư: 0 đ)</option>
                                 <option value="cash">Tiền mặt</option>
                                 <option value="transfer">Chuyển khoản</option>
+                                <option value="card">Quẹt thẻ</option>
                             </select>
                             <span id="batch-payment-account-wrap" class="hidden items-center gap-1">
                                 <label class="text-xs font-bold text-slate-600">TK nhận:</label>

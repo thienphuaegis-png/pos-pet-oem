@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>So Sánh & Đề Xuất: Chuẩn Hóa Logic Thanh Toán Spa Hàng Loạt</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            padding: 24px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 1060px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            border: 1px solid #e2e8f0;
+        }
+        .header {
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 14px;
+        }
+        .header h1 {
+            font-size: 18px;
+            font-weight: 800;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header p {
+            color: #64748b;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #1e3a8a;
+            margin: 20px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border-left: 4px solid #3b82f6;
+            padding-left: 8px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .card {
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .card-header {
+            padding: 10px 14px;
+            font-weight: 700;
+            font-size: 12.5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-header.current {
+            background: #fee2e2;
+            color: #991b1b;
+            border-bottom: 1px solid #fecaca;
+        }
+        .card-header.proposed {
+            background: #dbeafe;
+            color: #1e40af;
+            border-bottom: 1px solid #bfdbfe;
+        }
+        .card-body {
+            padding: 14px;
+            font-size: 12px;
+        }
+        .bad-item {
+            background: #fff1f2;
+            border-left: 3px solid #f43f5e;
+            padding: 8px 10px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            color: #881337;
+        }
+        .good-item {
+            background: #f0fdf4;
+            border-left: 3px solid #22c55e;
+            padding: 8px 10px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            color: #14532d;
+        }
+        .code-tag {
+            font-family: monospace;
+            background: #e2e8f0;
+            color: #0f172a;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+        table.cmp-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        table.cmp-table th, table.cmp-table td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 10px;
+            text-align: left;
+        }
+        table.cmp-table th {
+            background: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+        .tag-warn {
+            background: #fef3c7;
+            color: #92400e;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            display: inline-block;
+        }
+        .tag-err {
+            background: #fee2e2;
+            color: #991b1b;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            display: inline-block;
+        }
+        .tag-ok {
+            background: #dcfce7;
+            color: #166534;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🐾 Rà Soát Toàn Diện: Logic Thanh Toán Phiếu Spa Hàng Loạt</h1>
+        <p>Báo cáo đối soát giữa luồng Phiếu Đơn (đã chuẩn hóa 18/10) và luồng Phiếu Hàng Loạt (chưa đồng bộ)</p>
+    </div>
+
+    <div class="section-title">1. Chặng 1: Lúc Lập Phiếu Tiếp Nhận Hàng Loạt (Batch Intake Modal)</div>
+    <div class="grid">
+        <div class="card">
+            <div class="card-header current">
+                <span>🔴 HIỆN TẠI (Chưa Cập Nhật)</span>
+                <span>templates/index.html &amp; spa.js</span>
+            </div>
+            <div class="card-body">
+                <div class="bad-item">
+                    <strong>1. Thiếu hình thức "Quẹt thẻ":</strong> Dropdown <span class="code-tag">#batch-payment-method</span> chỉ có 3 lựa chọn: <i>Ví Spa, Tiền mặt, Chuyển khoản</i>. Hoàn toàn thiếu <b>Quẹt thẻ (POS)</b>.
+                </div>
+                <div class="bad-item">
+                    <strong>2. Trừ ví sai quy tắc phân loại:</strong> Frontend khi gửi <span class="code-tag">services_json</span> cho đợt hàng loạt không gắn cờ <span class="code-tag">is_dye</span> và đặt giá nhuộm = 0 dồn vào gói chính, khiến tiền Nhuộm &amp; Phụ thu bị trừ lố vào Ví Spa (vi phạm quy tắc chỉ nhóm Combo mới được trừ ví).
+                </div>
+                <div class="bad-item">
+                    <strong>3. Sổ Quỹ bị dồn 1 dòng, sai liên kết:</strong> Toàn bộ tiền thu ngoài của cả đợt gom vào 1 dòng <span class="code-tag">PT-SPA</span> gán <span class="code-tag">ref_id = first_id</span> (bé đầu tiên). Xóa bé thứ 2 không hoàn tiền; xóa bé đầu tiên lại xóa luôn tiền cả đợt!
+                </div>
+                <div class="bad-item">
+                    <strong>4. Thiếu ô Đặt Cọc đợt hàng loạt:</strong> Tiếp nhận 1 bé có cọc, nhưng hàng loạt không có ô cọc nào.
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header proposed">
+                <span>🟢 ĐỀ XUẤT CHUẨN HÓA</span>
+                <span>Đồng bộ 100% chuẩn Phiếu Đơn</span>
+            </div>
+            <div class="card-body">
+                <div class="good-item">
+                    <strong>1. Đủ 4 hình thức thanh toán:</strong> Bổ sung <b>Quẹt thẻ (`card`)</b> + bộ chọn Tài khoản quẹt thẻ ngân hàng chuẩn xác.
+                </div>
+                <div class="good-item">
+                    <strong>2. Trừ ví chuẩn từng dòng:</strong> Tách riêng giá gói chính, gói nhuộm (<span class="code-tag">is_dye: true</span>), phụ thu (<span class="code-tag">is_surcharge: true</span>). Chỉ trừ ví đúng phần dịch vụ Combo được phép (<span class="code-tag">allow_spa_wallet == 1</span>); toàn bộ tiền nhuộm/phụ thu đưa sang thu ngoài tiền mặt/CK/quẹt thẻ.
+                </div>
+                <div class="good-item">
+                    <strong>3. Ghi nhận Sổ Quỹ minh bạch:</strong> Mỗi phiếu có 1 dòng phiếu thu riêng gắn đúng ID từng bé (hoặc ghi rõ đợt), xóa phiếu nào hoàn tiền đúng phiếu đó.
+                </div>
+                <div class="good-item">
+                    <strong>4. Bổ sung ô Tiền Cọc hàng loạt:</strong> Cho phép nhập tiền cọc cả đợt hoặc cọc theo từng bé, tự động ghi phiếu thu cọc <span class="code-tag">PT-COC</span>.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-title">2. Chặng 2: Lúc Trả Bé / Thu Tiền Khi Đón Bé (Checkout &amp; Bảng Tác Nghiệp)</div>
+    <div class="grid">
+        <div class="card">
+            <div class="card-header current">
+                <span>🔴 HIỆN TẠI (Lỗ Hổng Quy Trình)</span>
+                <span>Bảng Tác Nghiệp Spa &amp; Floating Toolbar</span>
+            </div>
+            <div class="card-body">
+                <div class="bad-item">
+                    <strong>5. Đổi "Đã về" trên Floating Toolbar KHÔNG THU TIỀN:</strong> Nhân viên tích chọn nhiều phiếu trên bảng rồi chọn trạng thái "Đã về" &rarr; Hệ thống cập nhật thẳng DB mà <b>hoàn toàn không kiểm tra thanh toán, không mở popup thu tiền</b>, làm sót tiền doanh thu!
+                </div>
+                <div class="bad-item">
+                    <strong>6. Thu tiền lặp vòng N lần:</strong> Popup Trả bé gọi N lần API lẻ <span class="code-tag">POST /api/pet-services/{id}/pay</span>. Khách chuyển khoản 1 cục 500k nhưng sổ quỹ xé lẻ 3 dòng (150k, 200k, 150k), lệch chứng từ sao kê ngân hàng.
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header proposed">
+                <span>🟢 ĐỀ XUẤT CHUẨN HÓA</span>
+                <span>Khóa Chặt Thất Thoát &amp; Thu Tiền 1 Chạm</span>
+            </div>
+            <div class="card-body">
+                <div class="good-item">
+                    <strong>5. Khóa đổi "Đã về" nếu chưa thanh toán:</strong> Trên Floating Toolbar, nếu có phiếu chưa thanh toán, hệ thống tự động chặn và mở Popup <b>"Thu Tiền &amp; Trả Bé Hàng Loạt"</b> để thu đủ tiền trước khi cho phép chuyển "Đã về".
+                </div>
+                <div class="good-item">
+                    <strong>6. Bổ sung nút "Thu Tiền Hàng Loạt" trên Floating Toolbar:</strong> Cho phép nhân viên tích chọn các bé cần thanh toán và bấm thu tiền 1 lần ngay trên thanh công cụ nổi.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-title">3. Chặng 3: Mẫu In Hóa Đơn Thanh Toán Gộp K80 (Consolidated Receipt)</div>
+    <div class="grid">
+        <div class="card">
+            <div class="card-header current">
+                <span>🔴 HIỆN TẠI</span>
+                <span>generateBatchConsolidatedTicketHtml</span>
+            </div>
+            <div class="card-body">
+                <div class="bad-item">
+                    Hóa đơn thanh toán gộp K80 chỉ in 1 dòng <b>TỔNG CỘNG ĐỢT NÀY</b> và lấy trạng thái của riêng bé đầu tiên. Không tách rõ: Đã trừ bao nhiêu ví Spa, Đã trừ bao nhiêu cọc, Đã thu bao nhiêu tiền mặt/CK.
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header proposed">
+                <span>🟢 ĐỀ XUẤT</span>
+                <span>Minh Bạch 5 Khoản Chuẩn Hóa Đơn Đơn Lẻ</span>
+            </div>
+            <div class="card-body">
+                <div class="good-item">
+                    Hóa đơn thanh toán K80 gộp thể hiện đầy đủ bảng tổng kết:
+                    <br>&bull; Tổng tiền dịch vụ các bé
+                    <br>&bull; Giảm trừ cọc (nếu có)
+                    <br>&bull; Đã trừ Ví Spa: - X đ
+                    <br>&bull; ĐÃ THU TIỀN MẶT / CHUYỂN KHOẢN: Y đ (Kèm tên ngân hàng / VietQR)
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

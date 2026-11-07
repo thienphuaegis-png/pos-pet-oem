@@ -2512,6 +2512,15 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
                 rem_m = batch_remainder_method if (t.payment_method == "wallet" and this_cash > 0) else None
                 cur.execute("UPDATE pet_service_tickets SET account_id = ?, remainder_method = ? WHERE id = ?",
                             (account_id if this_cash > 0 else None, rem_m, t_id))
+                if this_cash > 0:
+                    cb_code = generate_cashbook_code(cur, "PT-SPA")
+                    pay_note = f"Thu tiền phiếu Spa {t_code} (Đợt {batch_code})"
+                    if t.payment_method == "wallet" and this_wallet_ded > 0:
+                        pay_note += f" [Trừ ví: {this_wallet_ded:,.0f} đ, Thu ngoài: {this_cash:,.0f} đ]"
+                    cur.execute("""
+                        INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
+                        VALUES (?, 'in', 'Thu tiền dịch vụ Spa', ?, ?, 'pet_service', ?, ?, ?, ?)
+                    """, (cb_code, this_cash, batch_req.customer_id, t_id, pay_note, account_id, shift_id))
 
             created_tickets.append({
                 "id": t_id,
@@ -2559,14 +2568,6 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
                 INSERT INTO spa_wallet_transactions (contact_id, type, amount, balance_before, balance_after, note)
                 VALUES (?, 'spend', ?, ?, ?, ?)
             """, (batch_req.customer_id, wallet_deduction_total, init_wallet, new_wallet, f"Trừ ví dịch vụ Spa cho đợt tiếp nhận {batch_code} ({len(batch_req.tickets)} bé)"))
-
-        if cash_collected_batch > 0:
-            cb_code = generate_cashbook_code(cur, "PT-SPA")
-            first_id = created_tickets[0]["id"] if created_tickets else None
-            cur.execute("""
-            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
-            VALUES (?, 'in', 'Thu tiền dịch vụ Spa', ?, ?, 'pet_service', ?, ?, ?, ?)
-            """, (cb_code, cash_collected_batch, batch_req.customer_id, first_id, f"Thu tiền ngoài đợt tiếp nhận Spa {batch_code} (Trừ ví: {wallet_deduction_total:,.0f} đ, Thu ngoài: {cash_collected_batch:,.0f} đ)", account_id, shift_id))
 
         conn.commit()
         return {"status": "ok", "batch_code": batch_code, "tickets": created_tickets, "count": len(created_tickets)}
