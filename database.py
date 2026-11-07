@@ -2231,7 +2231,7 @@ def init_db():
         contact_id INTEGER NOT NULL,
         order_id INTEGER,
         package_id INTEGER,
-        type TEXT NOT NULL CHECK(type IN ('topup', 'spend', 'refund')),
+        type TEXT NOT NULL CHECK(type IN ('topup', 'spend', 'refund', 'adjust')),
         amount REAL NOT NULL,
         balance_before REAL NOT NULL,
         balance_after REAL NOT NULL,
@@ -2248,6 +2248,21 @@ def init_db():
     tx_cols = [c[1] for c in cur.fetchall()]
     if "points_earned" not in tx_cols:
         cur.execute("ALTER TABLE spa_wallet_transactions ADD COLUMN points_earned INTEGER DEFAULT 0")
+
+    # Migration: mở CHECK type cho 'adjust' (owner/admin chỉnh số dư ví) — SQLite phải dựng lại bảng
+    old_check = "CHECK(type IN ('topup', 'spend', 'refund'))"
+    cur.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='spa_wallet_transactions'")
+    row = cur.fetchone()
+    if row and old_check in row[0]:
+        cur.connection.commit()  # PRAGMA foreign_keys không đổi được trong transaction
+        cur.execute("PRAGMA foreign_keys = OFF")
+        new_sql = row[0].replace(old_check, "CHECK(type IN ('topup', 'spend', 'refund', 'adjust'))")
+        cur.execute(new_sql.replace("CREATE TABLE spa_wallet_transactions", "CREATE TABLE spa_wallet_transactions_new", 1))
+        cur.execute("INSERT INTO spa_wallet_transactions_new SELECT * FROM spa_wallet_transactions")
+        cur.execute("DROP TABLE spa_wallet_transactions")
+        cur.execute("ALTER TABLE spa_wallet_transactions_new RENAME TO spa_wallet_transactions")
+        cur.connection.commit()
+        cur.execute("PRAGMA foreign_keys = ON")
 
     # 16. Khuyến mãi & Chi tiết giảm giá theo sản phẩm
     cur.execute('''
@@ -2627,11 +2642,8 @@ def init_db():
         # BOM: 1 Áo thun tự sản xuất cần 1.5 mét vải
         cur.execute("INSERT INTO bom (product_id, material_id, quantity) VALUES (4, 3, 1.5)")
 
-    # Tự động quét và gộp các đối tác trùng tên (contacts deduplication)
-    try:
-        merge_duplicate_contacts(conn)
-    except Exception as e:
-        pass
+    # Không tự gộp đối tác trùng tên khi khởi động: KH/NCC được phép trùng tên, chỉ chặn trùng SĐT.
+    # Gộp thủ công khi cần: scripts/deduplicate_contacts.py
 
     # ── Telegram Bot Admins & Requests ──
     cur.execute("""

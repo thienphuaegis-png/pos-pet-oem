@@ -673,8 +673,9 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-11-06)
-    const ROADMAP_VERSION = 'v8.1-2026-11-06-db-io-anti-rescan-5-hotspots';
+    const ROADMAP_VERSION = 'v8.2-2026-11-07-contact-dup-name-spa-wallet-adjust';
     const DEFAULT_TASKS = [
+      { id: 'contact-dup-name-spa-wallet-adjust', cat: 'POS', title: 'Cho Phép Trùng Tên Khách Hàng (Chỉ Chặn Trùng SĐT) & Owner/Admin Chỉnh Số Dư Ví Spa', done: true, note: 'Bỏ cảnh báo 409 trùng tên + popup confirm; tắt merge_duplicate_contacts() tự chạy mỗi lần khởi động (từng gộp nhầm khách cùng tên khác SĐT); PUT /api/topup/adjust/{id} nhập số dư mới + lý do bắt buộc, ghi lịch sử type=adjust, không ghi sổ quỹ; nút Chỉnh trong modal Chi tiết KH.' },
       // 0. CẬP NHẬT MỚI NHẤT (2026-11-06)
       { id: 'db-io-anti-rescan-5-hotspots', cat: 'SYS', title: 'Triệt Tiêu 5 Tác Vụ Quét Lặp Dữ Liệu Toàn Hệ Thống (Phân Trang 13k KH, Index Ngày Giờ x11.7, Cache SP, KOC 1-Query & Gom Lô Log 15s)', done: true, note: 'Phân trang server paginated=1 cho Tab Khách Hàng (~5KB thay vì 4.8MB), đổi Dòng Tiền sang ?type=supplier và Tạo Phiếu Spa sang compact=1&limit=30; sửa 11 điều kiện WHERE datetime(+7h) sang datetime(?, -7h) ăn thẳng Index (55.2ms -> 4.7ms); bỏ 120.000 vòng quét lồng ở /api/products + thêm window.getSharedProducts(); thêm ensure_koc_schema_once + CTE GROUP BY cho KOC; giãn clientlog từ 2s lên 15s.' },
       { id: 'koc-col-picker-excel-audit-staff-and-fast-po', cat: 'ECOMM', title: 'Chọn Cột Lấy Link KOC (A..Z), Chống Trùng Dòng, Xuất Excel Hoa Hồng (KOC 3-Sheet + HRM), Lọc NV Nhật Ký & Mở NCC Nhập Hàng Siêu Tốc', done: true, note: 'API /koc/inspect-columns tự đếm số link từng cột A..Z và gợi ý Cột S — Link Air (loại bỏ hút nhầm Cột D LINK KOC, báo rõ số link gộp trùng); chống đẻ dòng chiến dịch trùng + thêm nút Xóa trên bảng; xuất .xlsx 3 Sheet ở màn KOC và bảng Hoa Hồng & Tip HRM; nạp đủ nhân viên cho Nhật Ký Hoạt Động ngay lần mở đầu; tách nhánh SQL CTE cho NCC + tách khỏi Promise.all /api/products giúp hiện danh sách NCC tức thì.' },

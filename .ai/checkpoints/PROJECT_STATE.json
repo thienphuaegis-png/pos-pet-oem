@@ -1,11 +1,11 @@
 {
   "project": {
     "name": "pos-petcare2",
-    "version": "v3.6.129",
+    "version": "v3.6.130",
     "framework": "FastAPI + SQLite local (data/pos.db) / Cloudflare D1 on Vercel",
-    "git_commit": "4370672",
+    "git_commit": "11ac5f7",
     "git_branch": "main",
-    "updated_at": "2026-11-07T15:32:10",
+    "updated_at": "2026-11-07T15:59:33",
     "codegraph_stats": {
       "files_indexed": 316,
       "nodes": 7496,

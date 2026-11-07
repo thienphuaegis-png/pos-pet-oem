@@ -2357,35 +2357,8 @@ async function submitQuickCustomer() {
 
         if (!res.ok) {
             const err = await res.json();
-            if (res.status === 409) {
-                const conf = confirm((err.detail || "Trùng tên khách hàng") + "\n\nBấm OK để vẫn tiếp tục tạo khách hàng này.");
-                if (conf) {
-                    res = await fetch('/api/contacts', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            name,
-                            phone: phone || "",
-                            email: email || "",
-                            address: address || "",
-                            type: 'customer',
-                            segment_id: segmentId,
-                            debt: 0,
-                            allow_duplicate_name: true
-                        })
-                    });
-                    if (!res.ok) {
-                        const err2 = await res.json();
-                        alert("Lỗi: " + (err2.detail || "Không thể thêm khách hàng"));
-                        return;
-                    }
-                } else {
-                    return;
-                }
-            } else {
-                alert("Lỗi: " + (err.detail || "Không thể thêm khách hàng"));
-                return;
-            }
+            alert("Lỗi: " + (err.detail || "Không thể thêm khách hàng"));
+            return;
         }
 
         const resData = await res.json();
@@ -4792,6 +4765,18 @@ async function showPosWalletHistory() {
         tbody.innerHTML = rows.map((r, idx) => {
             const isTopup = r.type === 'topup';
             const isSpend = r.type === 'spend';
+            if (r.type === 'adjust') {
+                const up = Number(r.amount) >= 0;
+                return `
+                <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs">
+                    <td class="p-2.5 text-slate-500 font-mono">${typeof formatDateTime === 'function' ? formatDateTime(r.created_at) : (r.created_at || '')}</td>
+                    <td class="p-2.5"><span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Điều chỉnh</span></td>
+                    <td class="p-2.5 text-right font-mono font-bold ${up ? 'text-emerald-600' : 'text-rose-600'}">${up ? '+' : '-'}${Math.abs(Number(r.amount || 0)).toLocaleString('vi-VN')} đ</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-slate-700">${Number(r.balance_after || 0).toLocaleString('vi-VN')} đ</td>
+                    <td class="p-2.5 text-slate-600">${typeof escapeHtml === 'function' ? escapeHtml(r.note || '') : (r.note || '')}</td>
+                    <td class="p-2.5 text-center">-</td>
+                </tr>`;
+            }
             const typeLabel = isTopup ? '⚡ Nạp gói' : (isSpend ? '🛒 Chi tiêu bill' : 'Hoàn tiền');
             const typeBadge = isTopup
                 ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">⚡ Nạp gói</span>'

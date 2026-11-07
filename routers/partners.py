@@ -27,7 +27,6 @@ class ContactCreate(BaseModel):
     debt: Optional[float] = 0.0
     initial_debt_company: Optional[float] = 0.0
     initial_debt_personal: Optional[float] = 0.0
-    allow_duplicate_name: Optional[bool] = False
 
 class ContactUpdate(BaseModel):
     name: str
@@ -927,26 +926,7 @@ def create_contact(req: ContactCreate, user=Depends(require_any_permission("part
                         detail=f"Số điện thoại '{t}' đã được đăng ký cho {dup['name']} (Mã: {c_code}) do {c_creator} tạo ngày {c_date}."
                     )
 
-    # 2. Cảnh báo trùng tên (chống tạo khách cũ bằng SĐT mới để trục lợi hoa hồng)
-    if not req.allow_duplicate_name and norm_name:
-        cur.execute("""
-            SELECT c.id, c.code, c.name, c.phone, c.created_at, c.created_by, s.name as creator_name
-            FROM contacts c
-            LEFT JOIN staff s ON s.id = c.created_by
-            WHERE c.type = ? AND LOWER(TRIM(c.name)) = LOWER(?)
-            LIMIT 1
-        """, (req.type, norm_name))
-        dup_name = cur.fetchone()
-        if dup_name:
-            c_code = dup_name["code"] or f"KH{dup_name['id']:04d}"
-            c_creator = dup_name["creator_name"] or "Hệ thống"
-            c_date = (dup_name["created_at"] or "")[:10]
-            c_phone = dup_name["phone"] or "chưa có SĐT"
-            conn.close()
-            raise HTTPException(
-                status_code=409,
-                detail=f"Trùng tên: Đã có khách hàng '{dup_name['name']}' (Mã: {c_code}, SĐT: {c_phone}) do {c_creator} tạo ngày {c_date}. Bạn có chắc chắn muốn tạo thêm khách hàng trùng tên này?"
-            )
+    # Trùng tên được phép (nhiều khách "Anh Tâm" khác nhau); chỉ SĐT là khóa định danh.
 
     c_debt = float(req.initial_debt_company or 0.0)
     p_debt = float(req.initial_debt_personal or 0.0)

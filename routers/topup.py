@@ -32,6 +32,10 @@ class TopupTransactionUpdate(BaseModel):
     account_id: Optional[int] = None
     note: Optional[str] = None
 
+class WalletAdjustIn(BaseModel):
+    new_balance: float
+    reason: str
+
 # --- Packages CRUD ---
 @router.get("/packages")
 def list_topup_packages(all: bool = Query(False)):
@@ -239,6 +243,38 @@ def recharge_spa_wallet(req: TopupRechargeIn, user=Depends(get_current_user)):
     }
 
 # --- History ---
+@router.put("/adjust/{contact_id}")
+def adjust_spa_wallet(contact_id: int, req: WalletAdjustIn, user=Depends(require_role("owner", "admin"))):
+    """Owner/Admin đặt lại số dư ví Spa. Không ghi sổ quỹ (không có tiền thật), chỉ lưu lịch sử 'adjust'."""
+    reason = (req.reason or "").strip()
+    if not reason:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập lý do điều chỉnh ví")
+    new_bal = round(float(req.new_balance), 2)
+    if new_bal < 0:
+        raise HTTPException(status_code=400, detail="Số dư ví không được âm")
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT spa_wallet_balance FROM contacts WHERE id = ? AND type = 'customer'", (contact_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
+        old_bal = float(row["spa_wallet_balance"] or 0.0)
+        if new_bal == old_bal:
+            raise HTTPException(status_code=400, detail="Số dư mới trùng số dư hiện tại")
+        cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (new_bal, contact_id))
+        cur.execute("""
+            INSERT INTO spa_wallet_transactions (contact_id, type, amount, balance_before, balance_after, note)
+            VALUES (?, 'adjust', ?, ?, ?, ?)
+        """, (contact_id, new_bal - old_bal, old_bal, new_bal, f"Điều chỉnh bởi {user.get('name') or 'Admin'}: {reason}"))
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"status": "ok", "balance_before": old_bal, "balance_after": new_bal, "spa_wallet_balance": new_bal}
+
 @router.get("/history/{contact_id}")
 def get_spa_wallet_history(contact_id: int):
     conn = get_db()

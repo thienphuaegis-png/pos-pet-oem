@@ -448,30 +448,8 @@
                     });
                     if (!res.ok) {
                         const err = await res.json();
-                        if (res.status === 409) {
-                            const conf = confirm((err.detail || 'Trùng tên đối tác') + '\n\nBấm OK để vẫn tạo khách hàng này, hoặc Cancel để kiểm tra lại.');
-                            if (conf) {
-                                res = await fetch('/api/contacts', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ 
-                                        type, name, phone, email, address, segment_id, debt,
-                                        initial_debt_company, initial_debt_personal,
-                                        allow_duplicate_name: true
-                                    })
-                                });
-                                if (!res.ok) {
-                                    const err2 = await res.json();
-                                    alert('Lỗi tạo mới: ' + (err2.detail || 'Không thể tạo mới'));
-                                    return;
-                                }
-                            } else {
-                                return;
-                            }
-                        } else {
-                            alert('Lỗi tạo mới: ' + (err.detail || 'Không thể tạo mới'));
-                            return;
-                        }
+                        alert('Lỗi tạo mới: ' + (err.detail || 'Không thể tạo mới'));
+                        return;
                     }
                 }
                 closeContactModal();
@@ -638,6 +616,25 @@
             }
         }
 
+        async function adjustSpaWallet() {
+            const c = window._detailWalletContact;
+            if (!c) return;
+            const raw = prompt(`Số dư ví Spa hiện tại: ${formatMoney(c.balance)}\nNhập SỐ DƯ MỚI:`, String(c.balance));
+            if (raw === null) return;
+            const newBal = parseMoneyInput(raw);
+            const reason = (prompt('Lý do điều chỉnh (bắt buộc):', '') || '').trim();
+            if (!reason) { alert('Phải nhập lý do điều chỉnh.'); return; }
+            const res = await fetch(`/api/topup/adjust/${c.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ new_balance: newBal, reason })
+            });
+            const out = await res.json().catch(() => ({}));
+            if (!res.ok) { alert('Lỗi: ' + (out.detail || 'Không chỉnh được ví')); return; }
+            await viewContactDetail(c.id);
+        }
+        window.adjustSpaWallet = adjustSpaWallet;
+
         async function viewContactDetail(id) {
             try {
                 const res = await fetch(`/api/contacts/${id}`);
@@ -670,12 +667,26 @@
                     if (secWalletHist) secWalletHist.classList.remove('hidden');
                     if (elPoints) elPoints.textContent = data.points || 0;
                     if (elWallet) elWallet.textContent = formatMoney(data.spa_wallet_balance || 0);
+                    window._detailWalletContact = { id: data.id, balance: Number(data.spa_wallet_balance || 0) };
+                    const btnAdj = document.getElementById('btn-adjust-spa-wallet');
+                    if (btnAdj) btnAdj.classList.toggle('hidden', !(typeof Auth !== 'undefined' && Auth.hasRole('owner', 'admin')));
 
                     if (tbWalletHist) {
                         if (data.spa_wallet_history && data.spa_wallet_history.length > 0) {
                             tbWalletHist.innerHTML = data.spa_wallet_history.map(r => {
                                 const isTopup = r.type === 'topup';
                                 const isSpend = r.type === 'spend';
+                                if (r.type === 'adjust') {
+                                    const up = Number(r.amount) >= 0;
+                                    return `
+                                    <tr class="border-b hover:bg-amber-50/50">
+                                        <td class="p-2 text-slate-500 font-mono">${formatDateTime(r.created_at) || '-'}</td>
+                                        <td class="p-2"><span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Điều chỉnh</span></td>
+                                        <td class="p-2 text-right font-mono font-bold ${up ? 'text-emerald-600' : 'text-rose-600'}">${up ? '+' : '-'}${formatMoney(Math.abs(r.amount))}</td>
+                                        <td class="p-2 text-right font-mono font-bold text-slate-700">${formatMoney(r.balance_after)}</td>
+                                        <td class="p-2 text-slate-600">${typeof escapeHtml === 'function' ? escapeHtml(r.note || '') : (r.note || '')}</td>
+                                    </tr>`;
+                                }
                                 const typeBadge = isTopup
                                     ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">⚡ Nạp gói</span>'
                                     : (isSpend ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800">🛒 Chi tiêu</span>' : '<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800">Hoàn tiền</span>');

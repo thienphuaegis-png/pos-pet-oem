@@ -47,24 +47,20 @@ def test_contact_creator_and_phone_dedup():
         assert res2.status_code == 400
         assert "đã được đăng ký cho" in res2.json()["detail"]
 
-        # 3. Tạo khách hàng C có cùng tên nhưng SĐT khác -> cảnh báo 409
-        res3 = client.post("/api/contacts", json={
+        # 3. Tạo khách hàng C cùng tên nhưng SĐT khác -> cho phép (không cảnh báo trùng tên)
+        res4 = client.post("/api/contacts", json={
             "name": name_a,
             "phone": "0989999888",
             "type": "customer"
         }, headers=headers)
-        assert res3.status_code == 409
-        assert "Trùng tên" in res3.json()["detail"]
-
-        # 4. Tạo lại khách hàng C với allow_duplicate_name: true -> thành công
-        res4 = client.post("/api/contacts", json={
-            "name": name_a,
-            "phone": "0989999888",
-            "type": "customer",
-            "allow_duplicate_name": True
-        }, headers=headers)
-        assert res4.status_code == 200
+        assert res4.status_code == 200, res4.text
         cid4 = res4.json()["id"]
+
+        # 3b. Khởi động lại (init_db) KHÔNG được gộp 2 khách trùng tên
+        from database import init_db
+        init_db()
+        assert client.get(f"/api/contacts/{cid4}", headers=headers).status_code == 200
+        assert client.get(f"/api/contacts/{cid1}", headers=headers).json()["phone"] == "0981123456"
 
         # 5. Cập nhật khách C sang SĐT của khách A -> phải bị chặn 400
         res5 = client.put(f"/api/contacts/{cid4}", json={

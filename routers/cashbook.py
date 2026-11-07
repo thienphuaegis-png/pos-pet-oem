@@ -682,7 +682,7 @@ def delete_cashbook_voucher(
             cur.execute("SELECT * FROM spa_wallet_transactions WHERE id = ?", (ref_id,))
             tx = cur.fetchone()
         if not tx and contact_id:
-            cur.execute("SELECT * FROM spa_wallet_transactions WHERE contact_id = ? ORDER BY id DESC LIMIT 1", (contact_id,))
+            cur.execute("SELECT * FROM spa_wallet_transactions WHERE contact_id = ? AND type = 'topup' ORDER BY id DESC LIMIT 1", (contact_id,))
             tx = cur.fetchone()
 
         if tx:
