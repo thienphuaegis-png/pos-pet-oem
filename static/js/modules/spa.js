@@ -4828,6 +4828,7 @@
             const previewAddr = document.getElementById('svc-preview-address');
             const previewPoints = document.getElementById('svc-preview-points');
             const previewWallet = document.getElementById('svc-preview-wallet');
+            const previewPets = document.getElementById('svc-preview-pets');
 
             if (!custId) {
                 if (petSel) petSel.innerHTML = '<option value="">-- Chọn khách trước --</option>';
@@ -4835,6 +4836,7 @@
                 if (previewAddr) previewAddr.textContent = '-';
                 if (previewPoints) previewPoints.textContent = '0';
                 if (previewWallet) previewWallet.textContent = '0 đ';
+                if (previewPets) previewPets.textContent = '0 bé';
                 const walletBar = document.getElementById('svc-spa-wallet-bar');
                 if (walletBar) walletBar.classList.add('hidden');
                 const optWallet = document.getElementById('svc-opt-pay-wallet');
@@ -4852,6 +4854,7 @@
                 if (previewPhone) previewPhone.textContent = cust.phone || 'Chưa có';
                 if (previewAddr) previewAddr.textContent = cust.address || 'Chưa có';
                 if (previewPoints) previewPoints.textContent = (cust.points || 0).toLocaleString('vi-VN');
+                if (previewPets) previewPets.textContent = `${cust.pets_count || 0} bé`;
                 const balStr = formatMoneyString(cust.spa_wallet_balance || 0) + ' đ';
                 if (previewWallet) previewWallet.textContent = balStr;
                 const walletBar = document.getElementById('svc-spa-wallet-bar');
@@ -4868,6 +4871,10 @@
             try {
                 const res = await fetch(`/api/contacts/${custId}/pets`);
                 currentSvcPetsList = await res.json();
+                if (previewPets) {
+                    const actualCount = Array.isArray(currentSvcPetsList) ? currentSvcPetsList.length : 0;
+                    previewPets.textContent = `${actualCount} bé`;
+                }
                 if (Array.isArray(currentSvcPetsList) && currentSvcPetsList.length > 0) {
                     petSel.innerHTML = '<option value="">-- Chọn bé cũ của khách --</option>' +
                         currentSvcPetsList.map(p => `<option value="${p.id}">🐾 ${p.name} (${p.breed || p.species || 'Cún'} - ${p.weight ? String(p.weight).replace('.',',') + 'kg' : 'Chưa cân'})</option>`).join('') +
@@ -4974,8 +4981,13 @@
                             </div>
                             <div class="text-xs text-slate-500 font-mono">${c.phone || 'Chưa có SĐT'}</div>
                         </div>
-                        <div class="text-right text-xs text-sky-700 font-medium">
-                            ${c.pets_count ? `🐾 ${c.pets_count} bé` : ''}
+                        <div class="text-right text-xs text-sky-700 font-medium shrink-0 ml-3">
+                            ${c.pets_count ? `
+                                <span class="bg-sky-50 text-sky-800 border border-sky-200 px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-1">
+                                    🐾 ${c.pets_count} bé
+                                </span>
+                                ${c.pet_names ? `<div class="text-xs text-sky-600 truncate max-w-[150px] text-right mt-0.5 font-normal" title="${escapeSpaHtml(c.pet_names)}">${escapeSpaHtml(c.pet_names)}</div>` : ''}
+                            ` : '<span class="text-slate-400 text-xs italic">Chưa có bé</span>'}
                         </div>
                     </div>
                 `).join('');

@@ -561,8 +561,13 @@
                         </div>
                         <div class="text-slate-400 text-xs">${c.phone || 'Chưa có SĐT'}</div>
                     </div>
-                    <div class="text-right text-xs text-slate-500 font-mono">
-                        ${c.pets_count ? `🐾 ${c.pets_count} bé` : ''}
+                    <div class="text-right text-xs text-sky-700 font-medium shrink-0 ml-3">
+                        ${c.pets_count ? `
+                            <span class="bg-sky-50 text-sky-800 border border-sky-200 px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-1">
+                                🐾 ${c.pets_count} bé
+                            </span>
+                            ${c.pet_names ? `<div class="text-xs text-sky-600 truncate max-w-[150px] text-right mt-0.5 font-normal" title="${c.pet_names}">${c.pet_names}</div>` : ''}
+                        ` : '<span class="text-slate-400 text-xs italic">Chưa có bé</span>'}
                     </div>
                 </div>
             `).join('');

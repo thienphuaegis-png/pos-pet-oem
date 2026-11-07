@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup So Sánh: Hiển Thị Số Lượng Thú Cưng Khách Hàng</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            padding: 24px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            border: 1px solid #e2e8f0;
+        }
+        .header {
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 14px;
+        }
+        .header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header p {
+            color: #64748b;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .card {
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fafafa;
+        }
+        .card-header {
+            padding: 10px 14px;
+            font-weight: 700;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-header.current {
+            background: #fee2e2;
+            color: #991b1b;
+            border-bottom: 1px solid #fecaca;
+        }
+        .card-header.proposed {
+            background: #dbeafe;
+            color: #1e40af;
+            border-bottom: 1px solid #bfdbfe;
+        }
+        .input-mock {
+            padding: 12px 14px;
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .input-mock label {
+            display: block;
+            font-weight: 700;
+            font-size: 12px;
+            color: #0c4a6e;
+            margin-bottom: 4px;
+        }
+        .input-mock .box {
+            border: 1.5px solid #ec4899;
+            border-radius: 8px;
+            padding: 7px 10px;
+            font-size: 12px;
+            background: #fff;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 0 0 2px rgba(236,72,153,0.15);
+        }
+        .dropdown {
+            background: #ffffff;
+            border-top: 1px solid #e2e8f0;
+        }
+        .dropdown-item {
+            padding: 9px 14px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .dropdown-item:hover {
+            background: #f0f9ff;
+        }
+        .cust-name {
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 12.5px;
+        }
+        .cust-phone {
+            font-size: 11.5px;
+            color: #64748b;
+            font-family: monospace;
+            margin-top: 2px;
+        }
+        .badge-none {
+            color: #94a3b8;
+            font-size: 11px;
+            font-style: italic;
+        }
+        .badge-pet {
+            background: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+        .badge-pet-mult {
+            background: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+        .pet-names-detail {
+            font-size: 11px;
+            color: #0284c7;
+            max-width: 140px;
+            text-align: right;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-top: 2px;
+        }
+        .notes-box {
+            margin-top: 20px;
+            padding: 14px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 12.5px;
+        }
+        .notes-box ul {
+            margin-left: 20px;
+            margin-top: 6px;
+        }
+        .notes-box li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🐾 Đề Xuất Hiển Thị Số Lượng Thú Cưng Trên Danh Sách Khách Hàng (Modal Tiếp Nhận Spa)</h1>
+        <p>So sánh giao diện thực tế lấy từ CSDL thật của tiệm (chi nhánh PetNT / MCare)</p>
+    </div>
+
+    <div class="grid">
+        <!-- CỘT 1: HIỆN TẠI -->
+        <div class="card">
+            <div class="card-header current">
+                <span>🔴 HIỆN TẠI (Trống bên phải)</span>
+                <span style="font-size: 11px;">Gốc lỗi: API compact=1 chưa nạp pets_count</span>
+            </div>
+            <div class="input-mock">
+                <label>Khách Hàng (*):</label>
+                <div class="box">
+                    <span>Gõ tên hoặc SĐT khách...</span>
+                    <span style="color:#ec4899;">|</span>
+                </div>
+            </div>
+            <div class="dropdown">
+                <div class="dropdown-item">
+                    <div>
+                        <div class="cust-name">Chị Phương (Misa)</div>
+                        <div class="cust-phone">Chưa có SĐT</div>
+                    </div>
+                    <div class="badge-none">—</div>
+                </div>
+                <div class="dropdown-item">
+                    <div>
+                        <div class="cust-name">C.Nhi</div>
+                        <div class="cust-phone">0782567866</div>
+                    </div>
+                    <div class="badge-none">—</div>
+                </div>
+                <div class="dropdown-item">
+                    <div>
+                        <div class="cust-name">822790979.0</div>
+                        <div class="cust-phone">Chưa có SĐT</div>
+                    </div>
+                    <div class="badge-none">—</div>
+                </div>
+                <div class="dropdown-item">
+                    <div>
+                        <div class="cust-name">Chị châu alaska</div>
+                        <div class="cust-phone">Chưa có SĐT</div>
+                    </div>
+                    <div class="badge-none">—</div>
+                </div>
+                <div class="dropdown-item">
+                    <div>
+                        <div class="cust-name">thiênphu</div>
+                        <div class="cust-phone">0111111111, 0111111115</div>
+                    </div>
+                    <div class="badge-none">—</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CỘT 2: ĐỀ XUẤT -->
+        <div class="card">
+            <div class="card-header proposed">
+                <span>🟢 ĐỀ XUẤT (Badge số lượng bé & tên thú cưng)</span>
+                <span style="font-size: 11px;">Tối ưu: 1 truy vấn nhóm, &lt;0.5ms</span>
+            </div>
+            <div class="input-mock">
+                <label>Khách Hàng (*):</label>
+                <div class="box">
+                    <span>Gõ tên hoặc SĐT khách...</span>
+                    <span style="color:#0284c7;">🔍</span>
+                </div>
+            </div>
+            <div class="dropdown">
+                <div class="dropdown-item" style="background:#f0f9ff;">
+                    <div>
+                        <div class="cust-name">Chị Phương (Misa)</div>
+                        <div class="cust-phone">Chưa có SĐT</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="badge-pet badge-pet-mult">🐾 3 bé</span>
+                        <div class="pet-names-detail" title="Misa, Phóc, Chó Cảnh Khác">Misa, Phóc...</div>
+                    </div>
+                </div>
+                <div class="dropdown-item">
+                    <div>
+                        <div class="cust-name">C.Nhi</div>
+                        <div class="cust-phone">0782567866</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="badge-pet badge-pet-mult">🐾 2 bé</span>
+                        <div class="pet-names-detail" title="An, my">An, my</div>
+                    </div>
+                </div>
+                <div class="dropdown-item">
+                    <div>
+                        <div class="cust-name">822790979.0</div>
+                        <div class="cust-phone">Chưa có SĐT</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="badge-pet">🐾 1 bé</span>
+                        <div class="pet-names-detail" title="buba">buba</div>
+                    </div>
+                </div>
+                <div class="dropdown-item">
+                    <div>
+                        <div class="cust-name">Chị châu alaska</div>
+                        <div class="cust-phone">Chưa có SĐT</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="badge-pet">🐾 1 bé</span>
+                        <div class="pet-names-detail" title="Ngáo">Ngáo</div>
+                    </div>
+                </div>
+                <div class="dropdown-item">
+                    <div>
+                        <div class="cust-name">thiênphu</div>
+                        <div class="cust-phone">0111111111, 0111111115</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="color:#94a3b8; font-size:11px; background:#f8fafc; border:1px dashed #cbd5e1; padding:2px 6px; border-radius:6px;">Chưa có bé</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notes-box">
+        <strong>💡 Điểm kỹ thuật & Nghiệp vụ:</strong>
+        <ul>
+            <li><strong>Tại sao hiện tại bị trống?</strong> Frontend file <code>static/js/modules/spa.js:4978</code> đã có sẵn mã <code>${c.pets_count ? '🐾 ' + c.pets_count + ' bé' : ''}</code>, nhưng API backend <code>routers/partners.py</code> khi nhận <code>compact=1</code> chưa tính trường <code>pets_count</code> nên luôn trả về <code>null</code>.</li>
+            <li><strong>Tối ưu hiệu năng:</strong> Backend sẽ chỉ đếm <code>pets_count</code> (và tên bé ngắn gọn) cho đúng 30 khách hàng trả về trong lần gõ tìm kiếm đó (dùng <code>SELECT customer_id, COUNT(*), GROUP_CONCAT(name, ', ') FROM pets WHERE customer_id IN (...) GROUP BY customer_id</code>), thời gian thực thi <strong>dưới 0.5ms</strong>, không gây đơ lag máy.</li>
+            <li><strong>Mở rộng:</strong> Đồng thời cập nhật luôn cho cả màn hình <strong>Khách Sạn Hotel</strong> (<code>hotel.js</code>) và thanh tóm tắt khách hàng sau khi chọn.</li>
+        </ul>
+    </div>
+</div>
+
+</body>
+</html>

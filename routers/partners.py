@@ -226,17 +226,36 @@ def list_contacts(
             digits = re.sub(r"\D+", "", raw_q)
             if len(digits) >= 3:
                 sd = f"%{digits}%"
-                query += " AND (c.name LIKE ? OR c.phone LIKE ? OR REPLACE(REPLACE(REPLACE(c.phone, ' ', ''), '.', ''), '-', '') LIKE ?)"
-                params.extend([s, s, sd])
+                query += " AND (c.name LIKE ? OR c.phone LIKE ? OR c.code LIKE ? OR REPLACE(REPLACE(REPLACE(c.phone, ' ', ''), '.', ''), '-', '') LIKE ?)"
+                params.extend([s, s, s, sd])
             else:
-                query += " AND (c.name LIKE ? OR c.phone LIKE ?)"
-                params.extend([s, s])
+                query += " AND (c.name LIKE ? OR c.phone LIKE ? OR c.code LIKE ?)"
+                params.extend([s, s, s])
         query += " ORDER BY c.id DESC"
         if limit and int(limit) > 0:
             query += " LIMIT ?"
             params.append(int(limit))
         cur.execute(query, tuple(params))
         rows = [dict(r) for r in cur.fetchall()]
+        if rows:
+            cids = [int(r["id"]) for r in rows]
+            ph = ",".join("?" for _ in cids)
+            cur.execute(f"""
+                SELECT customer_id, COUNT(*) as pets_count, GROUP_CONCAT(name, ', ') as pet_names
+                FROM pets
+                WHERE customer_id IN ({ph})
+                GROUP BY customer_id
+            """, tuple(cids))
+            pet_map = {}
+            for pr in cur.fetchall():
+                pet_map[int(pr["customer_id"])] = {
+                    "count": int(pr["pets_count"] or 0),
+                    "names": str(pr["pet_names"] or "").strip()
+                }
+            for r in rows:
+                p_info = pet_map.get(int(r["id"]), {"count": 0, "names": ""})
+                r["pets_count"] = p_info["count"]
+                r["pet_names"] = p_info["names"]
         conn.close()
         return rows
 
