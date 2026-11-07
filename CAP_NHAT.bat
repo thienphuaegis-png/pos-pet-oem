@@ -117,6 +117,9 @@ if "!FETCH_OK!"=="1" (
         where python >nul 2>&1
         if !errorlevel! equ 0 (
             python -c "import database; database.init_db()" >nul 2>&1
+            if exist "data\pos_instance2.db" (
+                python -c "import os; os.environ['POS_DB_PATH']=r'data\pos_instance2.db'; import database; database.init_db()" >nul 2>&1
+            )
         )
     )
 

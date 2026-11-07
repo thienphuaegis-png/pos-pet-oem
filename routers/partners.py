@@ -100,6 +100,37 @@ class PetUpdate(BaseModel):
     weight: Optional[float] = None
     note: Optional[str] = None
 
+
+def ensure_contacts_columns(cur, conn=None):
+    """Tự động bù các cột mới (created_by, code, note, initial_debt_...) cho bảng contacts trên mọi instance/DB nếu chưa có."""
+    try:
+        cur.execute("PRAGMA table_info(contacts)")
+        cols = {r["name"] if isinstance(r, dict) or hasattr(r, "keys") else r[1] for r in cur.fetchall()}
+        missing = []
+        if "created_by" not in cols:
+            missing.append("ALTER TABLE contacts ADD COLUMN created_by INTEGER REFERENCES staff(id)")
+        if "code" not in cols:
+            missing.append("ALTER TABLE contacts ADD COLUMN code TEXT")
+        if "note" not in cols:
+            missing.append("ALTER TABLE contacts ADD COLUMN note TEXT DEFAULT ''")
+        if "initial_debt_company" not in cols:
+            missing.append("ALTER TABLE contacts ADD COLUMN initial_debt_company REAL DEFAULT 0")
+        if "initial_debt_personal" not in cols:
+            missing.append("ALTER TABLE contacts ADD COLUMN initial_debt_personal REAL DEFAULT 0")
+        for stmt in missing:
+            try:
+                cur.execute(stmt)
+            except Exception:
+                pass
+        if missing and conn and hasattr(conn, "commit"):
+            try:
+                conn.commit()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 @router.get("")
 def list_contacts(
     type: Optional[str] = None,
@@ -111,6 +142,7 @@ def list_contacts(
 ):
     conn = get_db()
     cur = conn.cursor()
+    ensure_contacts_columns(cur, conn)
     if paginated and type == "customer":
         # Phân trang phía Server cho Tab Khách Hàng: chỉ đọc đúng trang hiện tại (VD: 20 dòng) + đếm pets của riêng 20 KH đó
         cur.execute("SELECT COUNT(*) as cnt, COALESCE(SUM(debt), 0) as total_debt FROM contacts WHERE type = 'customer'")
@@ -751,6 +783,7 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
 def get_contact(contact_id: int):
     conn = get_db()
     cur = conn.cursor()
+    ensure_contacts_columns(cur, conn)
     cur.execute("""
         SELECT c.*, cs.name as segment_name, cs.discount_percent as segment_discount, cs.price_list_id,
                pl.name as price_list_name,
@@ -845,6 +878,7 @@ def get_contact(contact_id: int):
 def create_contact(req: ContactCreate, user=Depends(require_any_permission("partners.manage", "pos.sell"))):
     conn = get_db()
     cur = conn.cursor()
+    ensure_contacts_columns(cur, conn)
 
     norm_name = re.sub(r"\s+", " ", (req.name or "").strip())
     if not norm_name:

@@ -80,3 +80,28 @@ def test_contact_creator_and_phone_dedup():
     finally:
         # Dọn dẹp khách A
         client.delete(f"/api/contacts/{cid1}", headers=headers)
+
+
+def test_contacts_schema_resilience_missing_created_by():
+    """Bảo đảm khi bảng contacts trên DB phụ (như PetNT pos_instance2.db) chưa có created_by,
+    hệ thống tự động bù cột và không bao giờ crash 500 khi gọi /api/contacts."""
+    import sqlite3
+    from routers.partners import ensure_contacts_columns
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("CREATE TABLE contacts (id INTEGER PRIMARY KEY, type TEXT, name TEXT, phone TEXT, address TEXT, debt REAL)")
+    cur.execute("INSERT INTO contacts (type, name, phone, address, debt) VALUES ('customer', 'Test Khách PetNT', '0912345678', 'Nha Trang', 0)")
+
+    cur.execute("PRAGMA table_info(contacts)")
+    cols_before = {r[1] for r in cur.fetchall()}
+    assert "created_by" not in cols_before
+
+    ensure_contacts_columns(cur, conn)
+
+    cur.execute("PRAGMA table_info(contacts)")
+    cols_after = {r[1] for r in cur.fetchall()}
+    assert "created_by" in cols_after
+    conn.close()
+
