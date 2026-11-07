@@ -1822,7 +1822,7 @@
                     const phoneTokens = typeof window.buildContactPhoneSearchTokens === 'function'
                         ? window.buildContactPhoneSearchTokens(t.customer_phone)
                         : String(t.customer_phone || '');
-                    const hay = `${t.code||''} ${t.customer_name||''} ${t.customer_phone||''} ${phoneTokens} ${t.pet_name||''} ${t.service_type||''} ${t.staff_cutter||''} ${t.staff_worker_1||''} ${t.staff_dyer||''} ${t.staff_receiver||''}`.toLowerCase();
+                    const hay = `${t.code||''} ${t.customer_name||''} ${t.customer_phone||''} ${phoneTokens} ${t.pet_name||''} ${t.service_type||''} ${t.staff_cutter||''} ${t.staff_worker_1||''} ${t.staff_worker_2||''} ${t.staff_dyer||''} ${t.staff_receiver||''}`.toLowerCase();
                     const qDigits = q.replace(/\D+/g, '');
                     const matchText = hay.includes(q) || (typeof removeVietnameseTones === 'function' && removeVietnameseTones(hay).includes(removeVietnameseTones(q)));
                     const matchDigits = qDigits.length >= 3 && phoneTokens.includes(qDigits);
@@ -1986,7 +1986,7 @@
                 let staffDisplay = [];
                 if (t.staff_receiver) staffDisplay.push(`<span class="text-sky-700 font-bold" title="Nhận">📥 ${t.staff_receiver}</span>`);
                 if (t.staff_cutter) staffDisplay.push(`<span class="text-sky-700 font-bold" title="Cắt">✂️ ${t.staff_cutter}</span>`);
-                if (t.staff_worker_1) staffDisplay.push(`<span class="text-sky-700" title="Tắm/Làm 1">🛁 ${t.staff_worker_1}</span>`);
+                if (spaBathNames(t)) staffDisplay.push(`<span class="text-sky-700" title="Tắm">🛁 ${spaBathNames(t)}</span>`);
                 if (t.staff_dyer) staffDisplay.push(`<span class="text-amber-700" title="Nhuộm">🎨 ${t.staff_dyer}</span>`);
                 const staffHtml = staffDisplay.length > 0 ? staffDisplay.join('<br>') : '<span class="text-gray-400 ">Chưa phân công</span>';
 
@@ -2151,7 +2151,7 @@
                     const phoneTokens = typeof window.buildContactPhoneSearchTokens === 'function'
                         ? window.buildContactPhoneSearchTokens(t.customer_phone)
                         : String(t.customer_phone || '');
-                    const hay = `${t.code||''} ${t.customer_name||''} ${t.customer_phone||''} ${phoneTokens} ${t.pet_name||''} ${t.service_type||''} ${t.staff_cutter||''} ${t.staff_worker_1||''} ${t.staff_dyer||''} ${t.staff_receiver||''}`.toLowerCase();
+                    const hay = `${t.code||''} ${t.customer_name||''} ${t.customer_phone||''} ${phoneTokens} ${t.pet_name||''} ${t.service_type||''} ${t.staff_cutter||''} ${t.staff_worker_1||''} ${t.staff_worker_2||''} ${t.staff_dyer||''} ${t.staff_receiver||''}`.toLowerCase();
                     const qDigits = q.replace(/\D+/g, '');
                     const matchText = hay.includes(q) || (typeof removeVietnameseTones === 'function' && removeVietnameseTones(hay).includes(removeVietnameseTones(q)));
                     const matchDigits = qDigits.length >= 3 && phoneTokens.includes(qDigits);
@@ -2178,7 +2178,7 @@
                     let staffPills = [];
                     if (t.staff_receiver) staffPills.push(`<span class="text-sky-700 font-semibold">📥 ${t.staff_receiver}</span>`);
                     if (t.staff_cutter) staffPills.push(`<span class="text-sky-700 font-semibold">✂️ ${t.staff_cutter}</span>`);
-                    if (t.staff_worker_1) staffPills.push(`<span class="text-sky-700">🛁 ${t.staff_worker_1}</span>`);
+                    if (spaBathNames(t)) staffPills.push(`<span class="text-sky-700">🛁 ${spaBathNames(t)}</span>`);
                     if (t.staff_dyer) staffPills.push(`<span class="text-amber-700">🎨 ${t.staff_dyer}</span>`);
 
                     // Phụ thu
@@ -2470,7 +2470,7 @@
                 // Thợ phụ trách
                 let staffHtml = '';
                 if (t.staff_cutter) staffHtml += `<div class="font-bold text-sky-700">✂️ ${escapeSpaHtml(t.staff_cutter)}</div>`;
-                if (t.staff_worker_1) staffHtml += `<div class="text-xs text-sky-700">🛁 ${escapeSpaHtml(t.staff_worker_1)}</div>`;
+                if (spaBathNames(t)) staffHtml += `<div class="text-xs text-sky-700">🛁 ${escapeSpaHtml(spaBathNames(t))}</div>`;
                 if (t.staff_receiver) staffHtml += `<div class="text-xs text-sky-700">📥 ${escapeSpaHtml(t.staff_receiver)}</div>`;
                 if (!staffHtml) staffHtml = '<span class="text-gray-400 ">-</span>';
 
@@ -2630,6 +2630,131 @@
             };
         }
         window.getTicketStaffRoleConfig = getTicketStaffRoleConfig;
+
+        // ===== Bộ chọn nhiều thợ cho mỗi vai (chip + "+ Thêm Tắm 2") =====
+        // Lưu DB: mỗi cột 1 chuỗi tên cách ", ". Tắm: người 1 -> staff_worker_1, người 2+ -> staff_worker_2.
+        const SPA_STAFF_ROLES = [
+            { key: 'receiver', icon: '📥', label: 'Tiếp nhận / Trả bé', short: 'Nhận', multi: false },
+            { key: 'bath', icon: '🛁', label: 'Tắm / Sấy', short: 'Tắm', multi: true },
+            { key: 'cut', icon: '✂️', label: 'Cắt tỉa', short: 'Cắt', multi: true },
+            { key: 'dye', icon: '🎨', label: 'Nhuộm', short: 'Nhuộm', multi: true },
+        ];
+        let _spaStaffPick = null;
+
+        function splitSpaStaffNames(...vals) {
+            const out = [];
+            vals.join(',').split(',').forEach(p => {
+                const n = p.trim();
+                if (n && !out.some(x => x.toLowerCase() === n.toLowerCase())) out.push(n);
+            });
+            return out;
+        }
+        window.splitSpaStaffNames = splitSpaStaffNames;
+
+        function spaBathNames(t) {
+            return splitSpaStaffNames(t?.staff_worker_1 || '', t?.staff_worker_2 || '').join(', ');
+        }
+        window.spaBathNames = spaBathNames;
+
+        function initSpaStaffPicker(containerId, ticket) {
+            const cfg = getTicketStaffRoleConfig(ticket);
+            _spaStaffPick = {
+                containerId,
+                show: { receiver: true, bath: true, cut: cfg.needsCutter, dye: cfg.needsDyer },
+                sel: {
+                    receiver: splitSpaStaffNames(ticket?.staff_receiver || '').slice(0, 1),
+                    bath: splitSpaStaffNames(ticket?.staff_worker_1 || '', ticket?.staff_worker_2 || ''),
+                    cut: splitSpaStaffNames(ticket?.staff_cutter || ''),
+                    dye: splitSpaStaffNames(ticket?.staff_dyer || ''),
+                },
+                open: null,
+            };
+            renderSpaStaffPicker();
+        }
+        window.initSpaStaffPicker = initSpaStaffPicker;
+
+        function renderSpaStaffPicker() {
+            const st = _spaStaffPick;
+            const box = st && document.getElementById(st.containerId);
+            if (!box) return;
+            box.innerHTML = SPA_STAFF_ROLES.filter(r => st.show[r.key]).map(r => {
+                const list = st.sel[r.key];
+                const isDye = r.key === 'dye';
+                const chipCls = isDye ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-sky-100 text-sky-900 border-sky-300';
+                const chips = list.map((n, i) => `
+                    <span class="inline-flex items-center gap-1 border rounded-full pl-2.5 pr-1 py-0.5 text-xs font-bold ${chipCls}">
+                        ${r.multi ? `<span class="text-[10px] bg-sky-700 text-white rounded-full px-1.5">${i + 1}</span>` : ''}${escapeSpaHtml(n)}
+                        <button type="button" onclick="spaStaffPickRemove('${r.key}', ${i})" class="w-5 h-5 rounded-full bg-white/80 hover:bg-white text-slate-800 font-bold leading-none" title="Bỏ thợ này" aria-label="Bỏ ${escapeSpaHtml(n)}">×</button>
+                    </span>`).join('');
+                const canAdd = r.multi || list.length === 0;
+                const addBtn = canAdd ? `
+                    <button type="button" onclick="spaStaffPickToggle('${r.key}')" class="border border-dashed rounded-full px-2.5 py-0.5 text-xs font-bold ${isDye ? 'border-amber-500 text-amber-700' : 'border-sky-500 text-sky-700'} hover:bg-white">
+                        ${list.length ? `+ Thêm ${r.short} ${list.length + 1}` : '+ Chọn thợ'}
+                    </button>` : '';
+                const picker = st.open === r.key ? `
+                    <div class="mt-1.5 border border-slate-300 rounded-lg bg-white shadow-lg">
+                        <input type="text" id="${st.containerId}-q" oninput="spaStaffPickFilter('${r.key}', this.value)" placeholder="Gõ tên thợ..." class="w-full border-b border-slate-200 p-2 text-xs outline-none rounded-t-lg">
+                        <div id="${st.containerId}-opts" class="max-h-44 overflow-y-auto"></div>
+                    </div>` : '';
+                const note = (r.multi && list.length > 1) ? `<span class="text-[11px] font-semibold text-slate-600">Chia đều công / ${list.length} người</span>` : '';
+                return `
+                    <div class="border rounded-lg p-2 ${isDye ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200'}">
+                        <div class="flex justify-between items-center text-xs font-bold text-slate-700"><span>${r.icon} ${r.label}</span>${note}</div>
+                        <div class="flex flex-wrap gap-1.5 mt-1.5 items-center">${chips || '<span class="text-xs text-slate-500 italic">Chưa phân công</span>'}${addBtn}</div>
+                        ${picker}
+                    </div>`;
+            }).join('');
+            if (st.open) {
+                spaStaffPickFilter(st.open, '');
+                setTimeout(() => document.getElementById(`${st.containerId}-q`)?.focus(), 0);
+            }
+        }
+
+        function spaStaffPickFilter(role, q) {
+            const st = _spaStaffPick;
+            const el = st && document.getElementById(`${st.containerId}-opts`);
+            if (!el) return;
+            const kw = String(q || '').trim().toLowerCase();
+            const used = st.sel[role].map(x => x.toLowerCase());
+            const rows = (allSpaStaffList || []).map((s, idx) => ({ s, idx }))
+                .filter(({ s }) => !kw || `${s.staff_code || ''} ${s.name || ''}`.toLowerCase().includes(kw));
+            el.innerHTML = rows.length ? rows.map(({ s, idx }) => {
+                const isUsed = used.includes(String(s.name || '').toLowerCase());
+                return `<div class="px-2.5 py-1.5 text-xs ${isUsed ? 'text-slate-400 cursor-not-allowed' : 'cursor-pointer hover:bg-sky-50 text-slate-800 font-semibold'}" ${isUsed ? '' : `onclick="spaStaffPickAdd('${role}', ${idx})"`}>${escapeSpaHtml(s.name)}${isUsed ? ' (đã chọn)' : ''}</div>`;
+            }).join('') : '<div class="px-2.5 py-2 text-xs text-slate-400">Không tìm thấy thợ</div>';
+        }
+
+        function spaStaffPickToggle(role) {
+            _spaStaffPick.open = _spaStaffPick.open === role ? null : role;
+            renderSpaStaffPicker();
+        }
+
+        function spaStaffPickAdd(role, staffIdx) {
+            const s = (allSpaStaffList || [])[staffIdx];
+            if (!s || !s.name) return;
+            const def = SPA_STAFF_ROLES.find(r => r.key === role);
+            if (!def.multi) _spaStaffPick.sel[role] = [];
+            _spaStaffPick.sel[role].push(s.name);
+            _spaStaffPick.open = null;
+            renderSpaStaffPicker();
+        }
+
+        function spaStaffPickRemove(role, i) {
+            _spaStaffPick.sel[role].splice(i, 1);
+            renderSpaStaffPicker();
+        }
+
+        function collectSpaStaffPicker() {
+            const s = _spaStaffPick.sel;
+            return {
+                staff_receiver: s.receiver[0] || '',
+                staff_worker_1: s.bath[0] || '',
+                staff_worker_2: s.bath.slice(1).join(', '),
+                staff_cutter: s.cut.join(', '),
+                staff_dyer: s.dye.join(', '),
+            };
+        }
+        Object.assign(window, { spaStaffPickFilter, spaStaffPickToggle, spaStaffPickAdd, spaStaffPickRemove, collectSpaStaffPicker });
 
         // Phần dịch vụ spa đủ điều kiện trừ Ví Spa (Chỉ áp dụng cho gói Combo VIP 1, VIP 2, VIP 3, Super VIP; không trừ phụ thu, nhuộm lông, dịch vụ lẻ, tip, hàng bán kèm)
         function spaPureServiceTotal(t) {
@@ -3055,26 +3180,7 @@
             } catch(e){}
 
             // Đổ danh sách thợ
-            const populateStaffSelect = (selId, selectedVal) => {
-                const sel = document.getElementById(selId);
-                if (!sel) return;
-                sel.innerHTML = '<option value="">-- Chưa chọn --</option>' + 
-                    (allSpaStaffList || []).map(s => {
-                        const val = `${s.staff_code} ${s.name}`;
-                        return `<option value="${val}" ${val === selectedVal ? 'selected' : ''}>${val}</option>`;
-                    }).join('');
-            };
-
-            populateStaffSelect('prog-staff-receiver', ticket.staff_receiver || '');
-            populateStaffSelect('prog-staff-worker1', ticket.staff_worker_1 || '');
-            populateStaffSelect('prog-staff-worker2', ticket.staff_worker_2 || '');
-            populateStaffSelect('prog-staff-cutter', ticket.staff_cutter || '');
-            populateStaffSelect('prog-staff-dyer', ticket.staff_dyer || '');
-            const progRoleCfg = getTicketStaffRoleConfig(ticket);
-            const progCutterWrap = document.getElementById('prog-staff-cutter')?.parentElement;
-            const progDyerWrap = document.getElementById('prog-staff-dyer')?.parentElement;
-            if (progCutterWrap) progCutterWrap.style.display = progRoleCfg.needsCutter ? '' : 'none';
-            if (progDyerWrap) progDyerWrap.style.display = progRoleCfg.needsDyer ? '' : 'none';
+            initSpaStaffPicker('prog-staff-picker', ticket);
 
             // Thông tin cơ bản
             document.getElementById('prog-ticket-id').value = ticket.id;
@@ -3139,11 +3245,7 @@
             if (!ticketId) return;
 
             const reqBody = {
-                staff_receiver: document.getElementById('prog-staff-receiver')?.value || '',
-                staff_worker_1: document.getElementById('prog-staff-worker1')?.value || '',
-                staff_worker_2: document.getElementById('prog-staff-worker2')?.value || '',
-                staff_cutter: document.getElementById('prog-staff-cutter')?.value || '',
-                staff_dyer: document.getElementById('prog-staff-dyer')?.value || '',
+                ...collectSpaStaffPicker(),
                 teeth_cleaning: parseFloat(document.getElementById('prog-teeth-cleaning')?.value) || 0,
                 art_cutting_fee: parseFloat(document.getElementById('prog-art-cutting')?.value) || 0,
                 surcharge: parseFloat(document.getElementById('prog-surcharge')?.value) || 0,
@@ -4446,7 +4548,7 @@
                 const weightStr = h.weight_at_service ? `${h.weight_at_service} kg` : (h.pet_weight ? `${h.pet_weight} kg` : '');
                 const priceStr = formatMoneyString(h.price) + ' đ';
                 const dateStr = formatDate(h.ticket_date || h.created_at);
-                const staffStr = [h.staff_cutter, h.staff_worker_1].filter(Boolean).join(', ') || 'Chưa ghi thợ';
+                const staffStr = [h.staff_cutter, spaBathNames(h)].filter(Boolean).join(', ') || 'Chưa ghi thợ';
                 const reqStr = h.customer_request || h.note || '';
 
                 const extraTeethStr = h.teeth_cleaning ? `${formatMoneyString(h.teeth_cleaning)} đ` : '0 đ';
@@ -4499,7 +4601,7 @@
                             </div>
 
                             <div class="text-xs text-slate-600 space-y-0.5">
-                                <div><strong>Thợ:</strong> Cắt: ${h.staff_cutter || '-'} | Tắm: ${h.staff_worker_1 || '-'} | Nhận: ${h.staff_receiver || '-'}</div>
+                                <div><strong>Thợ:</strong> Cắt: ${h.staff_cutter || '-'} | Tắm: ${spaBathNames(h) || '-'} | Nhận: ${h.staff_receiver || '-'}</div>
                                 <div><strong>Giờ nhận/về:</strong> ${h.received_time || '-'} ➔ ${h.checkout_time || '-'}</div>
                                 ${h.customer_request ? `<div class=" text-sky-700">📝 Yêu cầu: ${h.customer_request}</div>` : ''}
                                 ${h.accessories ? `<div class=" text-slate-500">🎒 Phụ kiện: ${h.accessories}</div>` : ''}
@@ -6848,7 +6950,7 @@
                         <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px; font-size: 12px;">
                             <div><strong>Bé:</strong> <span style="font-weight: 800;">${ticket.pet_name || 'Bé cưng'}</span> (${ticket.customer_name || 'Khách lẻ'})</div>
                             <div><strong>Thợ cắt:</strong> <span style="font-weight: 800;">${ticket.staff_cutter || '-'}</span></div>
-                            <div><strong>Thợ tắm / làm:</strong> <span style="font-weight: 800;">${ticket.staff_worker_1 || '-'}</span></div>
+                            <div><strong>Thợ tắm / làm:</strong> <span style="font-weight: 800;">${spaBathNames(ticket) || '-'}</span></div>
                         </div>
 
                         <div style="border: 2px solid #000; border-radius: 4px; padding: 8px; text-align: center; margin-bottom: 8px;">
@@ -7049,7 +7151,7 @@
 
                         ${(ticket.staff_cutter || ticket.staff_worker_1) ? `
                             <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px;">
-                                <div>Thợ cắt: <strong>${ticket.staff_cutter || '-'}</strong> | Thợ tắm: <strong>${ticket.staff_worker_1 || '-'}</strong></div>
+                                <div>Thợ cắt: <strong>${ticket.staff_cutter || '-'}</strong> | Thợ tắm: <strong>${spaBathNames(ticket) || '-'}</strong></div>
                             </div>
                         ` : ''}
 
@@ -7861,55 +7963,11 @@
                     </div>
                 `;
             } else if (fieldType === 'staff') {
-                const roleCfg = getTicketStaffRoleConfig(ticket);
                 if (iconEl) iconEl.textContent = '👥';
                 if (titleEl) titleEl.textContent = `Phân Công Thợ: ${petTitle}`;
                 if (subtitleEl) subtitleEl.textContent = `Dịch vụ: ${ticket.service_type || 'Chưa chọn'}${ticket.dye_package ? ' • 🎨 ' + ticket.dye_package : ''}`;
-
-                let staffOpts = '<option value="">-- Chưa chọn thợ --</option>';
-                (allSpaStaffList || []).forEach(s => {
-                    const label = (s.staff_code ? s.staff_code + ' - ' : '') + (s.name || '');
-                    staffOpts += `<option value="${escapeSpaHtml(s.name)}">${escapeSpaHtml(label)}</option>`;
-                });
-
-                contentEl.innerHTML = `
-                    ${roleCfg.needsCutter ? `
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">✂️ Thợ Cắt Tỉa / Tạo Kiểu:</label>
-                        <select id="quick-edit-val-cutter" class="w-full border p-2 rounded bg-white text-xs font-bold text-sky-700">
-                            ${staffOpts}
-                        </select>
-                    </div>` : ''}
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">🛁 Thợ Tắm / Sấy / Vệ Sinh:</label>
-                        <select id="quick-edit-val-worker1" class="w-full border p-2 rounded bg-white text-xs font-bold text-sky-700">
-                            ${staffOpts}
-                        </select>
-                    </div>
-                    ${roleCfg.needsDyer ? `
-                    <div>
-                        <label class="block font-bold text-amber-800 mb-1">🎨 Thợ Nhuộm Lông:</label>
-                        <select id="quick-edit-val-dyer" class="w-full border border-amber-300 p-2 rounded bg-amber-50/40 text-xs font-bold text-amber-900">
-                            ${staffOpts}
-                        </select>
-                    </div>` : ''}
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">📥 Thợ Tiếp Nhận / Trả Bé:</label>
-                        <select id="quick-edit-val-receiver" class="w-full border p-2 rounded bg-white text-xs font-bold text-sky-700">
-                            ${staffOpts}
-                        </select>
-                    </div>
-                `;
-
-                // Set selected values
-                const cutterEl = document.getElementById('quick-edit-val-cutter');
-                const worker1El = document.getElementById('quick-edit-val-worker1');
-                const dyerEl = document.getElementById('quick-edit-val-dyer');
-                const receiverEl = document.getElementById('quick-edit-val-receiver');
-                if (cutterEl) cutterEl.value = ticket.staff_cutter || '';
-                if (worker1El) worker1El.value = ticket.staff_worker_1 || '';
-                if (dyerEl) dyerEl.value = ticket.staff_dyer || '';
-                if (receiverEl) receiverEl.value = ticket.staff_receiver || '';
+                contentEl.innerHTML = '<div id="quick-edit-staff-picker" class="space-y-2"></div>';
+                initSpaStaffPicker('quick-edit-staff-picker', ticket);
             }
 
             modal.classList.remove('hidden');
@@ -8027,22 +8085,9 @@
                 ticket.accessories = accVal;
                 ticket.note = noteVal;
             } else if (fieldType === 'staff') {
-                const cutterEl = document.getElementById('quick-edit-val-cutter');
-                const worker1El = document.getElementById('quick-edit-val-worker1');
-                const dyerEl = document.getElementById('quick-edit-val-dyer');
-                const receiverEl = document.getElementById('quick-edit-val-receiver');
-                const cVal = cutterEl ? (cutterEl.value || '') : (ticket.staff_cutter || '');
-                const wVal = worker1El ? (worker1El.value || '') : (ticket.staff_worker_1 || '');
-                const dVal = dyerEl ? (dyerEl.value || '') : (ticket.staff_dyer || '');
-                const rVal = receiverEl ? (receiverEl.value || '') : (ticket.staff_receiver || '');
-                changes.staff_cutter = cVal;
-                changes.staff_worker_1 = wVal;
-                changes.staff_dyer = dVal;
-                changes.staff_receiver = rVal;
-                ticket.staff_cutter = cVal;
-                ticket.staff_worker_1 = wVal;
-                ticket.staff_dyer = dVal;
-                ticket.staff_receiver = rVal;
+                const picked = collectSpaStaffPicker();
+                Object.assign(changes, picked);
+                Object.assign(ticket, picked);
             }
 
             // 1. Optimistic UI update: render ngay và đóng popup

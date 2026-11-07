@@ -673,8 +673,9 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-11-06)
-    const ROADMAP_VERSION = 'v8.2-2026-11-07-contact-dup-name-spa-wallet-adjust';
+    const ROADMAP_VERSION = 'v8.3-2026-11-07-spa-multi-staff-per-role';
     const DEFAULT_TASKS = [
+      { id: 'spa-multi-staff-per-role', cat: 'POS', title: 'Phân Công Nhiều Thợ Cho Mỗi Vai Trên Phiếu Spa (Tắm 1, Tắm 2, Cắt, Nhuộm)', done: true, note: 'Bộ chọn chip + nút "+ Thêm Tắm 2" ở popup ô Thợ và màn Tiến độ; lưu nhiều tên cách dấu phẩy trong cột sẵn có; hoa hồng chia đều công vai (Tắm 2 người giữ 50/50 cấu hình), lệch 0đ với phiếu cũ; bảng/K80/lịch sử hiện đủ Tắm 2.' },
       { id: 'contact-dup-name-spa-wallet-adjust', cat: 'POS', title: 'Cho Phép Trùng Tên Khách Hàng (Chỉ Chặn Trùng SĐT) & Owner/Admin Chỉnh Số Dư Ví Spa', done: true, note: 'Bỏ cảnh báo 409 trùng tên + popup confirm; tắt merge_duplicate_contacts() tự chạy mỗi lần khởi động (từng gộp nhầm khách cùng tên khác SĐT); PUT /api/topup/adjust/{id} nhập số dư mới + lý do bắt buộc, ghi lịch sử type=adjust, không ghi sổ quỹ; nút Chỉnh trong modal Chi tiết KH.' },
       // 0. CẬP NHẬT MỚI NHẤT (2026-11-06)
       { id: 'db-io-anti-rescan-5-hotspots', cat: 'SYS', title: 'Triệt Tiêu 5 Tác Vụ Quét Lặp Dữ Liệu Toàn Hệ Thống (Phân Trang 13k KH, Index Ngày Giờ x11.7, Cache SP, KOC 1-Query & Gom Lô Log 15s)', done: true, note: 'Phân trang server paginated=1 cho Tab Khách Hàng (~5KB thay vì 4.8MB), đổi Dòng Tiền sang ?type=supplier và Tạo Phiếu Spa sang compact=1&limit=30; sửa 11 điều kiện WHERE datetime(+7h) sang datetime(?, -7h) ăn thẳng Index (55.2ms -> 4.7ms); bỏ 120.000 vòng quét lồng ở /api/products + thêm window.getSharedProducts(); thêm ensure_koc_schema_once + CTE GROUP BY cho KOC; giãn clientlog từ 2s lên 15s.' },

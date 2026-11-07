@@ -13,6 +13,16 @@ TIP_ROLE_COLUMNS = ("staff_worker_1", "staff_worker_2", "staff_cutter", "staff_d
 
 SPA_COMMISSION_SETTINGS_KEY = "spa_commission_profiles_v2"
 
+
+def split_staff_names(val) -> list:
+    """Một ô thợ có thể chứa nhiều tên cách nhau dấu phẩy ("Bảo Ngọc, Quốc Khánh"). Bỏ trống, bỏ trùng."""
+    out = []
+    for part in str(val or "").split(","):
+        n = part.strip()
+        if n and n.lower() not in [x.lower() for x in out]:
+            out.append(n)
+    return out
+
 DEFAULT_SPA_COMMISSION_CONFIG = {
     "active_profile_id": "branch_default",
     "profiles": [
@@ -469,25 +479,23 @@ def spa_commission_by_name(cur, from_date: str, to_date: str) -> dict:
         seen = set()
 
         for col in SPA_ROLE_COLUMNS:
-            name = (t.get(col) or "").strip()
-            if not name:
-                continue
-            k = name.lower()
             role_key = col.replace("staff_", "")
-            rec = ensure_rec(name)
-            rec["role_counts"][role_key] = rec["role_counts"].get(role_key, 0) + 1
-            if k not in seen:
-                seen.add(k)
-                rec["tickets"] += 1
-                rec["service_revenue"] += service_total
+            for name in split_staff_names(t.get(col)):
+                k = name.lower()
+                rec = ensure_rec(name)
+                rec["role_counts"][role_key] = rec["role_counts"].get(role_key, 0) + 1
+                if k not in seen:
+                    seen.add(k)
+                    rec["tickets"] += 1
+                    rec["service_revenue"] += service_total
 
         code_str = (t.get("code") or "").strip()
         use_legacy_rules = code_str.startswith("SPA-TST-") or (default_profile.get("calc_mode") == "role_rules")
 
         if use_legacy_rules:
             for col in SPA_ROLE_COLUMNS:
-                name = (t.get(col) or "").strip()
-                if not name:
+                names = split_staff_names(t.get(col))
+                if not names:
                     continue
                 role_key = col.replace("staff_", "")
                 for rule in (r for r in rules if r["role_key"] == role_key):
@@ -502,7 +510,8 @@ def spa_commission_by_name(cur, from_date: str, to_date: str) -> dict:
                         continue
                     amount = sub * float(rule["value"]) / 100.0 if rule["rate_type"] == "percent" else float(rule["value"]) * qty
                     part = "cut" if role_key == "cutter" else ("dye" if role_key == "dyer" else ("receiver" if role_key == "receiver" else "bath"))
-                    add_comm(name, amount, part)
+                    for name in names:  # nhiều thợ cùng vai: chia đều công vai
+                        add_comm(name, amount / len(names), part)
         else:
             w_kg = float(t.get("weight_at_service") or t.get("pet_default_weight") or 0.0)
             species_str = (t.get("pet_species") or "").strip().lower()
@@ -519,11 +528,17 @@ def spa_commission_by_name(cur, from_date: str, to_date: str) -> dict:
                     r_amt = (service_total * r_val / 100.0) if r_type == "percent" else r_val
                     add_comm(receiver_name, r_amt, "receiver")
 
-            # 2. Thợ Tắm 1 & Thợ Tắm 2 (Quy tắc 1a: Chia theo tỷ lệ cấu hình 50/50 khi có 2 thợ cùng tắm)
-            w1 = (t.get("staff_worker_1") or "").strip()
-            w2 = (t.get("staff_worker_2") or "").strip()
-            if w1 and w2 and w1.lower() == w2.lower():
-                w2 = ""
+            # 2. Thợ Tắm: staff_worker_1 + staff_worker_2 (mỗi ô có thể nhiều tên, cách dấu phẩy).
+            #    1 người: đủ công; 2 người: tỷ lệ cấu hình worker1/worker2_share_pct (mặc định 50/50);
+            #    3+ người: chia đều 1/n công vai.
+            baths = split_staff_names(", ".join([t.get("staff_worker_1") or "", t.get("staff_worker_2") or ""]))
+
+            def share_of(idx, n, prof):
+                if n == 1:
+                    return 1.0
+                if n == 2:
+                    return float(prof.get("worker1_share_pct" if idx == 0 else "worker2_share_pct", 50.0)) / 100.0
+                return 1.0 / n
 
             def calc_single_bath_rate(worker_name):
                 prof, tier_k = get_worker_profile_and_tier(worker_name)
@@ -532,34 +547,24 @@ def spa_commission_by_name(cur, from_date: str, to_date: str) -> dict:
                     return float(cat_cfg.get(tier_k, cat_cfg.get("official", 60000.0)) or 0.0), prof, tier_k
                 return _lookup_weight_tier_rate(prof.get("bath_tiers") or [], w_kg, tier_k), prof, tier_k
 
-            if w1 and not w2:
-                rate1, _, _ = calc_single_bath_rate(w1)
-                add_comm(w1, rate1, "bath")
-            elif w2 and not w1:
-                rate2, _, _ = calc_single_bath_rate(w2)
-                add_comm(w2, rate2, "bath")
-            elif w1 and w2:
-                rate1, prof1, _ = calc_single_bath_rate(w1)
-                rate2, prof2, _ = calc_single_bath_rate(w2)
-                sh1 = float(prof1.get("worker1_share_pct", 50.0)) / 100.0
-                sh2 = float(prof2.get("worker2_share_pct", 50.0)) / 100.0
-                add_comm(w1, rate1 * sh1, "bath")
-                add_comm(w2, rate2 * sh2, "bath")
+            for i, bw in enumerate(baths):
+                rate_b, prof_b, _ = calc_single_bath_rate(bw)
+                add_comm(bw, rate_b * share_of(i, len(baths), prof_b), "bath")
 
-            # 3. Thợ Cắt Tỉa (staff_cutter) — Theo 3 bậc Kg Cắt nhỏ / Cắt trung / Cắt lớn
-            cutter = (t.get("staff_cutter") or "").strip()
-            if cutter:
-                c_prof, c_tier = get_worker_profile_and_tier(cutter)
+            # 3. Thợ Cắt Tỉa (staff_cutter) — Theo 3 bậc Kg; nhiều thợ cắt thì chia đều
+            cutters = split_staff_names(t.get("staff_cutter"))
+            for cw in cutters:
+                c_prof, c_tier = get_worker_profile_and_tier(cw)
                 cut_amt = _lookup_weight_tier_rate(c_prof.get("cut_tiers") or [], w_kg, c_tier)
-                add_comm(cutter, cut_amt, "cut")
+                add_comm(cw, cut_amt / len(cutters), "cut")
 
-            # 4. Thợ Nhuộm (staff_dyer)
-            dyer = (t.get("staff_dyer") or "").strip()
-            if dyer:
-                d_prof, d_tier = get_worker_profile_and_tier(dyer)
+            # 4. Thợ Nhuộm (staff_dyer) — nhiều thợ nhuộm thì chia đều
+            dyers = split_staff_names(t.get("staff_dyer"))
+            for dw in dyers:
+                d_prof, d_tier = get_worker_profile_and_tier(dw)
                 dye_cfg = d_prof.get("dye_rate") or {}
                 dye_amt = float(dye_cfg.get(d_tier, dye_cfg.get("official", 50000.0)) or 0.0)
-                add_comm(dyer, dye_amt, "dye")
+                add_comm(dw, dye_amt / len(dyers), "dye")
 
             # 5. Phụ Thu Chuyên Môn (Quy tắc 2a: PT Cắt đầu / Nghệ thuật -> Thợ Cắt; PT Gỡ rối -> Thợ Tắm)
             surch_info = _extract_ticket_surcharges(t, lines)
@@ -568,50 +573,29 @@ def spa_commission_by_name(cur, from_date: str, to_date: str) -> dict:
             art_rule = next((r for r in surch_rules if r.get("kind") == "art_cut" or r.get("id") == "pt_nghe_thuat"), None)
             detangle_rules = [r for r in surch_rules if r.get("kind") == "detangle" or "go_roi" in (r.get("id") or "")]
 
-            target_cutter = cutter or w1 or w2
-            if surch_info["head_cut_count"] > 0 and target_cutter and head_rule:
-                _, tc_tier = get_worker_profile_and_tier(target_cutter)
-                unit_val = float(head_rule.get(tc_tier, head_rule.get("official", 25000.0)) or 0.0)
-                add_comm(target_cutter, unit_val * surch_info["head_cut_count"], "surcharge")
-
-            if surch_info["art_cut_count"] > 0 and target_cutter and art_rule:
-                _, tc_tier = get_worker_profile_and_tier(target_cutter)
-                unit_val = float(art_rule.get(tc_tier, art_rule.get("official", 25000.0)) or 0.0)
-                add_comm(target_cutter, unit_val * surch_info["art_cut_count"], "surcharge")
+            cut_targets = cutters or baths[:1]
+            for rule_x, cnt in ((head_rule, surch_info["head_cut_count"]), (art_rule, surch_info["art_cut_count"])):
+                if cnt > 0 and cut_targets and rule_x:
+                    for tc in cut_targets:
+                        _, tc_tier = get_worker_profile_and_tier(tc)
+                        unit_val = float(rule_x.get(tc_tier, rule_x.get("official", 25000.0)) or 0.0)
+                        add_comm(tc, unit_val * cnt / len(cut_targets), "surcharge")
 
             if surch_info["detangle_fees"]:
-                bath_targets = [x for x in (w1, w2) if x]
-                if not bath_targets and cutter:
-                    bath_targets = [cutter]
+                bath_targets = baths or cutters
                 for dfee in surch_info["detangle_fees"]:
                     matched_d_rule = None
                     for dr in detangle_rules:
                         if abs(float(dr.get("fee_threshold") or 0.0) - dfee) < 1000:
                             matched_d_rule = dr
                             break
-                    if len(bath_targets) == 1:
-                        bw = bath_targets[0]
+                    for i, bw in enumerate(bath_targets):
                         b_prof, b_tier = get_worker_profile_and_tier(bw)
                         if matched_d_rule:
                             d_comm = float(matched_d_rule.get(b_tier, matched_d_rule.get("official", 0.0)) or 0.0)
                         else:
-                            pct = float(b_prof.get("detangle_fallback_pct", 50.0))
-                            d_comm = dfee * pct / 100.0
-                        add_comm(bw, d_comm, "surcharge")
-                    elif len(bath_targets) == 2:
-                        bw1, bw2 = bath_targets[0], bath_targets[1]
-                        b_prof1, b_tier1 = get_worker_profile_and_tier(bw1)
-                        b_prof2, b_tier2 = get_worker_profile_and_tier(bw2)
-                        sh1 = float(b_prof1.get("worker1_share_pct", 50.0)) / 100.0
-                        sh2 = float(b_prof2.get("worker2_share_pct", 50.0)) / 100.0
-                        if matched_d_rule:
-                            c1 = float(matched_d_rule.get(b_tier1, matched_d_rule.get("official", 0.0)) or 0.0) * sh1
-                            c2 = float(matched_d_rule.get(b_tier2, matched_d_rule.get("official", 0.0)) or 0.0) * sh2
-                        else:
-                            c1 = (dfee * float(b_prof1.get("detangle_fallback_pct", 50.0)) / 100.0) * sh1
-                            c2 = (dfee * float(b_prof2.get("detangle_fallback_pct", 50.0)) / 100.0) * sh2
-                        add_comm(bw1, c1, "surcharge")
-                        add_comm(bw2, c2, "surcharge")
+                            d_comm = dfee * float(b_prof.get("detangle_fallback_pct", 50.0)) / 100.0
+                        add_comm(bw, d_comm * share_of(i, len(bath_targets), b_prof), "surcharge")
 
             custom_surch = [r for r in surch_rules if r.get("kind") not in ("head_cut", "art_cut", "detangle")
                             and r.get("id") not in ("pt_cat_dau", "pt_nghe_thuat")
@@ -623,19 +607,15 @@ def spa_commission_by_name(cur, from_date: str, to_date: str) -> dict:
                 kw = lbl_low.replace("pt ", "").strip()
                 if kw and (kw in surch_info["raw_text"] or any(kw in (l.get("name") or "").lower() for l in lines)):
                     t_role = cr.get("target_role", "cutter")
-                    t_worker = (cutter or w1) if t_role == "cutter" else (w1 or cutter)
-                    if t_worker:
-                        _, tw_tier = get_worker_profile_and_tier(t_worker)
+                    t_workers = (cutters or baths[:1]) if t_role == "cutter" else (baths or cutters[:1])
+                    for tw in t_workers:
+                        _, tw_tier = get_worker_profile_and_tier(tw)
                         c_val = float(cr.get(tw_tier, cr.get("official", 0.0)) or 0.0)
-                        add_comm(t_worker, c_val, "surcharge")
+                        add_comm(tw, c_val / len(t_workers), "surcharge")
 
         tip = float(t.get("tip_amount") or 0)
         if tip > 0:
-            takers = []
-            for col in TIP_ROLE_COLUMNS:
-                n = (t.get(col) or "").strip()
-                if n and n.lower() not in [x.lower() for x in takers]:
-                    takers.append(n)
+            takers = split_staff_names(", ".join(t.get(col) or "" for col in TIP_ROLE_COLUMNS))
             if not takers and (t.get("staff_receiver") or "").strip():
                 takers = [t["staff_receiver"].strip()]
             for n in takers:

@@ -899,7 +899,7 @@
                         <!-- Thợ phụ trách -->
                         <div class="text-xs text-slate-600 bg-white p-2 rounded-lg border border-slate-200 flex flex-wrap gap-x-3 gap-y-1">
                             <span>✂️ Thợ cắt: <strong>${ticket.staff_cutter || '-'}</strong></span>
-                            <span>🛁 Thợ tắm: <strong>${ticket.staff_worker_1 || '-'}</strong></span>
+                            <span>🛁 Thợ tắm: <strong>${(window.spaBathNames ? window.spaBathNames(ticket) : ticket.staff_worker_1) || '-'}</strong></span>
                             <span>👋 Tiếp nhận: <strong>${ticket.staff_receiver || '-'}</strong></span>
                         </div>
 
@@ -1348,7 +1348,7 @@
                 const elCutter = document.getElementById('svcview-staff-cutter');
                 if (elCutter) elCutter.textContent = ticket.staff_cutter || '-';
                 const elWorker = document.getElementById('svcview-staff-worker');
-                if (elWorker) elWorker.textContent = ticket.staff_worker_1 || '-';
+                if (elWorker) elWorker.textContent = (window.spaBathNames ? window.spaBathNames(ticket) : ticket.staff_worker_1) || '-';
                 const elRec = document.getElementById('svcview-staff-receiver');
                 if (elRec) elRec.textContent = ticket.staff_receiver || '-';
 

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Demo: Phân công nhiều thợ / vai trò - Phiếu Spa</title>
+<style>
+  body{background:#f1f5f9;color:#111827;font-family:Segoe UI,Arial,sans-serif;margin:0;padding:16px;font-size:13px}
+  h2{margin:0 0 4px;font-size:16px}
+  .sub{color:#475569;margin-bottom:12px}
+  .wrap{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+  .col{background:#fff;border:1px solid #cbd5e1;border-radius:12px;padding:14px;width:390px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+  .tag{display:inline-block;font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px;margin-bottom:8px}
+  .tag.now{background:#fee2e2;color:#991b1b}
+  .tag.new{background:#dcfce7;color:#166534}
+  .head{border-bottom:1px solid #e2e8f0;padding-bottom:8px;margin-bottom:10px}
+  .head b{font-size:14px}
+  .head div{color:#64748b;font-size:12px}
+  label{display:block;font-weight:700;color:#334155;margin:8px 0 3px}
+  select{width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#0369a1;font-weight:700}
+  .warn{border:1px solid #fca5a5;background:#fef2f2;color:#991b1b;border-radius:6px;padding:6px 8px;margin-top:8px;font-size:12px}
+  .role{border:1px solid #e2e8f0;border-radius:8px;padding:8px;margin-bottom:8px}
+  .role.dye{border-color:#fcd34d;background:#fffbeb}
+  .rhead{display:flex;justify-content:space-between;align-items:center;font-weight:700;color:#334155}
+  .rate{font-weight:600;color:#475569;font-size:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;border-radius:999px;padding:3px 4px 3px 10px;font-weight:700}
+  .chip .no{font-size:10px;background:#0369a1;color:#fff;border-radius:999px;padding:0 6px}
+  .chip .money{font-weight:700;color:#166534;font-size:12px}
+  .chip button{border:none;background:#bae6fd;color:#0c4a6e;border-radius:999px;width:18px;height:18px;cursor:pointer;font-weight:700;line-height:18px;padding:0}
+  .role.dye .chip{background:#fef3c7;color:#92400e;border-color:#fcd34d}
+  .add{border:1px dashed #0284c7;background:#fff;color:#0369a1;border-radius:999px;padding:3px 10px;font-weight:700;cursor:pointer}
+  .role.dye .add{border-color:#d97706;color:#b45309}
+  .picker{margin-top:6px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.12)}
+  .picker input{width:100%;box-sizing:border-box;border:none;border-bottom:1px solid #e2e8f0;padding:7px;font-size:13px;outline:none}
+  .picker div.opt{padding:6px 8px;cursor:pointer}
+  .picker div.opt:hover{background:#f0f9ff}
+  .picker div.opt.dis{color:#94a3b8;cursor:not-allowed}
+  .empty{color:#94a3b8;font-style:italic}
+  .sum{margin-top:10px;border-top:1px dashed #cbd5e1;padding-top:8px}
+  .sum table{width:100%;border-collapse:collapse}
+  .sum td{padding:3px 0}
+  .sum td.r{text-align:right;font-weight:700;color:#166534}
+  .btns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+  .btn{border-radius:8px;padding:7px 14px;font-weight:700;cursor:pointer;border:1px solid #cbd5e1;background:#fff;color:#334155}
+  .btn.p{background:#0284c7;border-color:#0284c7;color:#fff}
+  .cell{margin-top:14px;border:1px solid #e2e8f0;border-radius:8px;padding:8px;background:#f8fafc}
+  .cell .t{font-weight:700;color:#475569;margin-bottom:4px;font-size:12px}
+  .cell span{display:block}
+  .note{color:#166534;font-size:12px;margin-top:6px}
+</style>
+</head>
+<body>
+<h2>Demo: Phân công NHIỀU thợ cho mỗi vai (Tắm / Cắt / Nhuộm)</h2>
+<div class="sub">Bé, gói, cân nặng lấy từ phiếu thật #6 (bé <b>trắng</b>, Super VIP: Combo Cắt tỉa, 5,0 kg, nhuộm 2 Tai + Đuôi + 4 Chân); tên thợ là ví dụ. Tiền công theo bảng bậc cân nặng đang dùng (bậc ≤10kg, chính thức): Tắm 30.000 - Cắt 50.000 - Nhuộm 50.000.</div>
+
+<div class="wrap">
+  <!-- HIỆN TẠI -->
+  <div class="col">
+    <span class="tag now">HIỆN TẠI - bấm ô "Thợ" trên bảng</span>
+    <div class="head"><b>Phân Công Thợ: trắng (#6)</b><div>Dịch vụ: Super VIP: Combo Cắt tỉa - 2 Tai + Đuôi + 4 Chân</div></div>
+    <label>Thợ Cắt Tỉa / Tạo Kiểu:</label>
+    <select><option>Thảo Vy</option></select>
+    <label>Thợ Tắm / Sấy / Vệ Sinh:</label>
+    <select><option>Bảo Ngọc</option></select>
+    <label style="color:#b45309">Thợ Nhuộm Lông:</label>
+    <select style="color:#92400e"><option>Hoàng Yến</option></select>
+    <label>Thợ Tiếp Nhận / Trả Bé:</label>
+    <select><option>Minh Thư</option></select>
+    <div class="warn">Mỗi vai chỉ chọn được 1 người.</div>
+    <div class="warn">Popup này KHÔNG có ô Tắm 2. Cột Tắm 2 đã có trong DB (752 phiếu đang có) nhưng chỉ sửa được ở màn Tiến độ, bảng cũng không hiện tên Tắm 2.</div>
+    <div class="cell"><div class="t">Ô "Thợ" trên bảng hiện ra:</div>
+      <span>📥 Minh Thư</span><span>✂️ Thảo Vy</span><span>🛁 Bảo Ngọc</span><span>🎨 Hoàng Yến</span>
+      <span style="color:#991b1b;font-size:12px;margin-top:4px">(Tắm 2 nếu có cũng không hiện)</span>
+    </div>
+  </div>
+
+  <!-- ĐỀ XUẤT -->
+  <div class="col" style="width:440px">
+    <span class="tag new">ĐỀ XUẤT - bấm thử được</span>
+    <div class="head"><b>Phân Công Thợ: trắng (#6)</b><div>Dịch vụ: Super VIP: Combo Cắt tỉa - 2 Tai + Đuôi + 4 Chân</div></div>
+    <div id="roles"></div>
+    <div class="sum"><b>Tiền công dự kiến phiếu này (chia đều trong cùng vai):</b>
+      <table id="sum"></table>
+    </div>
+    <div class="btns"><button class="btn">Hủy</button><button class="btn p">Lưu phân công</button></div>
+    <div class="cell"><div class="t">Ô "Thợ" trên bảng sẽ hiện:</div><div id="cellPreview"></div></div>
+  </div>
+</div>
+
+<script>
+const STAFF = ['Bảo Ngọc','Quốc Khánh','Thảo Vy','Minh Thư','Hoàng Yến','Anh Tứn','3 Thanh Vân','2 Bé Ngọc','4 Huyền Trân'];
+const ROLES = [
+  {key:'receiver', icon:'📥', label:'Tiếp nhận / Trả bé', rate:0, multi:false},
+  {key:'bath', icon:'🛁', label:'Tắm / Sấy', rate:30000, multi:true},
+  {key:'cut', icon:'✂️', label:'Cắt tỉa', rate:50000, multi:true},
+  {key:'dye', icon:'🎨', label:'Nhuộm', rate:50000, multi:true, dye:true},
+];
+const sel = {receiver:['Minh Thư'], bath:['Bảo Ngọc','Quốc Khánh'], cut:['Thảo Vy'], dye:['Hoàng Yến']};
+let openPicker = null;
+const fmt = n => Math.round(n).toLocaleString('vi-VN') + ' đ';
+
+function render(){
+  const box = document.getElementById('roles'); box.innerHTML='';
+  ROLES.forEach(r=>{
+    const list = sel[r.key]; const each = list.length ? r.rate/list.length : 0;
+    const d = document.createElement('div'); d.className='role'+(r.dye?' dye':'');
+    d.innerHTML = `<div class="rhead"><span>${r.icon} ${r.label}</span><span class="rate">${r.rate?('Công vai: '+fmt(r.rate)+(list.length>1?' / '+list.length+' người':'')):'Không tính công'}</span></div>`;
+    const chips = document.createElement('div'); chips.className='chips';
+    if(!list.length) chips.innerHTML='<span class="empty">Chưa phân công</span>';
+    list.forEach((n,i)=>{
+      const c=document.createElement('span'); c.className='chip';
+      c.innerHTML=`${r.multi?`<span class="no">${i+1}</span>`:''}${n}${r.rate?` <span class="money">${fmt(each)}</span>`:''}<button title="Bỏ">×</button>`;
+      c.querySelector('button').onclick=()=>{list.splice(i,1);render();};
+      chips.appendChild(c);
+    });
+    if(r.multi || !list.length){
+      const a=document.createElement('button'); a.className='add';
+      a.textContent = list.length ? `+ Thêm ${r.label.split(' ')[0]} ${list.length+1}` : '+ Chọn thợ';
+      a.onclick=()=>{openPicker = openPicker===r.key?null:r.key; render();};
+      chips.appendChild(a);
+    }
+    d.appendChild(chips);
+    if(openPicker===r.key){
+      const p=document.createElement('div'); p.className='picker';
+      p.innerHTML='<input placeholder="Gõ tên thợ...">';
+      const opts=document.createElement('div'); p.appendChild(opts);
+      const draw=q=>{opts.innerHTML='';STAFF.filter(s=>s.toLowerCase().includes(q.toLowerCase())).forEach(s=>{
+        const o=document.createElement('div'); const used=list.includes(s);
+        o.className='opt'+(used?' dis':''); o.textContent=s+(used?' (đã chọn)':'');
+        if(!used) o.onclick=()=>{ if(!r.multi) list.length=0; list.push(s); openPicker=null; render(); };
+        opts.appendChild(o);});};
+      draw(''); p.querySelector('input').oninput=e=>draw(e.target.value);
+      d.appendChild(p); setTimeout(()=>p.querySelector('input').focus(),0);
+    }
+    box.appendChild(d);
+  });
+  // tổng tiền công theo người
+  const tot={};
+  ROLES.forEach(r=>{const l=sel[r.key]; if(!r.rate||!l.length)return; l.forEach(n=>{tot[n]=tot[n]||[]; tot[n].push([r.label.split(' ')[0], r.rate/l.length]);});});
+  document.getElementById('sum').innerHTML = Object.keys(tot).length ? Object.entries(tot).map(([n,a])=>`<tr><td>${n} <span style="color:#64748b">(${a.map(x=>x[0]+' '+fmt(x[1])).join(' + ')})</span></td><td class="r">${fmt(a.reduce((s,x)=>s+x[1],0))}</td></tr>`).join('') : '<tr><td class="empty">Chưa có</td></tr>';
+  document.getElementById('cellPreview').innerHTML = ROLES.filter(r=>sel[r.key].length).map(r=>`<span>${r.icon} ${sel[r.key].join(', ')}</span>`).join('') || '<span class="empty">Chưa phân công</span>';
+}
+render();
+</script>
+</body>
+</html>
