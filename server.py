@@ -479,6 +479,18 @@ def get_active_live_tunnel_url() -> str:
 @app.post("/api/tunnel/register", include_in_schema=False)
 async def register_tunnel(request: Request):
     """Máy chủ Windows gọi endpoint này để đăng ký link Tunnel trực tiếp lên Vercel/D1 mà không cần file .cf_auth.json."""
+    expected_secret = (
+        os.environ.get("BRIDGE_SECRET")
+        or os.environ.get("TUNNEL_REGISTER_SECRET")
+        or os.environ.get("CF_D1_WORKER_SECRET")
+    )
+    if expected_secret:
+        auth_hdr = request.headers.get("authorization", "")
+        custom_hdr = request.headers.get("x-bridge-secret", "") or request.headers.get("x-tunnel-secret", "")
+        bearer = auth_hdr[7:].strip() if auth_hdr.startswith("Bearer ") else ""
+        if bearer != expected_secret and custom_hdr != expected_secret:
+            raise HTTPException(status_code=401, detail="Sai hoặc thiếu secret xác thực bridge")
+
     try:
         payload = await request.json()
     except Exception:

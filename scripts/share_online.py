@@ -320,10 +320,20 @@ def _sync_tunnel_to_vercel_endpoint(vercel_host: str, tunnel_url: str):
         import json
         import urllib.request
         data = json.dumps({"tunnel_url": tunnel_url or ""}).encode("utf-8")
+        secret = (
+            os.environ.get("BRIDGE_SECRET")
+            or os.environ.get("TUNNEL_REGISTER_SECRET")
+            or os.environ.get("CF_D1_WORKER_SECRET")
+            or ""
+        )
+        headers = {"Content-Type": "application/json", "User-Agent": "POS-Launcher"}
+        if secret:
+            headers["X-Bridge-Secret"] = secret
+            headers["Authorization"] = f"Bearer {secret}"
         req = urllib.request.Request(
             f"https://{vercel_host}/api/tunnel/register",
             data=data,
-            headers={"Content-Type": "application/json", "User-Agent": "POS-Launcher"},
+            headers=headers,
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=6.0) as resp:

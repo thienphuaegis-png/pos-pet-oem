@@ -502,7 +502,10 @@ def batch_grant_accounts(body: BatchAccountsIn, user=Depends(require_permission(
         uname = (item.username or "").strip()
         pwd = (item.password or "123456").strip()
         role = (item.role or "staff").strip()
-        if role not in ("owner", "cashier", "accountant", "warehouse", "staff"):
+        if role == "owner":
+            errors.append(f"NV ID #{item.staff_id}: không thể cấp vai trò Chủ tiệm qua HRM")
+            continue
+        if role not in ("cashier", "accountant", "warehouse", "staff"):
             role = "staff"
         if not uname:
             errors.append(f"NV ID #{item.staff_id}: thiếu tên đăng nhập")
@@ -511,10 +514,13 @@ def batch_grant_accounts(body: BatchAccountsIn, user=Depends(require_permission(
             errors.append(f"'{uname}': mật khẩu phải từ 6 ký tự")
             continue
 
-        cur.execute("SELECT id, name FROM staff WHERE id = ?", (item.staff_id,))
+        cur.execute("SELECT id, name, role FROM staff WHERE id = ?", (item.staff_id,))
         st = cur.fetchone()
         if not st:
             errors.append(f"NV ID #{item.staff_id}: không tồn tại")
+            continue
+        if st["id"] == 1 or st["role"] == "owner":
+            errors.append(f"NV ID #{item.staff_id}: không thể sửa tài khoản Chủ tiệm qua HRM")
             continue
 
         cur.execute("SELECT id, name FROM staff WHERE LOWER(username) = LOWER(?) AND id != ?", (uname, item.staff_id))
@@ -551,15 +557,19 @@ def quick_grant_account(staff_id: int, body: QuickAccountIn, user=Depends(requir
     if len(pwd) < 6:
         raise HTTPException(400, "Mật khẩu phải từ 6 ký tự trở lên")
     role = body.role or "staff"
-    if role not in ("owner", "cashier", "accountant", "warehouse", "staff"):
+    if role == "owner":
+        raise HTTPException(403, "Không thể cấp vai trò Chủ tiệm qua tính năng HRM")
+    if role not in ("cashier", "accountant", "warehouse", "staff"):
         role = "staff"
 
     from routers.auth import pwd_ctx
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT id, name, username FROM staff WHERE id = ?", (staff_id,))
+    cur.execute("SELECT id, name, username, role FROM staff WHERE id = ?", (staff_id,))
     staff = cur.fetchone()
     if not staff:
         conn.close(); raise HTTPException(404, "Không tìm thấy nhân viên")
+    if staff["id"] == 1 or staff["role"] == "owner":
+        conn.close(); raise HTTPException(403, "Không thể sửa tài khoản Chủ tiệm qua tính năng HRM")
 
     cur.execute("SELECT id FROM staff WHERE LOWER(username) = LOWER(?) AND id != ?", (uname, staff_id))
     if cur.fetchone():

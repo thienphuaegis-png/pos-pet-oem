@@ -180,12 +180,23 @@ def configure_funnel_port(ts_exe: str, https_port: int, local_port: int) -> bool
 
 def sync_vercel_url(vercel_host: str, tunnel_url: str, retries: int = 3) -> bool:
     payload = json.dumps({"tunnel_url": tunnel_url}).encode("utf-8")
+    secret = (
+        os.environ.get("BRIDGE_SECRET")
+        or os.environ.get("TUNNEL_REGISTER_SECRET")
+        or os.environ.get("CF_D1_WORKER_SECRET")
+        or ""
+    )
+    headers = {"Content-Type": "application/json", "User-Agent": "POS-Tailscale-Setup"}
+    if secret:
+        headers["X-Bridge-Secret"] = secret
+        headers["Authorization"] = f"Bearer {secret}"
+
     for attempt in range(retries):
         try:
             req = urllib.request.Request(
                 f"https://{vercel_host}/api/tunnel/register",
                 data=payload,
-                headers={"Content-Type": "application/json", "User-Agent": "POS-Tailscale-Setup"},
+                headers=headers,
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=8.0) as resp:

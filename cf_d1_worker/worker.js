@@ -9,11 +9,16 @@ export default {
 
     // 1. Nhánh cầu nối cơ sở dữ liệu Cloudflare D1 (D1 Bridge)
     if (url.pathname === "/d1/query" || url.pathname === "/d1/batch") {
-      if (env.CF_D1_WORKER_SECRET) {
-        const auth = request.headers.get("Authorization") || "";
-        if (auth !== `Bearer ${env.CF_D1_WORKER_SECRET}`) {
-          return Response.json({ success: false, error: "Unauthorized D1 Bridge" }, { status: 401 });
-        }
+      const secret = env.CF_D1_WORKER_SECRET || "";
+      if (!secret) {
+        return Response.json(
+          { success: false, error: "CF_D1_WORKER_SECRET is not configured on Worker" },
+          { status: 500 }
+        );
+      }
+      const auth = request.headers.get("Authorization") || "";
+      if (auth !== `Bearer ${secret}`) {
+        return Response.json({ success: false, error: "Unauthorized D1 Bridge" }, { status: 401 });
       }
 
       try {

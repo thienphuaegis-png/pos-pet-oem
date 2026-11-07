@@ -10,6 +10,7 @@ const ACCOUNT_ID = process.env.CF_ACCOUNT_ID || "";
 const API_TOKEN = process.env.CF_API_TOKEN || "";
 const DB_ID = process.env.CF_D1_DATABASE_ID || "";
 const STORE_NAME = process.env.STORE_NAME || "POS Mastercare";
+const BRIDGE_SECRET = process.env.BRIDGE_SECRET || process.env.TUNNEL_REGISTER_SECRET || process.env.CF_D1_WORKER_SECRET || "";
 
 const D1_QUERY_URL = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/d1/database/${DB_ID}/query`;
 
@@ -253,6 +254,16 @@ export default async function handler(req, res) {
 
   // 3. Endpoint đăng ký tunnel URL từ máy Windows
   if ((urlPath === "/api/tunnel/register" || urlPath === "/__tunnel__/register") && req.method === "POST") {
+    if (BRIDGE_SECRET) {
+      const auth = String(req.headers["authorization"] || "");
+      const customSecret = String(req.headers["x-bridge-secret"] || req.headers["x-tunnel-secret"] || "");
+      const bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+      if (bearer !== BRIDGE_SECRET && customSecret !== BRIDGE_SECRET) {
+        res.setHeader("Content-Type", "application/json");
+        res.status(401).send(JSON.stringify({ ok: false, error: "UNAUTHORIZED_BRIDGE", message: "Sai hoặc thiếu secret xác thực bridge" }));
+        return;
+      }
+    }
     const rawBody = await extractRequestBody(req);
     let payload = {};
     if (rawBody) {

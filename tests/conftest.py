@@ -27,3 +27,14 @@ def is_port_open(host="127.0.0.1", port=8999):
             return True
     except OSError:
         return False
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _cleanup_module_dependency_overrides():
+    yield
+    try:
+        from server import app
+        app.dependency_overrides.clear()
+    except Exception:
+        pass
+
