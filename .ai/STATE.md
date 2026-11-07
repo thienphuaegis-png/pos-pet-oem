@@ -11,6 +11,7 @@
 ---
 
 ## 1. Phiên Hiện Tại ✅ (2026-11-07)
+- **Sửa Lỗi Mất Danh Sách Khách Hàng PetNT & Tự Phục Hồi Schema (`routers/partners.py`, `CAP_NHAT.bat`, `tests/test_contact_attribution_and_dedup.py`):** Gốc lỗi do `pos_instance2.db` (PetNT) là DB phụ tạo từ trước khi có cột `contacts.created_by`; khi Tab Khách Hàng chuyển sang phân trang server `paginated=1` join với `c.created_by`, câu SQL ném `OperationalError: no such column: c.created_by` (HTTP 500) khiến frontend nhận mảng rỗng và báo "Không tìm thấy khách hàng nào". Đã thêm cơ chế tự phục hồi `ensure_contacts_columns(cur, conn)` tự động bù cột thiếu trên mọi instance ngay khi có request tới, đồng thời thêm fallback migration cho `pos_instance2.db` trong `CAP_NHAT.bat`.
 - **Vá 3 Lỗ Hổng Bảo Mật Nghiêm Trọng (`deploy/vercel_bridge/api/index.js`, `server.py`, `cf_d1_worker/worker.js`, `routers/hrm.py`, `scripts/setup_tailscale_dual.py`, `scripts/share_online.py`):**
   1. *Khóa chặt Upstream Vercel Bridge:* Bổ sung kiểm tra xác thực `BRIDGE_SECRET` / `TUNNEL_REGISTER_SECRET` / `CF_D1_WORKER_SECRET` qua header `X-Bridge-Secret` hoặc `Authorization: Bearer` tại endpoint `/api/tunnel/register` trên cả Vercel bridge (`api/index.js`) và FastAPI server (`server.py`); đồng bộ gửi kèm secret trong scripts cấu hình Tailscale Funnel.
   2. *Cloudflare D1 Worker Fail-Closed:* Chuyển cơ chế xác thực tại `cf_d1_worker/worker.js` sang bắt buộc (fail-closed) — nếu thiếu cấu hình secret trả về HTTP 500 thay vì bỏ qua, nếu sai Bearer token trả về HTTP 401, triệt tiêu nguy cơ thực thi SQL tùy ý ngoài ý muốn.
